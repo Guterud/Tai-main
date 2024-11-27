@@ -695,7 +695,8 @@ extension Home {
                     HStack {
                         if state.autoisfEnabled {
                             Text("aiSR")
-                                .font(.callout).fontWeight(.bold)
+                                .font(.callout)
+                                .fontDesign(.rounded)
                                 .foregroundColor(Color.loopGreen)
 
                             if let determination = state.determinationsFromPersistence.first,
@@ -715,7 +716,8 @@ extension Home {
                             }
                         } else {
                             Text("AS")
-                                .font(.callout).fontWeight(.bold)
+                                .font(.callout)
+                                .fontDesign(.rounded)
                                 .foregroundColor(Color.zt)
 
                             if let determination = state.determinationsFromPersistence.first,
@@ -740,7 +742,8 @@ extension Home {
 
                     Text("TDD:")
                         .foregroundColor(Color.insulin)
-                        .font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                        .font(.callout)
+                        .fontDesign(.rounded)
                     Text(
                         (
                             Formatter.insulinFormatterToIncrement(for: 0.1)
