@@ -41,7 +41,7 @@ struct CurrentGlucoseView: View {
 
     var body: some View {
         let triangleColor = Color(red: 0.262745098, green: 0.7333333333, blue: 0.9137254902)
-
+        let centerOffset = rotationDegrees != 0 ? (18 * (1.1 - (abs(rotationDegrees) / 90))) : 18
         if cgmAvailable {
             ZStack {
                 TrendShape(gradient: angularGradient, color: triangleColor)
@@ -181,6 +181,7 @@ struct TrendShape: View {
         HStack(alignment: .center) {
             ZStack {
                 Group {
+                    TriangleOffset(color: .clear)
                     CircleShape(gradient: gradient)
                     TriangleShape(color: color)
                 }.shadow(color: Color.black.opacity(colorScheme == .dark ? 0.75 : 0.33), radius: colorScheme == .dark ? 5 : 3)
@@ -212,5 +213,17 @@ struct TriangleShape: View {
             .frame(width: 35, height: 35)
             .rotationEffect(.degrees(90))
             .offset(x: 85)
+    }
+}
+
+struct TriangleOffset: View {
+    let color: Color
+
+    var body: some View {
+        Triangle()
+            .fill(color)
+            .frame(width: 35, height: 35)
+            .rotationEffect(.degrees(-90))
+            .offset(x: -85)
     }
 }
