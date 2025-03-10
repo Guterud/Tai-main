@@ -196,7 +196,7 @@ final class BaseAPSManager: APSManager, Injectable {
             guard let self else { return }
 
             // Check if we can start a new loop
-            guard await self.canStartNewLoop() else { return }
+            // guard await self.canStartNewLoop() else { return }
 
             // Setup loop and background task
             var (loopStatRecord, backgroundTask) = await self.setupLoop()

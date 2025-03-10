@@ -18,7 +18,7 @@ struct LoopView: View {
 
     let determination: [OrefDetermination]
 
-    private let rect = CGRect(x: 0, y: 0, width: 18, height: 18)
+    private let rect = CGRect(x: 0, y: 0, width: 15, height: 15)
 
     var body: some View {
         loopStatusWithMinutes
@@ -33,14 +33,15 @@ struct LoopView: View {
     private var loopStatusWithMinutes: some View {
         HStack(alignment: .center) {
             ZStack {
-                Image(systemName: (!closedLoop || manualTempBasal) ? "circle.and.line.horizontal" : "circle")
                 if isLooping {
-                    ProgressView()
+                    CircleProgress()
+                } else {
+                    Circle()
+                        .strokeBorder(color, lineWidth: 3)
+                        .frame(width: rect.width, height: rect.height, alignment: .center)
                 }
             }
-            if isLooping {
-                Text("looping")
-            } else if manualTempBasal {
+            if manualTempBasal {
                 Text("Manual")
             } else if determination.first?
                 .deliverAt !=
@@ -63,7 +64,7 @@ struct LoopView: View {
         if minutesAgo > 1440 {
             return "--"
         } else if minutesAgo <= 1 {
-            return "<" + "\u{00A0}" + "1" + "\u{00A0}" + String(localized: "m", comment: "Abbreviation for Minutes")
+            return "<" + "\u{00A0}" + "1" + String(localized: "m", comment: "Abbreviation for Minutes")
         } else {
             return minuteString + "\u{00A0}" + String(localized: "m", comment: "Abbreviation for Minutes")
         }
@@ -93,6 +94,56 @@ struct LoopView: View {
             return .loopYellow
         } else {
             return .loopRed
+        }
+    }
+}
+
+struct CircleProgress: View {
+    @State private var rotationAngle = 0.0
+    @State private var pulse = false
+
+    private let rect = CGRect(x: 0, y: 0, width: 15, height: 15) // Same dimensions as in LoopView
+    private var backgroundGradient: AngularGradient {
+        AngularGradient(
+            gradient: Gradient(colors: [
+                Color(red: 0.262745098, green: 0.7333333333, blue: 0.9137254902),
+                Color(red: 0.3411764706, green: 0.6666666667, blue: 0.9254901961),
+                Color(red: 0.4862745098, green: 0.5450980392, blue: 0.9529411765),
+                Color(red: 0.6235294118, green: 0.4235294118, blue: 0.9803921569),
+                Color(red: 0.7215686275, green: 0.3411764706, blue: 1),
+                Color(red: 0.6235294118, green: 0.4235294118, blue: 0.9803921569),
+                Color(red: 0.4862745098, green: 0.5450980392, blue: 0.9529411765),
+                Color(red: 0.3411764706, green: 0.6666666667, blue: 0.9254901961),
+                Color(red: 0.262745098, green: 0.7333333333, blue: 0.9137254902)
+            ]),
+            center: .center,
+            startAngle: .degrees(rotationAngle),
+            endAngle: .degrees(rotationAngle + 360)
+        )
+    }
+
+    let timer = Timer.publish(every: 0.03, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        let rect = CGRect(x: 0, y: 0, width: 15, height: 15)
+
+        ZStack {
+            Circle()
+                .trim(from: 0, to: 1)
+//                .stroke(backgroundGradient, style: StrokeStyle(lineWidth: 3))
+                .stroke(backgroundGradient, style: StrokeStyle(lineWidth: pulse ? 6 : 3))
+                .scaleEffect(pulse ? 0.5 : 1)
+                .animation(
+                    Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true),
+                    value: pulse
+                )
+                .frame(width: rect.width, height: rect.height, alignment: .center)
+                .onReceive(timer) { _ in
+                    rotationAngle = (rotationAngle + 24).truncatingRemainder(dividingBy: 360)
+                }
+                .onAppear {
+                    self.pulse = true
+                }
         }
     }
 }
