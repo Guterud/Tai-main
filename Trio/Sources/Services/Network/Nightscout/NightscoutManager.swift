@@ -536,12 +536,13 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
             suggestion.timestamp = suggestion.deliverAt
 
             if settingsManager.settings.units == .mmolL {
-                suggestion.reason = parseReasonGlucoseValuesToMmolL(suggestion.reason)
+                // suggestion.reason = parseReasonGlucoseValuesToMmolL(suggestion.reason)
                 // TODO: verify that these parsings are needed for 3rd party apps, e.g., LoopFollow
                 suggestion.current_target = suggestion.current_target?.asMmolL
                 suggestion.minGuardBG = suggestion.minGuardBG?.asMmolL
                 suggestion.minPredBG = suggestion.minPredBG?.asMmolL
                 suggestion.threshold = suggestion.threshold?.asMmolL
+                suggestion.bg = suggestion.bg?.asMmolL
             }
             // Check whether the last suggestion that was uploaded is the same that is fetched again when we are attempting to upload the enacted determination
             // Apparently we are too fast; so the flag update is not fast enough to have the predicate filter last suggestion out
@@ -555,13 +556,14 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
 
         if let fetchedEnacted = fetchedEnactedDetermination, settingsManager.settings.units == .mmolL {
             var modifiedFetchedEnactedDetermination = fetchedEnactedDetermination
-            modifiedFetchedEnactedDetermination?
-                .reason = parseReasonGlucoseValuesToMmolL(fetchedEnacted.reason)
+            //            modifiedFetchedEnactedDetermination?
+            //                .reason = parseReasonGlucoseValuesToMmolL(fetchedEnacted.reason)
             // TODO: verify that these parsings are needed for 3rd party apps, e.g., LoopFollow
             modifiedFetchedEnactedDetermination?.current_target = fetchedEnacted.current_target?.asMmolL
             modifiedFetchedEnactedDetermination?.minGuardBG = fetchedEnacted.minGuardBG?.asMmolL
             modifiedFetchedEnactedDetermination?.minPredBG = fetchedEnacted.minPredBG?.asMmolL
             modifiedFetchedEnactedDetermination?.threshold = fetchedEnacted.threshold?.asMmolL
+            modifiedFetchedEnactedDetermination?.bg = fetchedEnacted.bg?.asMmolL
 
             fetchedEnactedDetermination = modifiedFetchedEnactedDetermination
         }

@@ -48,6 +48,9 @@ enum Screen: Identifiable, Hashable {
     case targetBehavior
     case algorithmAdvancedSettings
     case unitsAndLimits
+    case autoISFSettings
+    case B30Conf
+    case KetoConfig
 
     var id: Int { String(reflecting: self).hashValue }
 }
@@ -147,6 +150,12 @@ extension Screen {
             AlgorithmAdvancedSettings.RootView(resolver: resolver)
         case .unitsAndLimits:
             UnitsLimitsSettings.RootView(resolver: resolver)
+        case .autoISFSettings:
+            AutoISFSettings.RootView(resolver: resolver)
+        case .B30Conf:
+            B30Settings.RootView(resolver: resolver)
+        case .KetoConfig:
+            KetoProtectSettings.RootView(resolver: resolver)
         }
     }
 

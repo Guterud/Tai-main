@@ -3,11 +3,14 @@ import Foundation
 import UIKit
 
 enum Icon_: String, CaseIterable, Identifiable {
-    case primary = "trioBlack"
+    case primary = "taiBlack"
     case trioWhiteShadow
     case trioColorBG
+    case taiWhite
     case trioWhite
+    case trioBlack
     case trioCircledNoBackground
+    case taiCircledNoBackground
     case trio3D
     case wilford = "diabeetus"
     case catWithPod

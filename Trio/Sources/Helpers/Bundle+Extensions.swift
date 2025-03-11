@@ -9,6 +9,10 @@ extension Bundle {
         infoDictionary?["CFBundleVersion"] as? String
     }
 
+    var copyRightNotice: String? {
+        infoDictionary?["NSHumanReadableCopyright"] as? String
+    }
+
     var profileExpirationDateString: String? {
         guard
             let profilePath = Bundle.main.path(forResource: "embedded", ofType: "mobileprovision"),

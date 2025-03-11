@@ -66,9 +66,9 @@ struct DecimalPickerSettings {
         max: 5,
         type: PickerSetting.PickerSettingType.factor
     )
-    var autosensMax = PickerSetting(value: 1.2, step: 0.1, min: 0.5, max: 2, type: PickerSetting.PickerSettingType.factor)
+    var autosensMax = PickerSetting(value: 1.2, step: 0.1, min: 0.5, max: 3, type: PickerSetting.PickerSettingType.factor)
     var autosensMin = PickerSetting(value: 0.7, step: 0.1, min: 0.5, max: 1, type: PickerSetting.PickerSettingType.factor)
-    var smbDeliveryRatio = PickerSetting(value: 0.5, step: 0.05, min: 0.3, max: 0.7, type: PickerSetting.PickerSettingType.factor)
+    var smbDeliveryRatio = PickerSetting(value: 0.5, step: 0.05, min: 0.1, max: 0.9, type: PickerSetting.PickerSettingType.factor)
     var halfBasalExerciseTarget = PickerSetting(
         value: 160,
         step: 5,
@@ -137,7 +137,124 @@ struct DecimalPickerSettings {
     var hours = PickerSetting(value: 6, step: 0.5, min: 2, max: 24, type: PickerSetting.PickerSettingType.hour)
     var dia = PickerSetting(value: 10, step: 0.5, min: 5, max: 10, type: PickerSetting.PickerSettingType.hour)
     var maxBolus = PickerSetting(value: 10, step: 0.5, min: 1, max: 30, type: PickerSetting.PickerSettingType.insulinUnit)
-    var maxBasal = PickerSetting(value: 10, step: 0.5, min: 0.5, max: 30, type: PickerSetting.PickerSettingType.insulinUnit)
+    var maxBasal = PickerSetting(value: 10, step: 0.5, min: 1, max: 30, type: PickerSetting.PickerSettingType.insulinUnit)
+    // autoISF
+    var autoISFmax = PickerSetting(value: 2, step: 0.1, min: 1, max: 4, type: PickerSetting.PickerSettingType.factorRaw)
+    var autoISFmin = PickerSetting(value: 0.4, step: 0.1, min: 0.1, max: 1, type: PickerSetting.PickerSettingType.factorRaw)
+    var smbMaxRangeExtension = PickerSetting(
+        value: 1,
+        step: 0.25,
+        min: 1,
+        max: 5,
+        type: PickerSetting.PickerSettingType.factorRaw
+    )
+    var smbDeliveryRatioBGrange = PickerSetting(
+        value: 0,
+        step: 10,
+        min: 0,
+        max: 120,
+        type: PickerSetting.PickerSettingType.glucose
+    )
+    var smbDeliveryRatioMin = PickerSetting(
+        value: 0.5,
+        step: 0.05,
+        min: 0.1,
+        max: 1,
+        type: PickerSetting.PickerSettingType.factor
+    )
+    var smbDeliveryRatioMax = PickerSetting(
+        value: 0.8,
+        step: 0.05,
+        min: 0.1,
+        max: 1,
+        type: PickerSetting.PickerSettingType.factor
+    )
+    var autoISFhourlyChange = PickerSetting(
+        value: 0.6,
+        step: 0.05,
+        min: 0,
+        max: 3,
+        type: PickerSetting.PickerSettingType.factorRaw
+    )
+    var higherISFrangeWeight = PickerSetting(
+        value: 0.3,
+        step: 0.05,
+        min: 0,
+        max: 2,
+        type: PickerSetting.PickerSettingType.factorRaw
+    )
+    var lowerISFrangeWeight = PickerSetting(
+        value: 0.7,
+        step: 0.05,
+        min: 0,
+        max: 2,
+        type: PickerSetting.PickerSettingType.factorRaw
+    )
+    var deltaISFrangeWeight = PickerSetting(
+        value: 0.6,
+        step: 0.01,
+        min: 0,
+        max: 1,
+        type: PickerSetting.PickerSettingType.factorRaw
+    )
+    var postMealISFweight = PickerSetting(
+        value: 0.02,
+        step: 0.005,
+        min: 0,
+        max: 0.1,
+        type: PickerSetting.PickerSettingType.factorRaw
+    )
+    var postMealISFduration = PickerSetting(value: 3, step: 1, min: 2, max: 6, type: PickerSetting.PickerSettingType.hour)
+    var bgAccelISFweight = PickerSetting(
+        value: 0.15,
+        step: 0.01,
+        min: 0,
+        max: 1,
+        type: PickerSetting.PickerSettingType.factorRaw
+    )
+    var bgBrakeISFweight = PickerSetting(
+        value: 0.15,
+        step: 0.01,
+        min: 0,
+        max: 1,
+        type: PickerSetting.PickerSettingType.factorRaw
+    )
+    var iobThresholdPercent = PickerSetting(
+        value: 1,
+        step: 0.1,
+        min: 0,
+        max: 1,
+        type: PickerSetting.PickerSettingType
+            .factor
+    )
+    // AIMI B30
+    var B30iTimeStartBolus = PickerSetting(
+        value: 1,
+        step: 0.5,
+        min: 0.5,
+        max: 30,
+        type: PickerSetting.PickerSettingType.insulinUnit
+    )
+    var B30iTime = PickerSetting(value: 30, step: 5, min: 15, max: 60, type: PickerSetting.PickerSettingType.minute)
+    var B30iTimeTarget = PickerSetting(value: 90, step: 5, min: 80, max: 120, type: PickerSetting.PickerSettingType.glucose)
+    var B30upperLimit = PickerSetting(value: 130, step: 5, min: 110, max: 180, type: PickerSetting.PickerSettingType.glucose)
+    var B30upperDelta = PickerSetting(value: 8, step: 1, min: 5, max: 15, type: PickerSetting.PickerSettingType.glucose)
+    var B30basalFactor = PickerSetting(value: 7, step: 0.5, min: 1.5, max: 10, type: PickerSetting.PickerSettingType.factorRaw)
+    // KetoProtect
+    var ketoProtectBasalPercent = PickerSetting(
+        value: 0.2,
+        step: 0.05,
+        min: 0.05,
+        max: 0.5,
+        type: PickerSetting.PickerSettingType.factor
+    )
+    var ketoProtectBasalAbsolut = PickerSetting(
+        value: 0.1,
+        step: 0.05,
+        min: 0.05,
+        max: 2,
+        type: PickerSetting.PickerSettingType.insulinUnit
+    )
 }
 
 struct PickerSetting {
@@ -150,6 +267,7 @@ struct PickerSetting {
     enum PickerSettingType {
         case glucose
         case factor
+        case factorRaw
         case gram
         case insulinUnit
         case minute

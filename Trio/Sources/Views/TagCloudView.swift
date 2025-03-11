@@ -7,10 +7,7 @@ struct TagCloudView: View {
     var tags: [String]
     var shouldParseToMmolL: Bool
 
-    @Environment(\.colorScheme) var colorScheme
-
-    @State private var totalHeight = CGFloat.zero // << variant for ScrollView/List
-//    = CGFloat.infinity // << variant for VStack
+    @State private var totalHeight = CGFloat.infinity // << variant for VStack
 
     var body: some View {
         VStack {
@@ -18,28 +15,27 @@ struct TagCloudView: View {
                 self.generateContent(in: geometry)
             }
         }
-        .frame(height: totalHeight) // << variant for ScrollView/List
-//        .frame(maxHeight: totalHeight) // << variant for VStack
+        .frame(maxHeight: totalHeight) // << variant for VStack
     }
 
-    private func generateContent(in geometry: GeometryProxy) -> some View {
+    private func generateContent(in g: GeometryProxy) -> some View {
         var width = CGFloat.zero
         var height = CGFloat.zero
 
         return ZStack(alignment: .topLeading) {
             ForEach(self.tags, id: \.self) { tag in
-                self.drawTag(for: tag, isMmolL: shouldParseToMmolL)
-                    .padding([.horizontal, .vertical], 3)
-                    .alignmentGuide(.leading, computeValue: { dimensions in
-                        if abs(width - dimensions.width) > geometry.size.width {
+                self.item(for: tag, isMmolL: shouldParseToMmolL)
+                    .padding([.horizontal, .vertical], 2)
+                    .alignmentGuide(.leading, computeValue: { d in
+                        if abs(width - d.width) > g.size.width {
                             width = 0
-                            height -= dimensions.height
+                            height -= d.height
                         }
                         let result = width
                         if tag == self.tags.last! {
                             width = 0 // last item
                         } else {
-                            width -= dimensions.width
+                            width -= d.width
                         }
                         return result
                     })
@@ -54,10 +50,31 @@ struct TagCloudView: View {
         }.background(viewHeightReader($totalHeight))
     }
 
-    private func drawTag(for textTag: String, isMmolL: Bool) -> some View {
+    private func item(for textTag: String, isMmolL: Bool) -> some View {
         var colorOfTag: Color {
             switch textTag {
-            case textTag where textTag.contains("SMB Delivery Ratio:"):
+            case textTag where textTag.contains("Floating"),
+                 textTag where textTag.contains("enforced"),
+                 textTag where textTag.contains("KetoVarProt"),
+                 textTag where textTag.contains("enabled"):
+                return .loopYellow
+            case "autoISF",
+                 "AIMI B30",
+                 textTag where textTag.contains("disabled"),
+                 textTag where textTag.contains("final"):
+                return .loopRed
+            case "autosens:",
+                 "SMB Del.Ratio:":
+                return .loopGreen
+            case "Parabolic Fit:",
+                 textTag where textTag.contains("acce-ISF"):
+                return .zt
+            case "Standard",
+                 textTag where textTag.contains("TDD"),
+                 textTag where textTag.contains("Ins.Req"):
+                return .insulin
+            case textTag where textTag.contains("Exercise"),
+                 textTag where textTag.contains("Ratio TT"):
                 return .uam
             case textTag where textTag.contains("Bolus"):
                 return .green
@@ -73,30 +90,27 @@ struct TagCloudView: View {
                 return .zt
             case textTag where textTag.contains("Middleware:"):
                 return .red
-            case textTag where textTag.contains("SMB Ratio"):
+            case textTag where textTag.contains("SMB Ratio"),
+                 textTag where textTag.contains("iobTH:"):
                 return .orange
             case textTag where textTag.contains("Smoothing: On"):
-                return .gray
+                return .white
             default:
-                return .insulin
+                return .basal
             }
         }
 
         let formattedTextTag = formatGlucoseTags(textTag, isMmolL: isMmolL)
 
         return ZStack {
-            Text(formattedTextTag)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+//            Text(formattedTextTag)
+            Text(textTag)
+                .padding(.vertical, 2)
+                .padding(.horizontal, 4)
                 .font(.subheadline)
-                .fontWeight(.semibold)
-                .background(colorOfTag.opacity(colorScheme == .dark ? 0.15 : 0.25))
-                .foregroundColor(colorOfTag)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule()
-                        .stroke(colorOfTag.opacity(0.4), lineWidth: 2)
-                )
+                .background(colorOfTag.opacity(0.8))
+                .foregroundColor(textTag.contains("Smoothing: On") ? Color.secondary : Color.primary)
+                .cornerRadius(5)
         }
     }
 
@@ -119,6 +133,7 @@ struct TagCloudView: View {
             "ISF:\\s*-?\\d+\\.?\\d*→-?\\d+\\.?\\d*",
             "Dev:\\s*-?\\d+\\.?\\d*",
             "BGI:\\s*-?\\d+\\.?\\d*",
+            "Avg:\\s*-?\\d+\\.?\\d*",
             "Target:\\s*-?\\d+\\.?\\d*",
             "(?:minPredBG|minGuardBG|IOBpredBG|COBpredBG|UAMpredBG)\\s*-?\\d+\\.?\\d*"
         ]
@@ -165,6 +180,13 @@ struct TagCloudView: View {
                 let value = glucoseValueString.components(separatedBy: ":")[1].trimmingCharacters(in: .whitespaces)
                 let formattedValue = convertToMmolL(value)
                 let formattedString = "BGI: \(formattedValue)"
+                updatedTag.replaceSubrange(range, with: formattedString)
+
+            } else if glucoseValueString.starts(with: "Avg:") {
+                // -- Handle Dev
+                let value = glucoseValueString.components(separatedBy: ":")[1].trimmingCharacters(in: .whitespaces)
+                let formattedValue = convertToMmolL(value)
+                let formattedString = "Avg: \(formattedValue)"
                 updatedTag.replaceSubrange(range, with: formattedString)
 
             } else if glucoseValueString.starts(with: "Target:") {

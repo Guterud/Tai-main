@@ -79,6 +79,7 @@ extension Settings {
                         content: {
                             let versionNumber = Bundle.main.releaseVersionNumber ?? String(localized: "Unknown")
                             let buildNumber = Bundle.main.buildVersionNumber ?? String(localized: "Unknown")
+                            let copyright = Bundle.main.copyRightNotice ?? "Unknown"
 
                             NavigationLink(destination: SubmodulesView(buildDetails: buildDetails)) {
                                 HStack {
@@ -89,7 +90,7 @@ extension Settings {
                                         .cornerRadius(10)
                                         .padding(.trailing, 10)
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text("Trio v\(versionNumber) (\(buildNumber))")
+                                        Text("Tai v\(versionNumber) (\(buildNumber)) \(copyright)")
                                             .font(.headline)
                                         if let expirationDate = buildDetails.calculateExpirationDate() {
                                             let formattedDate = DateFormatter.localizedString(

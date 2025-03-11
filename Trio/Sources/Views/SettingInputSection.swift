@@ -175,6 +175,52 @@ struct SettingInputSection<VerboseHint: View>: View {
             return pickerSettingsProvider.settings.maxBolus
         case "maxBasal":
             return pickerSettingsProvider.settings.maxBasal
+        case "autoISFmax":
+            return pickerSettingsProvider.settings.autoISFmax
+        case "autoISFmin":
+            return pickerSettingsProvider.settings.autoISFmin
+        case "smbMaxRangeExtension":
+            return pickerSettingsProvider.settings.smbMaxRangeExtension
+        case "smbDeliveryRatioBGrange":
+            return pickerSettingsProvider.settings.smbDeliveryRatioBGrange
+        case "smbDeliveryRatioMin":
+            return pickerSettingsProvider.settings.smbDeliveryRatioMin
+        case "smbDeliveryRatioMax":
+            return pickerSettingsProvider.settings.smbDeliveryRatioMax
+        case "autoISFhourlyChange":
+            return pickerSettingsProvider.settings.autoISFhourlyChange
+        case "higherISFrangeWeight":
+            return pickerSettingsProvider.settings.higherISFrangeWeight
+        case "lowerISFrangeWeight":
+            return pickerSettingsProvider.settings.lowerISFrangeWeight
+        case "deltaISFrangeWeight":
+            return pickerSettingsProvider.settings.deltaISFrangeWeight
+        case "postMealISFweight":
+            return pickerSettingsProvider.settings.postMealISFweight
+        case "postMealISFduration":
+            return pickerSettingsProvider.settings.postMealISFduration
+        case "bgAccelISFweight":
+            return pickerSettingsProvider.settings.bgAccelISFweight
+        case "bgBrakeISFweight":
+            return pickerSettingsProvider.settings.bgBrakeISFweight
+        case "iobThresholdPercent":
+            return pickerSettingsProvider.settings.iobThresholdPercent
+        case "B30iTimeStartBolus":
+            return pickerSettingsProvider.settings.B30iTimeStartBolus
+        case "B30iTime":
+            return pickerSettingsProvider.settings.B30iTime
+        case "B30iTimeTarget":
+            return pickerSettingsProvider.settings.B30iTimeTarget
+        case "B30upperLimit":
+            return pickerSettingsProvider.settings.B30upperLimit
+        case "B30upperDelta":
+            return pickerSettingsProvider.settings.B30upperDelta
+        case "B30basalFactor":
+            return pickerSettingsProvider.settings.B30basalFactor
+        case "ketoProtectBasalPercent":
+            return pickerSettingsProvider.settings.ketoProtectBasalPercent
+        case "ketoProtectBasalAbsolut":
+            return pickerSettingsProvider.settings.ketoProtectBasalAbsolut
         default:
             return nil
         }
@@ -216,6 +262,8 @@ struct SettingInputSection<VerboseHint: View>: View {
             return Text("\(displayValue.description) \(units.rawValue)")
         case .factor:
             return Text("\(decimalValue * 100) \(String(localized: "%", comment: "Percentage symbol"))")
+        case .factorRaw:
+            return Text("\(decimalValue)")
         case .insulinUnit:
             return Text("\(decimalValue) \(String(localized: "U", comment: "Insulin unit abbreviation"))")
         case .gram:

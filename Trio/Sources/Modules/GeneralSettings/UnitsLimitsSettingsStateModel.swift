@@ -14,6 +14,7 @@ extension UnitsLimitsSettings {
         @Published var maxIOB: Decimal = 0
         @Published var maxCOB: Decimal = 120
         @Published var hasChanged: Bool = false
+        var targetUnits: GlucoseUnits = .mgdL
 
         var preferences: Preferences {
             settingsManager.preferences
@@ -25,7 +26,11 @@ extension UnitsLimitsSettings {
 
         override func subscribe() {
             units = settingsManager.settings.units
+            targetUnits = settingsManager.preferences.targetUnits
             subscribeSetting(\.units, on: $unitsIndex.map { $0 == 0 ? GlucoseUnits.mgdL : .mmolL }) {
+                unitsIndex = $0 == .mgdL ? 0 : 1
+            }
+            subscribePreferencesSetting(\.targetUnits, on: $unitsIndex.map { $0 == 0 ? GlucoseUnits.mgdL : .mmolL }) {
                 unitsIndex = $0 == .mgdL ? 0 : 1
             }
 

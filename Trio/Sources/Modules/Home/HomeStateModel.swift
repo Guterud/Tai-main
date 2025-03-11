@@ -40,7 +40,6 @@ extension Home {
         var closedLoop = false
         var pumpSuspended = false
         var isLooping = false
-        var statusTitle = ""
         var lastLoopDate: Date = .distantPast
         var battery: Battery?
         var reservoir: Decimal?
@@ -74,6 +73,9 @@ extension Home {
         var thresholdLines: Bool = false
         var hours: Int16 = 6
         var totalBolus: Decimal = 0
+        var isStatusPopupPresented: Bool = false
+        var statusTitlePopup = ""
+        var statusTitle = ""
         var isLoopStatusPresented: Bool = false
         var isLegendPresented: Bool = false
         var roundedTotalBolus: String = ""

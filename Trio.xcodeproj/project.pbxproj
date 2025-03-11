@@ -212,7 +212,21 @@
 		491D6FBE2D56741C00C49F67 /* TempTargetRunStored+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491D6FB92D56741C00C49F67 /* TempTargetRunStored+CoreDataClass.swift */; };
 		491D6FBF2D56741C00C49F67 /* TempTargetRunStored+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491D6FBA2D56741C00C49F67 /* TempTargetRunStored+CoreDataProperties.swift */; };
 		491D6FC02D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491D6FBB2D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift */; };
+		49B21BBD2D7F102100D0B6C3 /* MainChartHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B21BBC2D7F102100D0B6C3 /* MainChartHelper.swift */; };
 		49B9B57F2D5768D2009C6B59 /* AdjustmentStored+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B9B57E2D5768D2009C6B59 /* AdjustmentStored+Helper.swift */; };
+		49CCD2142CAE5E99002A9476 /* BulletList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49CCD2102CAE5E99002A9476 /* BulletList.swift */; };
+		49F298B72D2D7DBB00E4C00D /* AutoISFSettingsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298B42D2D7DBB00E4C00D /* AutoISFSettingsDataFlow.swift */; };
+		49F298B82D2D7DBB00E4C00D /* AutoISFSettingsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298B62D2D7DBB00E4C00D /* AutoISFSettingsStateModel.swift */; };
+		49F298B92D2D7DBB00E4C00D /* AutoISFSettingsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298B52D2D7DBB00E4C00D /* AutoISFSettingsProvider.swift */; };
+		49F298BB2D2D7DC500E4C00D /* AutoISFSettingsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298BA2D2D7DC500E4C00D /* AutoISFSettingsRootView.swift */; };
+		49F298CA2D2D7E2100E4C00D /* KetoProtectSettingsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298C72D2D7E2100E4C00D /* KetoProtectSettingsProvider.swift */; };
+		49F298CB2D2D7E2100E4C00D /* KetoProtectSettingsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298C82D2D7E2100E4C00D /* KetoProtectSettingsStateModel.swift */; };
+		49F298CC2D2D7E2100E4C00D /* KetoProtectSettingsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298C62D2D7E2100E4C00D /* KetoProtectSettingsDataFlow.swift */; };
+		49F298CD2D2D7E2100E4C00D /* KetoProtectSettingsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298C42D2D7E2100E4C00D /* KetoProtectSettingsRootView.swift */; };
+		49F299342D2D82EA00E4C00D /* B30SettingsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F299302D2D82EA00E4C00D /* B30SettingsDataFlow.swift */; };
+		49F299352D2D82EA00E4C00D /* B30SettingsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F299312D2D82EA00E4C00D /* B30SettingsProvider.swift */; };
+		49F299362D2D82EA00E4C00D /* B30SettingsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F299322D2D82EA00E4C00D /* B30SettingsStateModel.swift */; };
+		49F299372D2D82EA00E4C00D /* B30SettingsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F2992E2D2D82EA00E4C00D /* B30SettingsRootView.swift */; };
 		5075C1608E6249A51495C422 /* TargetsEditorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BDEA2DC60EDE0A3CA54DC73 /* TargetsEditorProvider.swift */; };
 		53F2382465BF74DB1A967C8B /* PumpConfigProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8630D58BDAD6D9C650B9B39 /* PumpConfigProvider.swift */; };
 		581516A42BCED84A00BF67D7 /* DebuggingIdentifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581516A32BCED84A00BF67D7 /* DebuggingIdentifiers.swift */; };
@@ -937,7 +951,23 @@
 		491D6FBA2D56741C00C49F67 /* TempTargetRunStored+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TempTargetRunStored+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		491D6FBB2D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TempTargetStored+CoreDataClass.swift"; sourceTree = "<group>"; };
 		491D6FBC2D56741C00C49F67 /* TempTargetStored+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TempTargetStored+CoreDataProperties.swift"; sourceTree = "<group>"; };
+		49AC5CB32D7F5EB2005A47F3 /* ci_post_xcodebuild.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; name = ci_post_xcodebuild.sh; path = ci_scripts/ci_post_xcodebuild.sh; sourceTree = "<group>"; };
+		49AC5CE22D7F5F39005A47F3 /* WhatToTest.en-CA.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = "WhatToTest.en-CA.txt"; path = "Testflight/WhatToTest.en-CA.txt"; sourceTree = "<group>"; };
+		49B21BBC2D7F102100D0B6C3 /* MainChartHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainChartHelper.swift; sourceTree = "<group>"; };
 		49B9B57E2D5768D2009C6B59 /* AdjustmentStored+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AdjustmentStored+Helper.swift"; sourceTree = "<group>"; };
+		49CCD2102CAE5E99002A9476 /* BulletList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulletList.swift; sourceTree = "<group>"; };
+		49F298B42D2D7DBB00E4C00D /* AutoISFSettingsDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoISFSettingsDataFlow.swift; sourceTree = "<group>"; };
+		49F298B52D2D7DBB00E4C00D /* AutoISFSettingsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoISFSettingsProvider.swift; sourceTree = "<group>"; };
+		49F298B62D2D7DBB00E4C00D /* AutoISFSettingsStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoISFSettingsStateModel.swift; sourceTree = "<group>"; };
+		49F298BA2D2D7DC500E4C00D /* AutoISFSettingsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoISFSettingsRootView.swift; sourceTree = "<group>"; };
+		49F298C42D2D7E2100E4C00D /* KetoProtectSettingsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KetoProtectSettingsRootView.swift; sourceTree = "<group>"; };
+		49F298C62D2D7E2100E4C00D /* KetoProtectSettingsDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KetoProtectSettingsDataFlow.swift; sourceTree = "<group>"; };
+		49F298C72D2D7E2100E4C00D /* KetoProtectSettingsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KetoProtectSettingsProvider.swift; sourceTree = "<group>"; };
+		49F298C82D2D7E2100E4C00D /* KetoProtectSettingsStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KetoProtectSettingsStateModel.swift; sourceTree = "<group>"; };
+		49F2992E2D2D82EA00E4C00D /* B30SettingsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = B30SettingsRootView.swift; sourceTree = "<group>"; };
+		49F299302D2D82EA00E4C00D /* B30SettingsDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = B30SettingsDataFlow.swift; sourceTree = "<group>"; };
+		49F299312D2D82EA00E4C00D /* B30SettingsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = B30SettingsProvider.swift; sourceTree = "<group>"; };
+		49F299322D2D82EA00E4C00D /* B30SettingsStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = B30SettingsStateModel.swift; sourceTree = "<group>"; };
 		4DD795BA46B193644D48138C /* TargetsEditorRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TargetsEditorRootView.swift; sourceTree = "<group>"; };
 		505E09DC17A0C3D0AF4B66FE /* ISFEditorStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ISFEditorStateModel.swift; sourceTree = "<group>"; };
 		581516A32BCED84A00BF67D7 /* DebuggingIdentifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebuggingIdentifiers.swift; sourceTree = "<group>"; };
@@ -1648,6 +1678,9 @@
 		3811DE0325C9D31700A708ED /* Modules */ = {
 			isa = PBXGroup;
 			children = (
+				49F299332D2D82EA00E4C00D /* B30Settings */,
+				49F298C92D2D7E2100E4C00D /* KetoProtectSettings */,
+				49AC05B72D0989BD005EBACD /* AutoISFSettings */,
 				DDD163032C4C67B400CD525A /* Adjustments */,
 				DD1745382C55BF8B00211FAC /* AlgorithmAdvancedSettings */,
 				DD1745422C55C5C400211FAC /* AutosensSettings */,
@@ -2042,6 +2075,8 @@
 		388E594F25AD948C0019842D = {
 			isa = PBXGroup;
 			children = (
+				49AC5CE22D7F5F39005A47F3 /* WhatToTest.en-CA.txt */,
+				49AC5CB32D7F5EB2005A47F3 /* ci_post_xcodebuild.sh */,
 				DDA9AC0A2D678DAD00E6F1A9 /* blacklisted-versions.json */,
 				CE1F6DE62BAF1A180064EB8D /* BuildDetails.plist */,
 				38F3783A2613555C009DB701 /* Config.xcconfig */,
@@ -2159,42 +2194,46 @@
 		388E5A5A25B6F05F0019842D /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
-				DDCAE8322D78D49C00B1BB51 /* TherapySettingsUtil.swift */,
-				BD249DA62D42FE3800412DEB /* Calendar+GlucoseStatsChart.swift */,
+				E06B9119275B5EEA003C04B6 /* Array+Extension.swift */,
 				DD73FA0E2D74F57300D19D1E /* BackgroundTask+Helper.swift */,
+				DD1DB7CB2BECCA1F0048B367 /* BuildDetails.swift */,
+				49B21BBC2D7F102100D0B6C3 /* MainChartHelper.swift */,
+				49CCD2102CAE5E99002A9476 /* BulletList.swift */,
+				FE66D16A291F74F8005D6F77 /* Bundle+Extensions.swift */,
+				BD249DA62D42FE3800412DEB /* Calendar+GlucoseStatsChart.swift */,
 				CEF1ED6A2D58FB4600FAF41E /* CGMOptions.swift */,
-				C2A0A42E2CE0312C003B98E8 /* ConstantValues.swift */,
-				DD940BAB2CA75889000830A5 /* DynamicGlucoseColor.swift */,
+				BD2FF19F2AE29D43005D1C5D /* CheckboxToggleStyle.swift */,
 				38F37827261260DC009DB701 /* Color+Extensions.swift */,
 				389ECE042601144100D86C4F /* ConcurrentMap.swift */,
+				C2A0A42E2CE0312C003B98E8 /* ConstantValues.swift */,
 				38192E0C261BAF980094D973 /* ConvenienceExtensions.swift */,
+				49AC5B632D7F2833005A47F3 /* CustomDateTimePicker.swift */,
+				BD1661302B82ADAB00256551 /* CustomProgressView.swift */,
+				581516A32BCED84A00BF67D7 /* DebuggingIdentifiers.swift */,
 				3871F39E25ED895A0013ECB5 /* Decimal+Extensions.swift */,
 				38C4D33625E9A1A200D30B77 /* DispatchQueue+Extensions.swift */,
 				389487392614928B004DF424 /* DispatchTimer.swift */,
+				DD940BAB2CA75889000830A5 /* DynamicGlucoseColor.swift */,
 				3811DE5425C9D4D500A708ED /* Formatters.swift */,
 				38FEF412273B317A00574A46 /* HKUnit.swift */,
 				38B4F3AE25E2979F00E76A18 /* IndexedCollection.swift */,
 				389A571F26079BAA00BC102F /* Interpolation.swift */,
 				388E5A5B25B6F0770019842D /* JSON.swift */,
 				38A00B2225FC2B55006BC0B0 /* LRUCache.swift */,
+				49B21BBC2D7F102100D0B6C3 /* MainChartHelper.swift */,
+				582DF9782C8CE1E5001F516D /* MainChartHelper.swift */,
 				38FCF3D525E8FDF40078B0D1 /* MD5.swift */,
 				38E98A2C25F52DC400C0CED0 /* NSLocking+Extensions.swift */,
 				38C4D33925E9A1ED00D30B77 /* NSObject+AssociatedValues.swift */,
 				3811DE5725C9D4D500A708ED /* ProgressBar.swift */,
-				3811DE5525C9D4D500A708ED /* Publisher.swift */,
-				38E98A3625F5509500C0CED0 /* String+Extensions.swift */,
 				3811DEE325CA063400A708ED /* PropertyWrappers */,
-				E06B9119275B5EEA003C04B6 /* Array+Extension.swift */,
-				CEB434E428B8FF5D00B70274 /* UIColor.swift */,
-				FE66D16A291F74F8005D6F77 /* Bundle+Extensions.swift */,
-				FEFFA7A12929FE49007B8193 /* UIDevice+Extensions.swift */,
-				CEA4F62229BE10F70011ADF7 /* SavitzkyGolayFilter.swift */,
-				BD2FF19F2AE29D43005D1C5D /* CheckboxToggleStyle.swift */,
-				BD1661302B82ADAB00256551 /* CustomProgressView.swift */,
-				581516A32BCED84A00BF67D7 /* DebuggingIdentifiers.swift */,
-				DD1DB7CB2BECCA1F0048B367 /* BuildDetails.swift */,
+				3811DE5525C9D4D500A708ED /* Publisher.swift */,
 				DD6B7CB12C7B6F0800B75029 /* Rounding.swift */,
-				582DF9782C8CE1E5001F516D /* MainChartHelper.swift */,
+				CEA4F62229BE10F70011ADF7 /* SavitzkyGolayFilter.swift */,
+				38E98A3625F5509500C0CED0 /* String+Extensions.swift */,
+				DDCAE8322D78D49C00B1BB51 /* TherapySettingsUtil.swift */,
+				CEB434E428B8FF5D00B70274 /* UIColor.swift */,
+				FEFFA7A12929FE49007B8193 /* UIDevice+Extensions.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -2342,6 +2381,63 @@
 				BD8FC0532D66186000B95AED /* TestError.swift */,
 			);
 			path = TrioTests;
+			sourceTree = "<group>";
+		};
+		49AC05B72D0989BD005EBACD /* AutoISFSettings */ = {
+			isa = PBXGroup;
+			children = (
+				49F298B42D2D7DBB00E4C00D /* AutoISFSettingsDataFlow.swift */,
+				49F298B52D2D7DBB00E4C00D /* AutoISFSettingsProvider.swift */,
+				49F298B62D2D7DBB00E4C00D /* AutoISFSettingsStateModel.swift */,
+				49AC05B92D0989D9005EBACD /* View */,
+			);
+			path = AutoISFSettings;
+			sourceTree = "<group>";
+		};
+		49AC05B92D0989D9005EBACD /* View */ = {
+			isa = PBXGroup;
+			children = (
+				49F298BA2D2D7DC500E4C00D /* AutoISFSettingsRootView.swift */,
+			);
+			path = View;
+			sourceTree = "<group>";
+		};
+		49F298C52D2D7E2100E4C00D /* View */ = {
+			isa = PBXGroup;
+			children = (
+				49F298C42D2D7E2100E4C00D /* KetoProtectSettingsRootView.swift */,
+			);
+			path = View;
+			sourceTree = "<group>";
+		};
+		49F298C92D2D7E2100E4C00D /* KetoProtectSettings */ = {
+			isa = PBXGroup;
+			children = (
+				49F298C52D2D7E2100E4C00D /* View */,
+				49F298C62D2D7E2100E4C00D /* KetoProtectSettingsDataFlow.swift */,
+				49F298C72D2D7E2100E4C00D /* KetoProtectSettingsProvider.swift */,
+				49F298C82D2D7E2100E4C00D /* KetoProtectSettingsStateModel.swift */,
+			);
+			path = KetoProtectSettings;
+			sourceTree = "<group>";
+		};
+		49F2992F2D2D82EA00E4C00D /* View */ = {
+			isa = PBXGroup;
+			children = (
+				49F2992E2D2D82EA00E4C00D /* B30SettingsRootView.swift */,
+			);
+			path = View;
+			sourceTree = "<group>";
+		};
+		49F299332D2D82EA00E4C00D /* B30Settings */ = {
+			isa = PBXGroup;
+			children = (
+				49F2992F2D2D82EA00E4C00D /* View */,
+				49F299302D2D82EA00E4C00D /* B30SettingsDataFlow.swift */,
+				49F299312D2D82EA00E4C00D /* B30SettingsProvider.swift */,
+				49F299322D2D82EA00E4C00D /* B30SettingsStateModel.swift */,
+			);
+			path = B30Settings;
 			sourceTree = "<group>";
 		};
 		4E8C7B59F8065047ECE20965 /* View */ = {
@@ -3804,6 +3900,7 @@
 				582FAE432C05102C00D1C13F /* CoreDataError.swift in Sources */,
 				38A0363B25ECF07E00FCBB52 /* GlucoseStorage.swift in Sources */,
 				65070A332BFDCB83006F213F /* TidepoolStartView.swift in Sources */,
+				49CCD2142CAE5E99002A9476 /* BulletList.swift in Sources */,
 				190EBCC629FF138000BA767D /* UserInterfaceSettingsProvider.swift in Sources */,
 				38E98A2725F52C9300C0CED0 /* CollectionIssueReporter.swift in Sources */,
 				E00EEC0427368630002FF094 /* SecurityAssembly.swift in Sources */,
@@ -3872,6 +3969,9 @@
 				3811DE6125C9D4D500A708ED /* ViewModifiers.swift in Sources */,
 				3811DEAC25C9D88300A708ED /* NightscoutManager.swift in Sources */,
 				BD793CB22CE8033500D669AC /* TempTargetRunStored.swift in Sources */,
+				49F298B72D2D7DBB00E4C00D /* AutoISFSettingsDataFlow.swift in Sources */,
+				49F298B82D2D7DBB00E4C00D /* AutoISFSettingsStateModel.swift in Sources */,
+				49F298B92D2D7DBB00E4C00D /* AutoISFSettingsProvider.swift in Sources */,
 				BD7DA9A92AE06E9200601B20 /* BolusCalculatorStateModel.swift in Sources */,
 				CEB434E528B8FF5D00B70274 /* UIColor.swift in Sources */,
 				190EBCCB29FF13CB00BA767D /* UserInterfaceSettingsRootView.swift in Sources */,
@@ -4091,8 +4191,13 @@
 				CE82E02728E869DF00473A9C /* AlertEntry.swift in Sources */,
 				DD30786A2D42F94000DE0490 /* GarminDevice.swift in Sources */,
 				38E4451E274DB04600EC9A94 /* AppDelegate.swift in Sources */,
+				49F299342D2D82EA00E4C00D /* B30SettingsDataFlow.swift in Sources */,
+				49F299352D2D82EA00E4C00D /* B30SettingsProvider.swift in Sources */,
+				49F299362D2D82EA00E4C00D /* B30SettingsStateModel.swift in Sources */,
+				49F299372D2D82EA00E4C00D /* B30SettingsRootView.swift in Sources */,
 				BD2FF1A02AE29D43005D1C5D /* CheckboxToggleStyle.swift in Sources */,
 				DDD163162C4C690300CD525A /* AdjustmentsDataFlow.swift in Sources */,
+				49B21BBD2D7F102100D0B6C3 /* MainChartHelper.swift in Sources */,
 				BDF34F932C10D0E100D51995 /* LiveActivityAttributes+Helper.swift in Sources */,
 				E0D4F80527513ECF00BDF1FE /* HealthKitSample.swift in Sources */,
 				38AAF85525FFF846004AF583 /* CurrentGlucoseView.swift in Sources */,
@@ -4110,6 +4215,10 @@
 				19D4E4EB29FC6A9F00351451 /* Charts.swift in Sources */,
 				BDC531162D10629000088832 /* ContactPicture.swift in Sources */,
 				FEFFA7A22929FE49007B8193 /* UIDevice+Extensions.swift in Sources */,
+				49F298CA2D2D7E2100E4C00D /* KetoProtectSettingsProvider.swift in Sources */,
+				49F298CB2D2D7E2100E4C00D /* KetoProtectSettingsStateModel.swift in Sources */,
+				49F298CC2D2D7E2100E4C00D /* KetoProtectSettingsDataFlow.swift in Sources */,
+				49F298CD2D2D7E2100E4C00D /* KetoProtectSettingsRootView.swift in Sources */,
 				BD4E1A7C2D3686D900D21626 /* StartEndMarkerSetup.swift in Sources */,
 				F90692D3274B9A130037068D /* AppleHealthKitRootView.swift in Sources */,
 				BDF34F852C10C62E00D51995 /* GlucoseData.swift in Sources */,
@@ -4132,6 +4241,7 @@
 				DDD163122C4C689900CD525A /* AdjustmentsStateModel.swift in Sources */,
 				3B2F77862D7E52ED005ED9FA /* TDD.swift in Sources */,
 				DD1745132C54169400211FAC /* DevicesView.swift in Sources */,
+				49F298BB2D2D7DC500E4C00D /* AutoISFSettingsRootView.swift in Sources */,
 				7F7B756BE8543965D9FDF1A2 /* DataTableDataFlow.swift in Sources */,
 				1D845DF2E3324130E1D95E67 /* DataTableProvider.swift in Sources */,
 				DDCE790F2D6F97FC000A4D7A /* SubmodulesView.swift in Sources */,

@@ -4,16 +4,15 @@ struct Preferences: JSON, Equatable {
     var maxIOB: Decimal = 0
     var maxDailySafetyMultiplier: Decimal = 3
     var currentBasalSafetyMultiplier: Decimal = 4
+    var enableAutosens = false
     var autosensMax: Decimal = 1.2
     var autosensMin: Decimal = 0.7
-    var smbDeliveryRatio: Decimal = 0.5
     var rewindResetsAutosens: Bool = true
-    var highTemptargetRaisesSensitivity: Bool = false
+    var highTemptargetRaisesSensitivity: Bool = true
     var lowTemptargetLowersSensitivity: Bool = false
     var sensitivityRaisesTarget: Bool = false
     var resistanceLowersTarget: Bool = false
     var advTargetAdjustments: Bool = false
-    var exerciseMode: Bool = false
     var halfBasalExerciseTarget: Decimal = 160
     var maxCOB: Decimal = 120
     var maxMealAbsorptionTime: Decimal = 6
@@ -23,17 +22,19 @@ struct Preferences: JSON, Equatable {
     var min5mCarbimpact: Decimal = 8
     var remainingCarbsFraction: Decimal = 1.0
     var remainingCarbsCap: Decimal = 90
-    var enableUAM: Bool = false
+    var enableUAM: Bool = true
     var a52RiskEnable: Bool = false
-    var enableSMBWithCOB: Bool = false
-    var enableSMBWithTemptarget: Bool = false
-    var enableSMBAlways: Bool = false
-    var enableSMBAfterCarbs: Bool = false
+    var enableSMBWithCOB: Bool = true
+    var enableSMBWithTemptarget: Bool = true
+    var enableSMBAlways: Bool = true
+    var enableSMB_high_bg: Bool = false
+    var enableSMB_high_bg_target: Decimal = 110
+    var enableSMBAfterCarbs: Bool = true
     var allowSMBWithHighTemptarget: Bool = false
-    var maxSMBBasalMinutes: Decimal = 30
-    var maxUAMSMBBasalMinutes: Decimal = 30
-    var smbInterval: Decimal = 3
-    var bolusIncrement: Decimal = 0.1
+    var maxSMBBasalMinutes: Decimal = 120
+    var maxUAMSMBBasalMinutes: Decimal = 120
+    var smbInterval: Decimal = 2
+    var bolusIncrement: Decimal = 0.05
     var curve: InsulinCurve = .rapidActing
     var useCustomPeakTime: Bool = false
     var insulinPeakTime: Decimal = 75
@@ -41,7 +42,9 @@ struct Preferences: JSON, Equatable {
     var noisyCGMTargetMultiplier: Decimal = 1.3
     var suspendZerosIOB: Bool = false
     var timestamp: Date?
-    var maxDeltaBGthreshold: Decimal = 0.2
+    var smbThresholdRatio: Decimal = 0.5
+    var maxDeltaBGthreshold: Decimal = 0.3
+    // start dynISF config for oref variables
     var adjustmentFactor: Decimal = 0.8
     var adjustmentFactorSigmoid: Decimal = 0.5
     var sigmoid: Bool = false
@@ -50,10 +53,44 @@ struct Preferences: JSON, Equatable {
     var useWeightedAverage: Bool = false
     var weightPercentage: Decimal = 0.35
     var tddAdjBasal: Bool = false
-    var enableSMB_high_bg: Bool = false
-    var enableSMB_high_bg_target: Decimal = 110
-    var threshold_setting: Decimal = 60
+    var threshold_setting: Decimal = 65
     var updateInterval: Decimal = 20
+    // start autoISF config
+    var floatingcarbs: Bool = false
+    var autoisf: Bool = true
+    var exerciseMode: Bool = false
+    var autoISFmax: Decimal = 2
+    var autoISFmin: Decimal = 0.5
+    var smbMaxRangeExtension: Decimal = 2
+    var smbDeliveryRatio: Decimal = 0.85
+    var smbDeliveryRatioBGrange: Decimal = 0
+    var smbDeliveryRatioMin: Decimal = 0.65
+    var smbDeliveryRatioMax: Decimal = 0.80
+    var autoISFhourlyChange: Decimal = 0.6
+    var higherISFrangeWeight: Decimal = 0.3
+    var lowerISFrangeWeight: Decimal = 0.7
+    var postMealISFweight: Decimal = 0.02
+    var enableBGacceleration: Bool = true
+    var bgAccelISFweight: Decimal = 0.15
+    var bgBrakeISFweight: Decimal = 0.15
+    var iobThresholdPercent: Decimal = 1
+    var enableSMBEvenOnOddOffalways: Bool = true
+    var autoISFoffSport: Bool = false
+    var targetUnits: GlucoseUnits = .mgdL
+    // start B30 config
+    var enableB30: Bool = true
+    var B30iTimeStartBolus: Decimal = 1
+    var B30iTime: Decimal = 30
+    var B30iTimeTarget: Decimal = 80
+    var B30upperLimit: Decimal = 130
+    var B30upperDelta: Decimal = 8
+    var B30basalFactor: Decimal = 7
+    // start keto protect
+    var ketoProtect: Bool = false
+    var variableKetoProtect: Bool = false
+    var ketoProtectBasalPercent: Decimal = 0.2
+    var ketoProtectAbsolut: Bool = false
+    var ketoProtectBasalAbsolut: Decimal = 0
 }
 
 extension Preferences {
@@ -61,6 +98,7 @@ extension Preferences {
         case maxIOB = "max_iob"
         case maxDailySafetyMultiplier = "max_daily_safety_multiplier"
         case currentBasalSafetyMultiplier = "current_basal_safety_multiplier"
+        case enableAutosens = "enable_autosens"
         case autosensMax = "autosens_max"
         case autosensMin = "autosens_min"
         case smbDeliveryRatio = "smb_delivery_ratio"
@@ -97,7 +135,9 @@ extension Preferences {
         case carbsReqThreshold
         case noisyCGMTargetMultiplier
         case suspendZerosIOB = "suspend_zeros_iob"
+        case smbDeliveryRatioBGrange = "smb_delivery_ratio_bg_range"
         case maxDeltaBGthreshold = "maxDelta_bg_threshold"
+        // start dynISF config for oref variables
         case adjustmentFactor
         case adjustmentFactorSigmoid
         case sigmoid
@@ -110,6 +150,45 @@ extension Preferences {
         case enableSMB_high_bg_target
         case threshold_setting
         case updateInterval
+        // start autoISF config for oref variables
+        case autoisf = "use_autoisf"
+        case targetUnits = "target_units"
+        case autoISFhourlyChange = "dura_ISF_weight"
+        case autoISFmax = "autoISF_max"
+        case autoISFmin = "autoISF_min"
+        case smbMaxRangeExtension = "smb_max_range_extension"
+        case floatingcarbs = "floating_carbs"
+        case iobThresholdPercent = "iob_threshold_percent"
+        // case enableSMBEvenOnOddOff = "enableSMB_EvenOn_OddOff"
+        case enableSMBEvenOnOddOffalways = "enableSMB_EvenOn_OddOff_always"
+        case smbDeliveryRatioMin = "smb_delivery_ratio_min"
+        case smbDeliveryRatioMax = "smb_delivery_ratio_max"
+        case smbThresholdRatio = "smb_threshold_ratio"
+        // case enableautoISFwithCOB = "enableautoisf_with_COB"
+        case higherISFrangeWeight = "higher_ISFrange_weight"
+        case lowerISFrangeWeight = "lower_ISFrange_weight"
+        // case deltaISFrangeWeight = "delta_ISFrange_weight"
+        case postMealISFweight = "pp_ISF_weight"
+        // case postMealISFduration = "pp_ISF_hours"
+        // case postMealISFalways = "enable_pp_ISF_always"
+        case bgAccelISFweight = "bgAccel_ISF_weight"
+        case bgBrakeISFweight = "bgBrake_ISF_weight"
+        case enableBGacceleration = "enable_BG_acceleration"
+        case autoISFoffSport = "autoISF_off_Sport"
+        // start B30 config
+        case enableB30 = "use_B30"
+        case B30iTimeStartBolus = "iTime_Start_Bolus"
+        case B30iTime = "b30_duration"
+        case B30iTimeTarget = "iTime_target"
+        case B30upperLimit = "b30_upperBG"
+        case B30upperDelta = "b30_upperdelta"
+        case B30basalFactor = "b30_factor"
+        // start keto protect
+        case ketoProtect = "keto_protect"
+        case variableKetoProtect = "variable_keto_protect_strategy"
+        case ketoProtectBasalPercent = "keto_protect_basal_percent"
+        case ketoProtectAbsolut = "keto_protect_absolute"
+        case ketoProtectBasalAbsolut = "keto_protect_basal_absolute"
     }
 }
 
@@ -332,6 +411,128 @@ extension Preferences: Decodable {
 
         if let updateInterval = try? container.decode(Decimal.self, forKey: .updateInterval) {
             preferences.updateInterval = updateInterval
+        }
+        // AutoISF config
+        if let floatingcarbs = try? container.decode(Bool.self, forKey: .floatingcarbs) {
+            preferences.floatingcarbs = floatingcarbs
+        }
+        if let autoisf = try? container.decode(Bool.self, forKey: .autoisf) {
+            preferences.autoisf = autoisf
+        }
+        if let targetUnits = try? container.decode(GlucoseUnits.self, forKey: .targetUnits) {
+            preferences.targetUnits = targetUnits
+        }
+        if let enableAutosens = try? container.decode(Bool.self, forKey: .enableAutosens) {
+            preferences.enableAutosens = enableAutosens
+        }
+        if let exerciseMode = try? container.decode(Bool.self, forKey: .exerciseMode) {
+            preferences.exerciseMode = exerciseMode
+        }
+        if let autoISFmax = try? container.decode(Decimal.self, forKey: .autoISFmax) {
+            preferences.autoISFmax = autoISFmax
+        }
+        if let autoISFmin = try? container.decode(Decimal.self, forKey: .autoISFmin) {
+            preferences.autoISFmin = autoISFmin
+        }
+        if let smbMaxRangeExtension = try? container.decode(Decimal.self, forKey: .smbMaxRangeExtension) {
+            preferences.smbMaxRangeExtension = smbMaxRangeExtension
+        }
+        if let smbDeliveryRatio = try? container.decode(Decimal.self, forKey: .smbDeliveryRatio) {
+            preferences.smbDeliveryRatio = smbDeliveryRatio
+        }
+        if let smbDeliveryRatioBGrange = try? container.decode(Decimal.self, forKey: .smbDeliveryRatioBGrange) {
+            preferences.smbDeliveryRatioBGrange = smbDeliveryRatioBGrange
+        }
+        if let smbDeliveryRatioMin = try? container.decode(Decimal.self, forKey: .smbDeliveryRatioMin) {
+            preferences.smbDeliveryRatioMin = smbDeliveryRatioMin
+        }
+        if let smbDeliveryRatioMax = try? container.decode(Decimal.self, forKey: .smbDeliveryRatioMax) {
+            preferences.smbDeliveryRatioMax = smbDeliveryRatioMax
+        }
+//        if let enableautoISFwithCOB = try? container.decode(Bool.self, forKey: .enableautoISFwithCOB) {
+//            preferences.enableautoISFwithCOB = enableautoISFwithCOB
+//        }
+        if let autoISFhourlyChange = try? container.decode(Decimal.self, forKey: .autoISFhourlyChange) {
+            preferences.autoISFhourlyChange = autoISFhourlyChange
+        }
+        if let higherISFrangeWeight = try? container.decode(Decimal.self, forKey: .higherISFrangeWeight) {
+            preferences.higherISFrangeWeight = higherISFrangeWeight
+        }
+        if let lowerISFrangeWeight = try? container.decode(Decimal.self, forKey: .lowerISFrangeWeight) {
+            preferences.lowerISFrangeWeight = lowerISFrangeWeight
+        }
+//        if let deltaISFrangeWeight = try? container.decode(Decimal.self, forKey: .deltaISFrangeWeight) {
+//            preferences.deltaISFrangeWeight = deltaISFrangeWeight
+//        }
+//        if let postMealISFalways = try? container.decode(Bool.self, forKey: .postMealISFalways) {
+//            preferences.postMealISFalways = postMealISFalways
+//        }
+        if let postMealISFweight = try? container.decode(Decimal.self, forKey: .postMealISFweight) {
+            preferences.postMealISFweight = postMealISFweight
+        }
+//        if let postMealISFduration = try? container.decode(Decimal.self, forKey: .postMealISFduration) {
+//            preferences.postMealISFduration = postMealISFduration
+//        }
+        if let enableBGacceleration = try? container.decode(Bool.self, forKey: .enableBGacceleration) {
+            preferences.enableBGacceleration = enableBGacceleration
+        }
+        if let bgAccelISFweight = try? container.decode(Decimal.self, forKey: .bgAccelISFweight) {
+            preferences.bgAccelISFweight = bgAccelISFweight
+        }
+        if let bgBrakeISFweight = try? container.decode(Decimal.self, forKey: .bgBrakeISFweight) {
+            preferences.bgBrakeISFweight = bgBrakeISFweight
+        }
+        if let iobThresholdPercent = try? container.decode(Decimal.self, forKey: .iobThresholdPercent) {
+            preferences.iobThresholdPercent = iobThresholdPercent
+        }
+//        if let enableSMBEvenOnOddOff = try? container.decode(Bool.self, forKey: .enableSMBEvenOnOddOff) {
+//            preferences.enableSMBEvenOnOddOff = enableSMBEvenOnOddOff
+//        }
+        if let enableSMBEvenOnOddOffalways = try? container.decode(Bool.self, forKey: .enableSMBEvenOnOddOffalways) {
+            preferences.enableSMBEvenOnOddOffalways = enableSMBEvenOnOddOffalways
+        }
+        if let autoISFoffSport = try? container.decode(Bool.self, forKey: .autoISFoffSport) {
+            preferences.autoISFoffSport = autoISFoffSport
+        }
+
+        // B30 config
+        if let enableB30 = try? container.decode(Bool.self, forKey: .enableB30) {
+            preferences.enableB30 = enableB30
+        }
+        if let B30iTimeStartBolus = try? container.decode(Decimal.self, forKey: .B30iTimeStartBolus) {
+            preferences.B30iTimeStartBolus = B30iTimeStartBolus
+        }
+        if let B30iTime = try? container.decode(Decimal.self, forKey: .B30iTime) {
+            preferences.B30iTime = B30iTime
+        }
+        if let B30iTimeTarget = try? container.decode(Decimal.self, forKey: .B30iTimeTarget) {
+            preferences.B30iTimeTarget = B30iTimeTarget
+        }
+        if let B30upperLimit = try? container.decode(Decimal.self, forKey: .B30upperLimit) {
+            preferences.B30upperLimit = B30upperLimit
+        }
+        if let B30upperDelta = try? container.decode(Decimal.self, forKey: .B30upperDelta) {
+            preferences.B30upperDelta = B30upperDelta
+        }
+        if let B30basalFactor = try? container.decode(Decimal.self, forKey: .B30basalFactor) {
+            preferences.B30basalFactor = B30basalFactor
+        }
+
+        // Keto Protect
+        if let ketoProtect = try? container.decode(Bool.self, forKey: .ketoProtect) {
+            preferences.ketoProtect = ketoProtect
+        }
+        if let variableKetoProtect = try? container.decode(Bool.self, forKey: .variableKetoProtect) {
+            preferences.variableKetoProtect = variableKetoProtect
+        }
+        if let ketoProtectBasalPercent = try? container.decode(Decimal.self, forKey: .ketoProtectBasalPercent) {
+            preferences.ketoProtectBasalPercent = ketoProtectBasalPercent
+        }
+        if let ketoProtectAbsolut = try? container.decode(Bool.self, forKey: .ketoProtectAbsolut) {
+            preferences.ketoProtectAbsolut = ketoProtectAbsolut
+        }
+        if let ketoProtectBasalAbsolut = try? container.decode(Decimal.self, forKey: .ketoProtectBasalAbsolut) {
+            preferences.ketoProtectBasalAbsolut = ketoProtectBasalAbsolut
         }
 
         self = preferences

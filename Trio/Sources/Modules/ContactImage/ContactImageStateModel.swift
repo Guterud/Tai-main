@@ -8,7 +8,7 @@ extension ContactImage {
         @ObservationIgnored @Injected() var contactImageManager: ContactImageManager!
 
         var contactImageEntries = [ContactImageEntry]()
-        var units: GlucoseUnits = .mmolL
+        var units: GlucoseUnits = .mgdL
         // Help Sheet
         var isHelpSheetPresented: Bool = false
         var helpSheetDetent = PresentationDetent.large

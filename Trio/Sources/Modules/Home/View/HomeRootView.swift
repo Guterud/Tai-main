@@ -23,6 +23,7 @@ extension Home {
 
         @State var settingsPath = NavigationPath()
         @State var isStatusPopupPresented = false
+        @State private var statusTitlePopup: String = ""
         @State var showCancelAlert = false
         @State var showCancelConfirmDialog = false
         @State var isConfirmStopOverrideShown = false
@@ -389,7 +390,10 @@ extension Home {
                     determination: state.determinationsFromPersistence
                 )
                 .onTapGesture {
-                    state.isLoopStatusPresented = true
+                    setStatusTitlePopup()
+                    state.isStatusPopupPresented.toggle()
+                    setStatusTitlePopup()
+//                    state.isLoopStatusPresented = true
                 }
                 .onLongPressGesture {
                     let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
@@ -926,8 +930,28 @@ extension Home {
             .navigationBarHidden(true)
             .ignoresSafeArea(.keyboard)
             .blur(radius: state.isLoopStatusPresented ? 3 : 0)
-            .sheet(isPresented: $state.isLoopStatusPresented) {
-                LoopStatusView(state: state)
+//            .sheet(isPresented: $state.isLoopStatusPresented) {
+//                LoopStatusView(state: state)
+//            }
+            .popup(isPresented: state.isStatusPopupPresented, alignment: .top, direction: .top) {
+                VStack {
+                    Rectangle().opacity(0).frame(height: 200)
+                    popup
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color("Chart"))
+                        )
+                        .opacity(0.85)
+                        .gesture(
+                            DragGesture(minimumDistance: 10, coordinateSpace: .local)
+                                .onEnded { value in
+                                    if value.translation.height < 0 {
+                                        state.isStatusPopupPresented = false
+                                    }
+                                }
+                        )
+                }
             }
             .sheet(isPresented: $state.isLegendPresented) {
                 ChartLegendView(state: state)
@@ -1071,6 +1095,80 @@ extension Home {
                 if state.waitForSuggestion {
                     CustomProgressView(text: String(localized: "Updating IOB...", comment: "Progress text when updating IOB"))
                 }
+            }
+        }
+
+        private var popup: some View {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(statusTitlePopup).font(.headline).foregroundColor(.primary)
+                    .padding(.bottom, 4)
+
+                if let errorMessage = state.errorMessage, let date = state.errorDate {
+                    Group {
+                        Text("Error During Algorithm Run at \(Formatter.dateFormatter.string(from: date))").font(.headline)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(errorMessage).font(.caption).fixedSize(horizontal: false, vertical: true)
+                    }.foregroundColor(.loopRed)
+                }
+
+                if let determination = state.determinationsFromPersistence.first {
+                    if determination.glucose == 400 {
+                        Text("Invalid CGM reading (HIGH).")
+                            .bold()
+                            .padding(.top)
+                            .foregroundStyle(Color.loopRed)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text("SMBs and Non-Zero Temp. Basal Rates are disabled.")
+                            .font(.subheadline)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                    } else {
+                        let tags = !state.isSmoothingEnabled ? determination.reasonParts : determination
+                            .reasonParts + ["Smoothing: On"]
+                        TagCloudView(
+                            tags: tags,
+                            shouldParseToMmolL: state.units == .mmolL
+                        )
+                        .animation(.none, value: false)
+                        Text("Algorithm reasoning").font(.headline).foregroundColor(.primary)
+                            .padding(.vertical, 4)
+//                        Text(
+//                            self
+//                                .parseReasonConclusion(
+//                                    determination.reasonConclusion,
+//                                    isMmolL: state.units == .mmolL
+//                                )
+//                        ).font(.subheadline).foregroundColor(.white)
+                        Text(determination.reasonConclusion)
+                            .font(.subheadline).foregroundColor(.primary)
+                    }
+                } else {
+                    Text("No Algorithm result").font(.body).foregroundColor(.primary)
+                }
+
+                Button {
+                    state.isStatusPopupPresented = false
+                } label: {
+                    Text("Got it!")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .buttonStyle(.bordered)
+                .padding(.top)
+            }
+        }
+
+        private func setStatusTitlePopup() {
+            if let determination = state.determinationsFromPersistence.first {
+                let dateFormatter = DateFormatter()
+                dateFormatter.timeStyle = .short
+                statusTitlePopup = String(localized: "oref enacted at", comment: "Headline in enacted pop up") +
+                    " " +
+                    dateFormatter
+                    .string(from: determination.deliverAt ?? Date())
+            } else {
+                statusTitlePopup = "No oref result"
+                return
             }
         }
     }

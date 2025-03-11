@@ -6,6 +6,8 @@ extension Main {
         let retry: () -> Void
 
         private let versionNumber = Bundle.main.releaseVersionNumber ?? String(localized: "Unknown")
+        private let buildNumber = Bundle.main.buildVersionNumber ?? String(localized: "Unknown")
+        private let copyright = Bundle.main.copyRightNotice ?? "Unknown"
 
         var body: some View {
             ZStack {
@@ -19,13 +21,13 @@ extension Main {
                 VStack {
                     Spacer().frame(maxHeight: 92)
 
-                    Image(.trioCircledNoBackground)
+                    Image(.taiCircledNoBackground)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 92, height: 92)
                         .shadow(color: Color.white.opacity(0.1), radius: 5, x: 0, y: 0)
 
-                    Text("Trio v\(versionNumber)")
+                    Text("Tai v\(versionNumber) (\(buildNumber)) \(copyright)")
                         .fontWeight(.heavy)
                         .foregroundStyle(Color(red: 148 / 255, green: 102 / 255, blue: 234 / 255))
                         .padding(.vertical)
