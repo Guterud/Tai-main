@@ -1,6 +1,7 @@
-oref0 branch: autoISF3.01 - git version: 0b5f9e3
+oref0 branch: autoISF3.01 - git version: 4e8c1b8
 
 Last commits:
+4e8c1b8 Merge remote-tracking branch 'sam/iob-splitter-bug-fix' into tcd
 0b5f9e3 resistanceMode active multiply with autoISF
 03735be increment correction
 53e8fbb fix B30 suppress SMB condition
@@ -30,4 +31,3 @@ f0b0fbb logging sens adjustments
 f37f7ec cp to Open-iAPS
 78f9298 delete TDD ytd and avg
 459d91f Merge branch 'dev-TaiAutoISF' of https://github.com/mountrcg/trio-oref into dev-TaiAutoISF
-c17dc5c stats for boluscalc
