@@ -53,6 +53,20 @@ struct TotalDailyDoseChart: View {
             })
     }
 
+    /// Defines empty scroll area to the right side of chart
+    private func daysToAdd(for interval: Stat.StateModel.StatsTimeInterval) -> Int {
+        switch interval {
+        case .day:
+            return 1 /// scroll to end of day
+        case .week:
+            return 5 /// leave room for current averages down to 3 days
+        case .month:
+            return 17 /// for 2 week average
+        default:
+            return 1
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             statsView.padding(.bottom)
@@ -137,16 +151,25 @@ struct TotalDailyDoseChart: View {
     private var chartsView: some View {
         Chart {
             ForEach(tddStats) { stat in
+                let isWeekend = Calendar.current.isDateInWeekend(stat.date)
+
                 BarMark(
                     x: .value("Date", stat.date, unit: selectedInterval == .day ? .hour : .day),
                     y: .value("Amount", stat.amount)
                 )
-                .foregroundStyle(Color.insulin)
+                .foregroundStyle(isWeekend ? Color.basal : Color.insulin)
                 .opacity(
                     selectedDate.map { date in
                         StatChartUtils.isSameTimeUnit(stat.date, date, for: selectedInterval) ? 1 : 0.3
                     } ?? 1
                 )
+                .annotation(position: .top) {
+                    if selectedInterval == .week {
+                        Text(stat.amount.formatted(.number.precision(.fractionLength(1))))
+                            .font(.footnote)
+                            .foregroundColor(Color.primary)
+                    }
+                }
             }
 
             // Selection popover outside of the ForEach loop!
@@ -172,19 +195,18 @@ struct TotalDailyDoseChart: View {
                 }
             }
 
-            // Dummy PointMark to force SwiftCharts to render a visible domain of 00:00-23:59
-            // i.e. single day from midnight to midnight
-            if selectedInterval == .day {
-                let calendar = Calendar.current
-                let midnight = calendar.startOfDay(for: Date())
-                let nextMidnight = calendar.date(byAdding: .day, value: 1, to: midnight)!
+            /// Dummy PointMark to force SwiftCharts to render a visible domain
+            /// of 00:00-23:59 for `Day` view, i.e. single day from midnight to midnight
+            ///  days depending on other views
+            let calendar = Calendar.current
+            let midnight = calendar.startOfDay(for: Date())
+            let mostRightChartPoint = calendar.date(byAdding: .day, value: daysToAdd(for: selectedInterval), to: midnight)!
 
-                PointMark(
-                    x: .value("Time", nextMidnight),
-                    y: .value("Dummy", 0)
-                )
-                .opacity(0) // ensures dummy ChartContent is hidden
-            }
+            PointMark(
+                x: .value("Time", mostRightChartPoint),
+                y: .value("Dummy", 0)
+            )
+            .opacity(0)
         }
         .chartYAxis {
             AxisMarks(position: .trailing) { value in

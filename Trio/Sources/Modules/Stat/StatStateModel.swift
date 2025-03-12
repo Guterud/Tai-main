@@ -44,20 +44,20 @@ extension Stat {
         var bolusTotalsCache: [(Date, total: Double)] = []
 
         // Selected Duration for Glucose Stats
-        var selectedIntervalForGlucoseStats: StatsTimeIntervalWithToday = .today {
+        var selectedIntervalForGlucoseStats: StatsTimeIntervalWithToday = .day {
             didSet {
                 setupGlucoseArray(for: selectedIntervalForGlucoseStats)
             }
         }
 
         // Selected Duration for Insulin Stats
-        var selectedIntervalForInsulinStats: StatsTimeInterval = .day
+        var selectedIntervalForInsulinStats: StatsTimeInterval = .week
 
         // Selected Duration for Meal Stats
-        var selectedIntervalForMealStats: StatsTimeInterval = .day
+        var selectedIntervalForMealStats: StatsTimeInterval = .week
 
         // Selected Duration for Loop Stats
-        var selectedIntervalForLoopStats: StatsTimeIntervalWithToday = .today {
+        var selectedIntervalForLoopStats: StatsTimeIntervalWithToday = .day {
             didSet {
                 setupLoopStatRecords()
             }
@@ -84,7 +84,7 @@ extension Stat {
         let bolusTaskContext = CoreDataStack.shared.newTaskContext()
 
         override func subscribe() {
-            setupGlucoseArray(for: .today)
+            setupGlucoseArray(for: .day)
             setupTDDStats()
             setupBolusStats()
             setupLoopStatRecords()

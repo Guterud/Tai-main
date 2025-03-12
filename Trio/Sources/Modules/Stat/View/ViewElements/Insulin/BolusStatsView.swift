@@ -215,6 +215,31 @@ struct BolusStatsView: View {
                     )
                 }
             }
+            // Dummy PointMark to force SwiftCharts to render a visible domain of 00:00-23:59
+            // i.e. single day from midnight to midnight
+            if selectedInterval == .day {
+                let calendar = Calendar.current
+                let midnight = calendar.startOfDay(for: Date())
+                let nextMidnight = calendar.date(byAdding: .day, value: 1, to: midnight)!
+
+                PointMark(
+                    x: .value("Time", nextMidnight),
+                    y: .value("Dummy", 0)
+                )
+                .opacity(0) // ensures dummy ChartContent is hidden                    }
+            }
+            // make it possible to also show a 3day avg
+            if selectedInterval == .week {
+                let calendar = Calendar.current
+                let midnight = calendar.startOfDay(for: Date())
+                let nextMidnight = calendar.date(byAdding: .day, value: 5, to: midnight)!
+
+                PointMark(
+                    x: .value("Time", nextMidnight),
+                    y: .value("Dummy", 0)
+                )
+                .opacity(0) // ensures dummy ChartContent is hidden
+            }
         }
         .chartForegroundStyleScale([
             "SMB": Color.blue,
