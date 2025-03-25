@@ -1,6 +1,8 @@
-oref0 branch: autoISF3.01 - git version: 2a0bd4e
+oref0 branch: autoISF3.01 - git version: d77fa8e
 
 Last commits:
+d77fa8e Remove TDD calc
+6216969 3-digit temp basal rates
 2a0bd4e bolusIncrement for oref
 b555d7b Merge remote-tracking branch 'sam/iob-splitter-bug-fix' into tcd
 a1e5f0c resistanceMode active multiply with autoISF
@@ -29,5 +31,3 @@ f0b0fbb logging sens adjustments
 7408a7f remove delta logging
 1d7dbdb tick in mg/dL
 f37f7ec cp to Open-iAPS
-78f9298 delete TDD ytd and avg
-459d91f Merge branch 'dev-TaiAutoISF' of https://github.com/mountrcg/trio-oref into dev-TaiAutoISF
