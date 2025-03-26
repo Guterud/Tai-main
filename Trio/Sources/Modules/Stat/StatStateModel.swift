@@ -85,7 +85,7 @@ extension Stat {
 
         override func subscribe() {
             setupGlucoseArray(for: .day)
-            setupTDDStats()
+            setupTDDStats(selectedInterval: selectedIntervalForInsulinStats)
             setupBolusStats()
             setupLoopStatRecords()
             setupMealStats()
