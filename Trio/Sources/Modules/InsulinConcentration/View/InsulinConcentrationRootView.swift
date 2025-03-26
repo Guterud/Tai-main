@@ -8,6 +8,7 @@ extension InsulinConcentration {
         @StateObject var state = StateModel()
 
         @State private var showConfirmationDialog = false
+        @State private var showSecondConfirmationDialog = false
         @State private var hasChanges = false
 
         @Environment(\.dismiss) var dismiss
@@ -34,10 +35,25 @@ extension InsulinConcentration {
                     isPresented: $showConfirmationDialog,
                     titleVisibility: .visible
                 ) {
-                    Button("Confirm", role: .destructive) { saveConcentrationAndDismiss() }
+                    Button("Confirm", role: .destructive) {
+                        showSecondConfirmationDialog = true
+                    }
                 } message: {
                     Text(
                         "Ensure that the selected insulin concentration matches the vial or pen label. U\(Int(truncating: NSDecimalNumber(decimal: state.tempConcentration * 100))) means \(Int(truncating: NSDecimalNumber(decimal: state.tempConcentration * 100))) units per ml."
+                    )
+                }
+                .confirmationDialog(
+                    "Check your Basal Profile after adding Pump!",
+                    isPresented: $showSecondConfirmationDialog,
+                    titleVisibility: .visible
+                ) {
+                    Button("Got it!", role: .destructive) {
+                        saveConcentrationAndDismiss()
+                    }
+                } message: {
+                    Text(
+                        "Switching insulin concentration changes the basal increments that can be delivered by pump. For diluted insulins smaller increments can be used. For high concentrations the increment will be larger than your regular U100 increment - this compulsory needs adjustment!"
                     )
                 }
             }

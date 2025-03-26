@@ -26,12 +26,44 @@ extension BasalProfileEditor {
             initialItems != items
         }
 
+        var settings: TrioSettings {
+            get { settingsManager.settings }
+            set { settingsManager.settings = newValue }
+        }
+
         override func subscribe() {
-            rateValues = provider.supportedBasalRates ?? stride(from: 5.0, to: 1001.0, by: 5.0)
-                .map { ($0.decimal ?? .zero) / 100 }
+            // Get concentration factor from settings
+            let concentration: Decimal = settings.insulinConcentration
+
+            if let supportedRates = provider.supportedBasalRates {
+                // If provider has defined rates, adjust them by concentration
+                rateValues = supportedRates.map { $0 * concentration }
+            } else {
+                // Default fallback with concentration adjustment
+                let minRate: Decimal = 5.0
+                let maxRate: Decimal = 1001.0
+                let stepSize: Decimal = 5.0
+
+                // Calculate adjusted rates
+                var rates: [Decimal] = []
+                var current = minRate * concentration
+                let adjustedMax = maxRate * concentration
+                let adjustedStep = stepSize * concentration
+
+                while current < adjustedMax {
+                    rates.append(current / 100)
+                    current += adjustedStep
+                }
+
+                rateValues = rates
+            }
+
             items = provider.profile.map { value in
                 let timeIndex = timeValues.firstIndex(of: Double(value.minutes * 60)) ?? 0
-                let rateIndex = rateValues.firstIndex(of: value.rate) ?? 0
+                // Find the closest rate index
+                let rateIndex = rateValues.firstIndex { rate in
+                    abs(rate - value.rate) < 0.0001
+                } ?? 0
                 return Item(rateIndex: rateIndex, timeIndex: timeIndex)
             }
 
