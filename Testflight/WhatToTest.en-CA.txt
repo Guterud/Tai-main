@@ -1,14 +1,4 @@
-4th Beta update 0.4.3
+Beta update 0.4.3
 
-rebase to Trio closed beta 0.3.0 (13)
-Trio closed beta 0.3.0 (14)
-Concentration
-Statistics
-Launch Screen
-autosens or autoISF Ratio on Homescreen
-help texts updated
-personal adaptions
-submodule update browser builds
-oref adaptions from SamKing
-AS when autoISF is off
-Dexcom Fix
+concentration
+mov Avgs
