@@ -178,17 +178,24 @@ extension Home {
                 battery: state.batteryFromPersistence,
                 autoISFratio: (state.determinationsFromPersistence.first?.autoISFratio ?? 1) as Decimal,
                 totalDaily: state.fetchedTDDs.first?.totalDailyDose ?? 0,
-                autoisfEnabled: state.autoisfEnabled
-            )
-            .onTapGesture {
-                if state.pumpDisplayState == nil {
-                    // shows user confirmation dialog with pump model choices, then proceeds to setup
-                    showPumpSelection.toggle()
-                } else {
-                    // sends user to pump settings
-                    state.shouldDisplayPumpSetupSheet.toggle()
+                autoisfEnabled: state.autoisfEnabled,
+                showPumpSelection: $showPumpSelection,
+                shouldDisplayPumpSetupSheet: $state.shouldDisplayPumpSetupSheet,
+                pumpSet: state.pumpSet,
+                onTDDTap: {
+                    // Set preferences in AppState
+                    appState.statSelectedViewType = .insulin
+                    appState.statSelectedInsulinChartType = .totalDailyDose
+                    appState.statSelectedInsulinTimeInterval = .week
+
+                    // Show statistics modal
+                    state.showModal(for: .statistics)
+                },
+                onAISRTap: {
+                    // Show autoISF history
+                    state.showModal(for: .autoisfHistory)
                 }
-            }
+            )
         }
 
         var tempBasalString: String? {
@@ -382,7 +389,11 @@ extension Home {
         var timeIntervalPanel: some View {
             HStack(alignment: .center) {
                 Spacer()
-                Button(action: { state.showModal(for: .statistics) }) {
+                Button(action: {
+                    appState.statSelectedViewType = .glucose
+                    appState.statSelectedInsulinTimeInterval = .day
+                    state.showModal(for: .statistics)
+                }) {
                     Image(systemName: "chart.bar.xaxis.ascending.badge.clock")
                         .symbolRenderingMode(.palette)
                         .scaleEffect(x: -1)
@@ -691,7 +702,8 @@ extension Home {
                     HStack {
                         if state.autoisfEnabled {
                             Text("aiSR")
-                                .font(.callout).fontWeight(.bold)
+                                .font(.callout)
+                                .fontDesign(.rounded)
                                 .foregroundColor(Color.loopGreen)
 
                             if let determination = state.determinationsFromPersistence.first,
@@ -711,7 +723,8 @@ extension Home {
                             }
                         } else {
                             Text("AS")
-                                .font(.callout).fontWeight(.bold)
+                                .font(.callout)
+                                .fontDesign(.rounded)
                                 .foregroundColor(Color.zt)
 
                             if let determination = state.determinationsFromPersistence.first,
@@ -736,7 +749,8 @@ extension Home {
 
                     Text("TDD:")
                         .foregroundColor(Color.insulin)
-                        .font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                        .font(.callout)
+                        .fontDesign(.rounded)
                     Text(
                         (
                             Formatter.insulinFormatterToIncrement(for: 0.1)

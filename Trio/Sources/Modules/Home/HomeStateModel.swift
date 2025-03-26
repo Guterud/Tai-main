@@ -60,6 +60,7 @@ extension Home {
         var units: GlucoseUnits = .mgdL
         var bolusIncrement: Decimal = 0.1
         var pumpDisplayState: PumpDisplayState?
+        var pumpSet: Bool = false
         var alarm: GlucoseAlarm?
         var manualTempBasal = false
         var isSmoothingEnabled = false
@@ -355,6 +356,7 @@ extension Home {
                 .sink { [weak self] state in
                     guard let self = self else { return }
                     self.pumpDisplayState = state
+                    self.pumpSet = state != nil
                     if state == nil {
                         self.reservoir = nil
                         self.battery = nil
@@ -696,6 +698,7 @@ extension Home.StateModel:
         displayPumpStatusHighlightMessage(true)
         displayPumpStatusBadge(true)
         batteryFromPersistence = []
+        pumpSet = false
     }
 }
 
