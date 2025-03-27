@@ -193,6 +193,10 @@ extension Home {
 
                     // Show statistics modal
                     state.showModal(for: .statistics)
+                },
+                onAISRTap: {
+                    // Show autoISF history
+                    state.showModal(for: .autoisfHistory)
                 }
             )
         }

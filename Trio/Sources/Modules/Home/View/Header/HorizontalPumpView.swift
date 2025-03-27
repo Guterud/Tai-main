@@ -14,6 +14,7 @@ struct HorizontalPumpView: View {
     @Binding var shouldDisplayPumpSetupSheet: Bool
     let pumpSet: Bool
     var onTDDTap: (() -> Void)?
+    var onAISRTap: (() -> Void)?
 
     @Environment(\.colorScheme) var colorScheme
 
@@ -134,14 +135,19 @@ struct HorizontalPumpView: View {
 
             Spacer()
             if autoisfEnabled {
-                Text("aiSR")
-                    .font(.callout).fontWeight(.bold).fontDesign(.rounded)
-                    .foregroundColor(.loopGreen)
-                    .layoutPriority(1)
-                Text(Formatter.decimalFormatterWithTwoFractionDigits.string(from: autoISFratio as NSNumber) ?? "1.0")
-                    .font(.callout).fontWeight(.bold)
-                    .fontDesign(.rounded)
-                    .layoutPriority(2)
+                Group {
+                    Text("aiSR")
+                        .font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                        .foregroundColor(.loopGreen)
+                        .layoutPriority(1)
+                    Text(Formatter.decimalFormatterWithTwoFractionDigits.string(from: autoISFratio as NSNumber) ?? "1.0")
+                        .font(.callout).fontWeight(.bold)
+                        .fontDesign(.rounded)
+                        .layoutPriority(2)
+                }
+                .onTapGesture {
+                    onAISRTap?()
+                }
             } else {
                 Text("AS")
                     .font(.callout).fontWeight(.bold).fontDesign(.rounded)
