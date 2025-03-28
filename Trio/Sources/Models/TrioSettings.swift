@@ -15,7 +15,7 @@ enum BolusShortcutLimit: String, JSON, CaseIterable, Identifiable {
     }
 }
 
-struct TrioSettings: JSON, Equatable {
+struct TrioSettings: JSON, Equatable, Encodable {
     var units: GlucoseUnits = .mgdL
     var closedLoop: Bool = false
     var isUploadEnabled: Bool = false
