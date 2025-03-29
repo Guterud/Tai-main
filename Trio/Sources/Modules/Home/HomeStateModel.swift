@@ -58,6 +58,8 @@ extension Home {
         var eventualBG: Int?
         var allowManualTemp = false
         var units: GlucoseUnits = .mgdL
+        var concentration: Decimal = 1
+        var hideInsulinBadge: Bool = false
         var bolusIncrement: Decimal = 0.1
         var pumpDisplayState: PumpDisplayState?
         var pumpSet: Bool = false
@@ -384,6 +386,8 @@ extension Home {
             units = settingsManager.settings.units
             autoisfEnabled = settingsManager.preferences.autoisf
             bolusIncrement = settingsManager.preferences.bolusIncrement
+            concentration = settingsManager.settings.insulinConcentration
+            hideInsulinBadge = settingsManager.settings.hideInsulinBadge
             allowManualTemp = !settingsManager.settings.closedLoop
             closedLoop = settingsManager.settings.closedLoop
             lastLoopDate = apsManager.lastLoopDate
@@ -396,6 +400,7 @@ extension Home {
             highGlucose = settingsManager.settings.high
             eA1cDisplayUnit = settingsManager.settings.eA1cDisplayUnit
             showCobIobChart = settingsManager.settings.showCobIobChart
+            hideInsulinBadge = settingsManager.settings.hideInsulinBadge
             displayXgridLines = settingsManager.settings.xGridLines
             displayYgridLines = settingsManager.settings.yGridLines
             thresholdLines = settingsManager.settings.rulerMarks
@@ -633,6 +638,8 @@ extension Home.StateModel:
         allowManualTemp = !settings.closedLoop
         closedLoop = settingsManager.settings.closedLoop
         units = settingsManager.settings.units
+        concentration = settingsManager.settings.insulinConcentration
+        hideInsulinBadge = settingsManager.settings.hideInsulinBadge
         manualTempBasal = apsManager.isManualTempBasal
         isSmoothingEnabled = settingsManager.settings.smoothGlucose
         lowGlucose = settingsManager.settings.low
@@ -644,6 +651,7 @@ extension Home.StateModel:
         eA1cDisplayUnit = settingsManager.settings.eA1cDisplayUnit
         glucoseColorScheme = settingsManager.settings.glucoseColorScheme
         showCobIobChart = settingsManager.settings.showCobIobChart
+        hideInsulinBadge = settingsManager.settings.hideInsulinBadge
         displayXgridLines = settingsManager.settings.xGridLines
         displayYgridLines = settingsManager.settings.yGridLines
         thresholdLines = settingsManager.settings.rulerMarks
@@ -666,7 +674,10 @@ extension Home.StateModel:
         highTTraisesSens = settingsManager.preferences.highTemptargetRaisesSensitivity
         isExerciseModeActive = settingsManager.preferences.exerciseMode
         lowTTlowersSens = settingsManager.preferences.lowTemptargetLowersSensitivity
+        let oldBolusIncrement = bolusIncrement
         bolusIncrement = settingsManager.preferences.bolusIncrement
+        debug(.service, "Update triggered")
+        debug(.service, "bolusIncrement updated from preferences: \(oldBolusIncrement) → \(bolusIncrement)")
     }
 
     func pumpSettingsDidChange(_: PumpSettings) {
