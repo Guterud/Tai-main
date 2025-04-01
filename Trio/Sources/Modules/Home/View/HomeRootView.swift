@@ -179,7 +179,7 @@ extension Home {
                 timerDate: state.timerDate,
                 pumpStatusHighlightMessage: state.pumpStatusHighlightMessage,
                 battery: state.batteryFromPersistence,
-                autoISFratio: (state.determinationsFromPersistence.first?.autoISFratio ?? 1) as Decimal,
+                autoISFratio: (state.enactedAndNonEnactedDeterminations.first?.autoISFratio ?? 1) as Decimal,
                 totalDaily: state.fetchedTDDs.first?.totalDailyDose ?? 0,
                 autoisfEnabled: state.autoisfEnabled,
                 showPumpSelection: $showPumpSelection,
@@ -538,13 +538,10 @@ extension Home {
                     isLooping: state.isLooping,
                     lastLoopDate: state.lastLoopDate,
                     manualTempBasal: state.manualTempBasal,
-                    determination: state.determinationsFromPersistence
+                    determination: getMostRecentDetermination().map { [$0] } ?? []
                 )
                 .onTapGesture {
-                    setStatusTitlePopup()
                     state.isStatusPopupPresented.toggle()
-                    setStatusTitlePopup()
-//                    state.isLoopStatusPresented = true
                 }
                 .onLongPressGesture {
                     let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
@@ -1407,8 +1404,37 @@ extension Home {
         }
 
         private var popup: some View {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(statusTitlePopup).font(.headline).foregroundColor(.primary)
+            // Directly calculate the status title in the view
+            let popupTitle: String = {
+                let determination = getMostRecentDetermination()
+
+                if determination == nil {
+                    return "No Algorithm result"
+                }
+
+                let dateFormatter = DateFormatter()
+                dateFormatter.timeStyle = .short
+
+                // Check if the determination is from suggested or enacted source
+                if state.determinationsFromSuggestion.first?.objectID == determination?.objectID {
+                    var title = String(localized: "Algorithm suggested at", comment: "Headline in suggested popup") +
+                        " " + dateFormatter.string(from: determination?.deliverAt ?? Date())
+
+                    // Add warning if the loop is not closed or if it's a manual temp basal
+                    if state.manualTempBasal || !state.closedLoop {
+                        title += " - not enacted!"
+                    }
+                    return title
+                } else {
+                    return String(localized: "Algorithm enacted at", comment: "Headline in enacted popup") +
+                        " " + dateFormatter.string(from: determination?.deliverAt ?? Date())
+                }
+            }()
+
+            return VStack(alignment: .leading, spacing: 4) {
+                Text(popupTitle)
+                    .font(.headline)
+                    .foregroundColor(.primary)
                     .padding(.bottom, 4)
 
                 if let errorMessage = state.errorMessage, let date = state.errorDate {
@@ -1419,7 +1445,10 @@ extension Home {
                     }.foregroundColor(.loopRed)
                 }
 
-                if let determination = state.determinationsFromPersistence.first {
+                // Determine which data to show based on most recent date
+                let determinationToShow = getMostRecentDetermination()
+
+                if let determination = determinationToShow {
                     if determination.glucose == 400 {
                         Text("Invalid CGM reading (HIGH).")
                             .bold()
@@ -1430,7 +1459,6 @@ extension Home {
                         Text("SMBs and Non-Zero Temp. Basal Rates are disabled.")
                             .font(.subheadline)
                             .fixedSize(horizontal: false, vertical: true)
-
                     } else {
                         let tags = !state.isSmoothingEnabled ? determination.reasonParts : determination
                             .reasonParts + ["Smoothing: On"]
@@ -1441,13 +1469,6 @@ extension Home {
                         .animation(.none, value: false)
                         Text("Algorithm reasoning").font(.headline).foregroundColor(.primary)
                             .padding(.vertical, 4)
-//                        Text(
-//                            self
-//                                .parseReasonConclusion(
-//                                    determination.reasonConclusion,
-//                                    isMmolL: state.units == .mmolL
-//                                )
-//                        ).font(.subheadline).foregroundColor(.white)
                         Text(determination.reasonConclusion)
                             .font(.subheadline).foregroundColor(.primary)
                     }
@@ -1466,18 +1487,50 @@ extension Home {
             }
         }
 
-        private func setStatusTitlePopup() {
-            if let determination = state.determinationsFromPersistence.first {
-                let dateFormatter = DateFormatter()
-                dateFormatter.timeStyle = .short
-                statusTitlePopup = String(localized: "oref enacted at", comment: "Headline in enacted pop up") +
-                    " " +
-                    dateFormatter
-                    .string(from: determination.deliverAt ?? Date())
-            } else {
-                statusTitlePopup = "No oref result"
-                return
+        // Modified setStatusTitlePopup method that now returns the current title string
+        private func setStatusTitlePopup() -> String {
+            let determination = getMostRecentDetermination()
+
+            if determination == nil {
+                statusTitlePopup = "No Algorithm result"
+                return statusTitlePopup
             }
+
+            let dateFormatter = DateFormatter()
+            dateFormatter.timeStyle = .short
+
+            // Check if the determination is from suggested or enacted source
+            if state.determinationsFromSuggestion.first?.objectID == determination?.objectID {
+                statusTitlePopup = String(localized: "Algorithm suggested at", comment: "Headline in suggested popup") +
+                    " " + dateFormatter.string(from: determination?.deliverAt ?? Date())
+
+                // Add warning if the loop is not closed or if it's a manual temp basal
+                if state.manualTempBasal || !state.closedLoop {
+                    statusTitlePopup += " - not enacted!"
+                }
+            } else {
+                statusTitlePopup = String(localized: "Algorithm enacted at", comment: "Headline in enacted popup") +
+                    " " + dateFormatter.string(from: determination?.deliverAt ?? Date())
+            }
+
+            return statusTitlePopup
+        }
+
+        // Helper function to determine the most recent determination
+        private func getMostRecentDetermination() -> OrefDetermination? {
+            let enacted = state.determinationsFromPersistence.first
+            let suggested = state.determinationsFromSuggestion.first
+
+            // If only one is available, return it
+            if enacted == nil { return suggested }
+            if suggested == nil { return enacted }
+
+            // Both are available - compare dates
+            let enactedDate = enacted?.deliverAt ?? Date.distantPast
+            let suggestedDate = suggested?.deliverAt ?? Date.distantPast
+
+            // Return the most recent one
+            return suggestedDate > enactedDate ? suggested : enacted
         }
     }
 }

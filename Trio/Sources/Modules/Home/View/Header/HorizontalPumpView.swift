@@ -167,7 +167,7 @@ struct HorizontalPumpView: View {
 
     private func remainingTimeString(time: TimeInterval) -> String {
         guard time > 0 else {
-            return String(localized: "Replace pod", comment: "View/Header when pod expired")
+            return String(localized: "Change pod", comment: "View/Header when pod expired")
         }
 
         var time = time

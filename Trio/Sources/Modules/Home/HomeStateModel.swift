@@ -93,6 +93,7 @@ extension Home {
         var carbsFromPersistence: [CarbEntryStored] = []
         var fpusFromPersistence: [CarbEntryStored] = []
         var determinationsFromPersistence: [OrefDetermination] = []
+        var determinationsFromSuggestion: [OrefDetermination] = []
         var enactedAndNonEnactedDeterminations: [OrefDetermination] = []
         var fetchedTDDs: [TDD] = []
         var insulinFromPersistence: [PumpEventStored] = []
@@ -502,7 +503,7 @@ extension Home {
                 if let statusHighlight = self.provider.deviceManager.pumpManager?.pumpStatusHighlight,
                    statusHighlight.state == .warning || statusHighlight.state == .critical, !didDeactivate
                 {
-                    pumpStatusHighlightMessage = (statusHighlight.state == .warning ? "⚠️\n" : "‼️\n") + statusHighlight
+                    pumpStatusHighlightMessage = (statusHighlight.state == .warning ? "⚠️" : "‼️") + statusHighlight
                         .localizedMessage
                 } else {
                     pumpStatusHighlightMessage = nil

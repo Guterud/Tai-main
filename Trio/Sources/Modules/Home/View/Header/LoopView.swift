@@ -29,11 +29,10 @@ struct LoopView: View {
                     Circle()
                         .strokeBorder(color, lineWidth: 3.2)
                         .frame(width: rect.width, height: rect.height, alignment: .center)
+                        .mask(mask(in: rect).fill(style: FillStyle(eoFill: true)))
                 }
             }
-            if manualTempBasal {
-                Text("Manual")
-            } else if determination.first?
+            if determination.first?
                 .deliverAt !=
                 nil
             {
@@ -43,7 +42,6 @@ struct LoopView: View {
                 Text("--")
             }
         }
-        .strikethrough(!closedLoop || manualTempBasal, pattern: .solid, color: color)
         .font(.callout).fontWeight(.bold).fontDesign(.rounded)
         .foregroundColor(color)
     }
@@ -62,7 +60,7 @@ struct LoopView: View {
     }
 
     private var color: Color {
-        guard determination.first?.timestamp != nil
+        guard determination.first?.deliverAt != nil
         else {
             // previously the .timestamp property was used here because this only gets updated when the reportenacted function in the aps manager gets called
             return .secondary
@@ -71,7 +69,7 @@ struct LoopView: View {
             return .loopManualTemp
         }
         guard closedLoop == true else {
-            return .secondary
+            return .blue
         }
 
         let delta = timerDate.timeIntervalSince(lastLoopDate) - Config.lag
@@ -91,7 +89,7 @@ struct LoopView: View {
     func mask(in rect: CGRect) -> Path {
         var path = Rectangle().path(in: rect)
         if !closedLoop || manualTempBasal {
-            path.addPath(Rectangle().path(in: CGRect(x: rect.minX, y: rect.midY - 4, width: rect.width, height: 8)))
+            path.addPath(Rectangle().path(in: CGRect(x: rect.minX, y: rect.midY - 2.5, width: rect.width, height: 5)))
         }
         return path
     }
