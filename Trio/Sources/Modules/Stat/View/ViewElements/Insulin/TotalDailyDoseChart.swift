@@ -159,6 +159,13 @@ struct TotalDailyDoseChart: View {
                         y: .value("Amount", stat.amount)
                     )
                     .foregroundStyle(isWeekend ? Color.basal : Color.insulin)
+                    .annotation(position: .top) {
+                        if selectedInterval == .week {
+                            Text(stat.amount.formatted(.number.precision(.fractionLength(1))))
+                                .font(.footnote)
+                                .foregroundColor(Color.primary)
+                        }
+                    }
                     .opacity(
                         selectedDate.map { date in
                             StatChartUtils.isSameTimeUnit(stat.date, date, for: selectedInterval) ? 1 : 0.3
