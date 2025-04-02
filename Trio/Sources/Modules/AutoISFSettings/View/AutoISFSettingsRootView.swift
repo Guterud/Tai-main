@@ -213,7 +213,7 @@ extension AutoISFSettings {
                             }
                         )
 
-                        // AutoISF IOB Threshold Percent
+                        // autoISF IOB Threshold Percent
                         SettingInputSection(
                             decimalValue: $state.iobThresholdPercent,
                             booleanValue: .constant(false),
@@ -222,16 +222,16 @@ extension AutoISFSettings {
                                 get: { selectedVerboseHint },
                                 set: {
                                     selectedVerboseHint = $0.map { AnyView($0) }
-                                    hintLabel = String(localized: "AutoISF IOB Threshold Percent", comment: "IOB Threshold")
+                                    hintLabel = String(localized: "autoISF IOB Threshold Percent", comment: "IOB Threshold")
                                 }
                             ),
                             units: state.units,
                             type: .decimal("iobThresholdPercent"),
-                            label: String(localized: "AutoISF IOB Threshold Percent", comment: "IOB Threshold"),
+                            label: String(localized: "autoISF IOB Threshold Percent", comment: "IOB Threshold"),
                             miniHint: String(
                                 localized:
                                 "This is the share of maxIOB above which autoISF will disable SMB. 100% neutralizes it's effect.",
-                                comment: "AutoISF IOB Threshold miniHint"
+                                comment: "autoISF IOB Threshold miniHint"
                             ),
                             verboseHint: VStack(alignment: .leading, spacing: 10) {
                                 Text("Default: 100% ").bold()
@@ -258,7 +258,7 @@ extension AutoISFSettings {
                             }
                         )
 
-                        // AutoISF Max
+                        // autoISF Max
                         SettingInputSection(
                             decimalValue: $state.autoISFmax,
                             booleanValue: .constant(false),
@@ -267,16 +267,16 @@ extension AutoISFSettings {
                                 get: { selectedVerboseHint },
                                 set: {
                                     selectedVerboseHint = $0.map { AnyView($0) }
-                                    hintLabel = String(localized: "AutoISF Max", comment: "AutoISF Max")
+                                    hintLabel = String(localized: "autoISF Max", comment: "autoISF Max")
                                 }
                             ),
                             units: state.units,
                             type: .decimal("autoISFmax"),
-                            label: String(localized: "AutoISF Max", comment: "AutoISF Max"),
+                            label: String(localized: "autoISF Max", comment: "autoISF Max"),
                             miniHint: String(
                                 localized:
                                 "Highest ISF factor allowed.",
-                                comment: "AutoISF Max miniHint"
+                                comment: "autoISF Max miniHint"
                             ),
                             verboseHint: VStack(alignment: .leading, spacing: 10) {
                                 Text("Typical: 2").bold()
@@ -286,7 +286,7 @@ extension AutoISFSettings {
                             }
                         )
 
-                        // AutoISF Min
+                        // autoISF Min
                         SettingInputSection(
                             decimalValue: $state.autoISFmin,
                             booleanValue: .constant(false),
@@ -295,16 +295,16 @@ extension AutoISFSettings {
                                 get: { selectedVerboseHint },
                                 set: {
                                     selectedVerboseHint = $0.map { AnyView($0) }
-                                    hintLabel = String(localized: "AutoISF Min", comment: "AutoISF Min")
+                                    hintLabel = String(localized: "autoISF Min", comment: "autoISF Min")
                                 }
                             ),
                             units: state.units,
                             type: .decimal("autoISFmin"),
-                            label: String(localized: "AutoISF Min", comment: "AutoISF Min"),
+                            label: String(localized: "autoISF Min", comment: "autoISF Min"),
                             miniHint: String(
                                 localized:
                                 "Lowest ISF factor allowed.",
-                                comment: "AutoISF Min miniHint"
+                                comment: "autoISF Min miniHint"
                             ),
                             verboseHint: VStack(alignment: .leading, spacing: 10) {
                                 Text("Typical: 0.7").bold()
@@ -541,7 +541,7 @@ extension AutoISFSettings {
                                 ScrollView {
                                     VStack(alignment: .leading, spacing: 12) {
                                         Text("""
-                                        AutoISF can adapt ISF based on glucose delta. It was introduced to help users with gastroparesis. It is also useful for users in pure UAM mode because in their case no meal start can be detected. Given a positive short_avgdelta and glucose being above target+10, the result is:
+                                        autoISF can adapt ISF based on glucose delta. It was introduced to help users with gastroparesis. It is also useful for users in pure UAM mode because in their case no meal start can be detected. Given a positive short_avgdelta and glucose being above target+10, the result is:
 
                                         pp_ISF = 1 + delta * pp_ISF_weight.
 

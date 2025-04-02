@@ -413,7 +413,7 @@ extension Preferences: Decodable {
         if let updateInterval = try? container.decode(Decimal.self, forKey: .updateInterval) {
             preferences.updateInterval = updateInterval
         }
-        // AutoISF config
+        // autoISF config
         if let floatingcarbs = try? container.decode(Bool.self, forKey: .floatingcarbs) {
             preferences.floatingcarbs = floatingcarbs
         }
