@@ -151,6 +151,48 @@ enum SettingItems {
                 "Noisy CGM Target Multiplier"
             ],
             path: ["Algorithm", "Additionals"]
+        ),
+        SettingItem(
+            title: "autoISF",
+            view: .autoISFSettings,
+            searchContents: [
+                "acceISF",
+                "duraISF",
+                "ppISF",
+                "bgISF",
+                "autoISF max",
+                "autoISF min",
+                "acceleration",
+                "SMB Delivery Ratio",
+                "weights",
+                "factors"
+            ],
+            path: ["Algorithm", "autoISF"]
+        ),
+        SettingItem(
+            title: "AIMI B30",
+            view: .B30Conf,
+            searchContents: [
+                "Eating Soon"
+            ],
+            path: ["Algorithm", "AIMI B30"]
+        ),
+        SettingItem(
+            title: "Keto Protection",
+            view: .KetoConfig,
+            searchContents: [
+                "Acidosis"
+            ],
+            path: ["Algorithm", "Keto Protection"]
+        ),
+        SettingItem(
+            title: "Middleware",
+            view: .configEditor(file: OpenAPS.Middleware.determineBasal),
+            searchContents: [
+                "js",
+                "javascript"
+            ],
+            path: ["Algorithm", "Middleware"]
         )
     ]
 

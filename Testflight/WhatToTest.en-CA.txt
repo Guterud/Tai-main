@@ -1,5 +1,4 @@
-8th Beta update 0.4.1
+Beta update 0.4.3
 
-Trio closed beta release 0.3.0 (15)
-
-
+make autoISF config searchable
+place ai in bobble for quick distinction from Trio
