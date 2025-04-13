@@ -160,7 +160,11 @@ extension CGMSettings {
                                 completionDelegate: state,
                                 setupDelegate: state,
                                 pluginCGMManager: self.state.pluginCGMManager
-                            )
+                            ).onDisappear {
+                                if state.fetchGlucoseManager.cgmGlucoseSourceType == .none {
+                                    state.cgmCurrent = cgmDefaultModel
+                                }
+                            }
                         }
                     }
                 }

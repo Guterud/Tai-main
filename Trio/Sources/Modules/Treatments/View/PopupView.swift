@@ -931,7 +931,7 @@ struct PopupView: View {
         formatter.numberStyle = .decimal
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 3
-        formatter.locale = Locale.current // Uses the user's locale
+        formatter.locale = Locale.current
 
         // Create a decimal handler with the specified rounding behavior.
         // Always rounds to 2 decimal places (0.01 U precision).

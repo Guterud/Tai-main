@@ -80,7 +80,7 @@ extension Notification.Name {
     }
 
     init() {
-        let submodulesInfo = BuildDetails.default.submodules.map { key, value in
+        let submodulesInfo = BuildDetails.shared.submodules.map { key, value in
             "\(key): \(value.branch) \(value.commitSHA)"
         }.joined(separator: ", ")
 
@@ -103,7 +103,7 @@ extension Notification.Name {
             do {
                 try await coreDataStack.initializeStack()
 
-                await MainActor.run {
+                await Task { @MainActor in
                     // Only load services after successful Core Data initialization
                     loadServices()
 
@@ -113,7 +113,12 @@ extension Notification.Name {
                     self.initState.complete = true
                     Foundation.NotificationCenter.default.post(name: .initializationCompleted, object: nil)
                     UIApplication.shared.registerForRemoteNotifications()
-                }
+                    do {
+                        try await BuildDetails.shared.handleExpireDateChange()
+                    } catch {
+                        debug(.default, "Failed to handle expire date change: \(error)")
+                    }
+                }.value
             } catch {
                 debug(
                     .coreData,

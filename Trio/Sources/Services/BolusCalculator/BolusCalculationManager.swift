@@ -267,7 +267,7 @@ final class BaseBolusCalculationManager: BolusCalculationManager, Injectable {
         return BolusCalculatorVariables(
             insulinRequired: (mostRecentDetermination.insulinReq ?? 0) as Decimal,
             evBG: (mostRecentDetermination.eventualBG ?? 0) as Decimal,
-            minPredBG: (mostRecentDetermination.minPredBGFromReason(with: settingsManager.settings.units) ?? 0) as Decimal,
+            minPredBG: (mostRecentDetermination.minPredBGFromReason ?? 0) as Decimal,
             lastLoopDate: apsManager.lastLoopDate as Date?,
             insulin: (mostRecentDetermination.insulinForManualBolus ?? 0) as Decimal,
             target: (mostRecentDetermination.currentTarget ?? currentBGTarget as NSDecimalNumber) as Decimal,
@@ -372,26 +372,15 @@ final class BaseBolusCalculationManager: BolusCalculationManager, Injectable {
         )
         // insulin needed for the current blood glucose
         let targetDifference = input.currentBG - input.target
-        let targetDifferenceInsulin = (targetDifference / input.isf)
-            .roundedToBolusIncrement(
-                increment: bolusIncrement,
-                maxBolus: settingsManager.pumpSettings.maxBolus
-            )
+
+        let targetDifferenceInsulin = targetDifference / input.isf
 
         // more or less insulin because of bg trend in the last 15 minutes
-        let fifteenMinutesInsulin = (input.deltaBG / input.isf)
-            .roundedToBolusIncrement(
-                increment: bolusIncrement,
-                maxBolus: settingsManager.pumpSettings.maxBolus
-            )
+        let fifteenMinutesInsulin = input.deltaBG / input.isf
 
         // determine whole COB for which we want to dose insulin for and then determine insulin for wholeCOB
-        let wholeCob = Decimal(input.cob) + input.carbs
-        let wholeCobInsulin = (wholeCob / input.carbRatio)
-            .roundedToBolusIncrement(
-                increment: bolusIncrement,
-                maxBolus: settingsManager.pumpSettings.maxBolus
-            )
+        let wholeCob = min(Decimal(input.cob) + input.carbs, input.maxCOB)
+        let wholeCobInsulin = wholeCob / input.carbRatio
 
         // determine how much the calculator reduces/ increases the bolus because of IOB
         let iobInsulinReduction = (-1) * input.iob
@@ -442,12 +431,14 @@ final class BaseBolusCalculationManager: BolusCalculationManager, Injectable {
         } else {
             // no negative insulinCalculated
             insulinCalculated = max(factoredInsulin, 0)
+            // don't exceed maxBolus
+            insulinCalculated = min(insulinCalculated, input.maxBolus)
+            // don't exceed maxIOB
+            insulinCalculated = min(insulinCalculated, input.maxIOB - input.iob)
             // round calculated recommendation to allowed bolus increment
-            insulinCalculated = insulinCalculated.roundedToBolusIncrement(
-                increment: bolusIncrement,
-                maxBolus: settingsManager.pumpSettings.maxBolus
-            )
+            insulinCalculated = apsManager.roundBolus(amount: insulinCalculated)
         }
+
         return CalculationResult(
             insulinCalculated: insulinCalculated,
             factoredInsulin: factoredInsulin,
