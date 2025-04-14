@@ -168,8 +168,14 @@ extension MainChartView {
     }
 
     var mainChartYAxis: some AxisContent {
-        AxisMarks(position: .trailing) { value in
-
+        AxisMarks(
+            position: .trailing,
+            values: stride(
+                from: units == .mgdL ? 75 : 4,
+                through: units == .mgdL ? state.maxYAxisValue : state.maxYAxisValue.asMmolL,
+                by: units == .mgdL ? 50 : 3
+            ).map { $0 }
+        ) { value in
             if displayYgridLines {
                 AxisGridLine(stroke: .init(lineWidth: 0.5, dash: [2, 3]))
             } else {
