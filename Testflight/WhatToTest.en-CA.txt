@@ -1,6 +1,9 @@
 Beta update 0.4.1
 
-taiStyle
+taiStyle color scheme
+HomeView restructured
+tap TDD and aiSR for Statistics and autoISF history
+round insReq to available bolus increment
 Trio closed beta 0.3.0(16)
 
 

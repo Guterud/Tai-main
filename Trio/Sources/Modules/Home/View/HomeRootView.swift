@@ -44,8 +44,6 @@ extension Home {
             TimePicker(label: String(localized: "12 hours"), number: "12", active: false, hours: 12),
             TimePicker(label: String(localized: "24 hours"), number: "24", active: false, hours: 24)
         ]
-        var onTDDTap: (() -> Void)?
-        var onAISRTap: (() -> Void)?
 
         let buttonFont = Font.custom("TimeButtonFont", size: 14)
 
@@ -63,12 +61,13 @@ extension Home {
 
         var bolusProgressFormatter: NumberFormatter {
             let formatter = NumberFormatter()
+            let bolusIncrement = state.bolusIncrement
             formatter.numberStyle = .decimal
             formatter.minimum = 0
-            formatter.maximumFractionDigits = state.settingsManager.preferences.bolusIncrement > 0.05 ? 1 : 2
-            formatter.minimumFractionDigits = state.settingsManager.preferences.bolusIncrement > 0.05 ? 1 : 2
+            formatter.maximumFractionDigits = Decimal.maxFractionDigits(for: bolusIncrement)
+            formatter.minimumFractionDigits = 1
             formatter.allowsFloats = true
-            formatter.roundingIncrement = Double(state.settingsManager.preferences.bolusIncrement) as NSNumber
+            formatter.roundingIncrement = Double(bolusIncrement) as NSNumber
             return formatter
         }
 
@@ -170,20 +169,51 @@ extension Home {
             }
         }
 
+        var horizontalPumpView: some View {
+            HorizontalPumpView(
+                reservoir: state.reservoir,
+                name: state.pumpName,
+                expiresAtDate: state.pumpExpiresAtDate,
+                timerDate: state.timerDate,
+                pumpStatusHighlightMessage: state.pumpStatusHighlightMessage,
+                battery: state.batteryFromPersistence,
+                autoISFratio: (state.enactedAndNonEnactedDeterminations.first?.autoISFratio ?? 1) as Decimal,
+                totalDaily: state.fetchedTDDs.first?.totalDailyDose ?? 0,
+                autoisfEnabled: state.autoisfEnabled,
+                showPumpSelection: $showPumpSelection,
+                shouldDisplayPumpSetupSheet: $state.shouldDisplayPumpSetupSheet,
+                pumpSet: state.pumpSet,
+                onTDDTap: {
+                    // Set preferences in AppState
+                    appState.statSelectedViewType = .insulin
+                    appState.statSelectedInsulinChartType = .totalDailyDose
+                    appState.statSelectedInsulinTimeInterval = .week
+
+                    // Show statistics modal
+                    state.showModal(for: .statistics)
+                },
+                onAISRTap: {
+                    // Show autoISF history
+                    state.showModal(for: .autoisfHistory)
+                }
+            )
+        }
+
         var tempBasalString: String? {
             guard let lastTempBasal = state.tempBasals.last?.tempBasal, let tempRate = lastTempBasal.rate else {
                 return nil
             }
-            let rateString = Formatter.decimalFormatterWithTwoFractionDigits.string(from: tempRate as NSNumber) ?? "0"
+            let rateString = Formatter.insulinFormatterToIncrement(for: state.bolusIncrement)
+                .string(from: tempRate as NSNumber) ?? "0"
             var manualBasalString = ""
 
-            if let apsManager = state.apsManager, apsManager.isManualTempBasal {
-                manualBasalString = String(
-                    localized:
-                    " - Manual Basal ⚠️",
-                    comment: "Manual Temp basal"
-                )
-            }
+//            if let apsManager = state.apsManager, apsManager.isManualTempBasal {
+//                manualBasalString = String(
+//                    localized:
+//                    " - Manual Basal ⚠️",
+//                    comment: "Manual Temp basal"
+//                )
+//            }
 
             return rateString + String(localized: " U/hr", comment: "Unit per hour with space") + manualBasalString
         }
@@ -453,7 +483,47 @@ extension Home {
         }
 
         @ViewBuilder func rightHeaderPanel(_: GeometryProxy) -> some View {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .trailing, spacing: 15) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 16))
+                        .foregroundColor(.loopGreen)
+                    let isfValue = state.enactedAndNonEnactedDeterminations.first?.insulinSensitivity ?? NSDecimalNumber.zero
+                    let isfValueDecimal = isfValue.decimalValue
+                    let convertedISF = state.units == .mgdL ? isfValueDecimal.description : isfValueDecimal
+                        .formattedAsMmolL
+                    Text(convertedISF)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+//                    Text("\(state.units.rawValue)/U")
+//                        .font(.system(size: 12, design: .rounded))
+                }
+
+                /// eventualBG string
+                if let eventualBG = state.enactedAndNonEnactedDeterminations.first?.eventualBG {
+                    let bg = eventualBG as Decimal
+                    HStack {
+                        Text(
+                            "⇢"
+                        ).font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.secondary)
+                        Text(
+                            Formatter.decimalFormatterWithTwoFractionDigits.string(
+                                from: (
+                                    state.units == .mmolL ? bg
+                                        .asMmolL : bg
+                                ) as NSNumber
+                            )!
+                        )
+                        .font(.system(size: 16, weight: .bold)) }
+                } else {
+                    HStack {
+                        Text("⇢")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.secondary)
+                        Text("--")
+                    }
+                }
+                /// Loop view at bottomLeading
                 /// Loop view at bottomLeading
                 LoopView(
                     closedLoop: state.closedLoop,
@@ -471,29 +541,71 @@ extension Home {
                     impactHeavy.impactOccurred()
                     state.runLoop()
                 }
-                /// eventualBG string at bottomTrailing
+            }
+        }
 
-                if let eventualBG = state.enactedAndNonEnactedDeterminations.first?.eventualBG {
-                    let bg = eventualBG as Decimal
-                    HStack {
-                        Image(systemName: "arrow.right.circle")
-                            .font(.callout).fontWeight(.bold)
-                        Text(
+        @ViewBuilder func leftHeaderPanel(_: GeometryProxy) -> some View {
+            VStack(alignment: .leading, spacing: 15) {
+                HStack {
+                    Image(systemName: "drop.circle")
+                        .font(.system(size: 16))
+                        .foregroundColor(.insulin)
+                    Text(
+                        (
+                            Formatter.decimalFormatterWithTwoFractionDigits
+                                .string(from: (state.enactedAndNonEnactedDeterminations.first?.iob ?? 0) as NSNumber) ?? "0"
+                        ) +
+                            String(localized: " U", comment: "Insulin unit")
+                    )
+                    .font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                }
+                HStack {
+                    Image("premeal")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 15, height: 15)
+                        .foregroundColor(.loopYellow)
+                        .padding(.leading, 3)
+                    Text(
+                        (
                             Formatter.decimalFormatterWithTwoFractionDigits.string(
-                                from: (
-                                    state.units == .mmolL ? bg
-                                        .asMmolL : bg
-                                ) as NSNumber
-                            )!
-                        ).font(.callout).fontWeight(.bold).fontDesign(.rounded)
-                    }
-                    // aligns the evBG icon exactly with the first pixel of loop status icon
-                    .padding(.leading, 12)
-                } else {
-                    HStack {
-                        Image(systemName: "arrow.right.circle")
-                            .font(.callout).fontWeight(.bold)
-                        Text("--")
+                                from: NSNumber(value: state.enactedAndNonEnactedDeterminations.first?.cob ?? 0)
+                            ) ?? "0"
+                        ) +
+                            String(localized: " g", comment: "gram of carbs")
+                    )
+                    .font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                }
+                HStack {
+                    if state.pumpSuspended {
+                        Text("Pump suspended")
+                            .font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                            .foregroundColor(.loopGray)
+                    } else if let tempBasalString = tempBasalString {
+                        Image(systemName: "chart.bar.xaxis")
+                            .font(.system(size: 16))
+                            .rotationEffect(Angle(degrees: 180))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.insulinTintColor.opacity(0.9), .insulinTintColor.opacity(0.2)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        Text(tempBasalString)
+                            .font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                    } else {
+                        Image(systemName: "chart.bar.xaxis")
+                            .font(.system(size: 16))
+                            .rotationEffect(Angle(degrees: 180))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.insulinTintColor.opacity(0.9), .insulinTintColor.opacity(0.2)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        Text("No Data")
                             .font(.callout).fontWeight(.bold).fontDesign(.rounded)
                     }
                 }
@@ -502,39 +614,37 @@ extension Home {
 
         @ViewBuilder func mealPanel(_: GeometryProxy) -> some View {
             HStack {
-                HStack(spacing: 3) {
-                    Image(systemName: "syringe.fill")
+                HStack {
+                    Image(systemName: "drop.circle")
                         .font(.callout)
                         .foregroundColor(Color.insulin)
                     Text(
-                        Formatter.decimalFormatterWithTwoFractionDigits
-                            .string(from: (state.enactedAndNonEnactedDeterminations.first?.iob ?? 0) as NSNumber) ?? "0"
+                        (
+                            Formatter.decimalFormatterWithTwoFractionDigits
+                                .string(from: (state.enactedAndNonEnactedDeterminations.first?.iob ?? 0) as NSNumber) ?? "0"
+                        ) +
+                            String(localized: " U", comment: "Insulin unit")
                     )
                     .font(.callout).fontWeight(.bold).fontDesign(.rounded)
-                    .layoutPriority(2)
-                    Text(String(localized: "U", comment: "Insulin unit"))
-                        .layoutPriority(1)
-                        .font(.callout).fontWeight(.bold).fontDesign(.rounded)
                 }
 
                 Spacer()
 
-                HStack(spacing: 3) {
-                    Image(systemName: "fork.knife")
-                        .font(.callout)
+                HStack {
+                    Image("premeal")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 16, height: 16)
                         .foregroundColor(.loopYellow)
                     Text(
-                        Formatter.decimalFormatterWithTwoFractionDigits.string(
-                            from: NSNumber(value: state.enactedAndNonEnactedDeterminations.first?.cob ?? 0)
-                        ) ?? "0"
+                        (
+                            Formatter.decimalFormatterWithTwoFractionDigits.string(
+                                from: NSNumber(value: state.enactedAndNonEnactedDeterminations.first?.cob ?? 0)
+                            ) ?? "0"
+                        ) +
+                            String(localized: " g", comment: "gram of carbs")
                     )
                     .font(.callout).fontWeight(.bold).fontDesign(.rounded)
-                    .layoutPriority(2)
-                    Text(
-                        String(localized: "g", comment: "gram of carbs")
-                    )
-                    .font(.callout).fontWeight(.bold).fontDesign(.rounded)
-                    .layoutPriority(1)
                 }
 
                 Spacer()
@@ -547,134 +657,97 @@ extension Home {
                         .foregroundStyle(Color.red)
                         .font(.callout)
                 } else {
-                    HStack(spacing: 3) {
+                    HStack {
                         if state.pumpSuspended {
                             Text("Pump suspended")
                                 .font(.callout).fontWeight(.bold).fontDesign(.rounded)
                                 .foregroundColor(.loopGray)
                         } else if let tempBasalString = tempBasalString {
-                            Image(systemName: "drop.circle")
-                                .font(.callout)
-                                .foregroundColor(.insulinTintColor)
-                                .layoutPriority(2)
+                            Image(systemName: "chart.bar.xaxis")
+                                .font(.system(size: 16))
+                                .rotationEffect(Angle(degrees: 180))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.insulinTintColor.opacity(1), .insulinTintColor.opacity(0.4)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
                             if tempBasalString.count > 5 {
                                 Text(tempBasalString)
                                     .font(.callout).fontWeight(.bold).fontDesign(.rounded)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.85)
-                                    .truncationMode(.tail)
-                                    .allowsTightening(true)
+                                    .foregroundColor(.loopGray)
                             } else {
-                                // Short strings can just display normally
-                                Text(tempBasalString).font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                                Image(systemName: "drop.circle")
+                                    .font(.callout)
+                                    .foregroundColor(.insulinTintColor)
+                                Text("No Data")
+                                    .font(.callout).fontWeight(.bold).fontDesign(.rounded)
                             }
                         } else {
-                            Image(systemName: "drop.circle")
-                                .font(.callout)
-                                .foregroundColor(.insulinTintColor)
+                            Image(systemName: "chart.bar.xaxis")
+                                .font(.system(size: 16))
+                                .rotationEffect(Angle(degrees: 180))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.insulinTintColor.opacity(1), .insulinTintColor.opacity(0.4)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
                             Text("No Data")
                                 .font(.callout).fontWeight(.bold).fontDesign(.rounded)
                         }
                     }
                 }
-                if state.therapyParameterDisplayType == .autoisfSensRatio {
-                    Spacer()
-                    HStack(spacing: 3) {
-                        if state.autoisfEnabled {
-                            Group {
-                                Text("aiSR")
-                                    .font(.callout)
-                                    .fontDesign(.rounded)
-                                    .foregroundColor(Color.loopGreen)
-                                    .layoutPriority(1)
-                                if let determination = state.determinationsFromPersistence.first,
-                                   let autoISFratioValue = determination.autoISFratio as? Decimal
-                                {
-                                    Text(
-                                        Formatter.decimalFormatterWithTwoFractionDigits.string(
-                                            from: NSDecimalNumber(decimal: autoISFratioValue)
-                                        ) ?? "0"
-                                    )
-                                    .font(.callout).fontWeight(.bold)
-                                    .fontDesign(.rounded)
-                                    .layoutPriority(2)
-                                } else {
-                                    Text("--")
-                                        .font(.callout).fontWeight(.bold)
-                                        .fontDesign(.rounded)
-                                }
-                            }
-                            .onTapGesture {
-                                onAISRTap: do {
-                                    // Show autoISF history
-                                    state.showModal(for: .autoisfHistory)
-                                }
-                            }
-                        } else {
-                            Text("AS")
-                                .font(.callout)
-                                .fontDesign(.rounded)
-                                .foregroundColor(Color.zt)
-                                .layoutPriority(1)
-                            if let determination = state.determinationsFromPersistence.first,
-                               let autoISFratioValue = determination.autoISFratio as? Decimal
-                            {
-                                Text(
-                                    Formatter.decimalFormatterWithTwoFractionDigits.string(
-                                        from: NSDecimalNumber(decimal: autoISFratioValue)
-                                    ) ?? "0"
-                                )
-                                .font(.callout).fontWeight(.bold)
-                                .fontDesign(.rounded)
-                                .layoutPriority(2)
-
-                            } else {
-                                Text("--")
-                                    .font(.callout)
-                                    .fontDesign(.rounded)
-                                    .layoutPriority(1)
-                            }
-                        }
-                    }
-                } else {
-                    Spacer()
-                    HStack(spacing: 3) {
-                        Text("TDD:")
-                            .foregroundColor(Color.insulin)
+                Spacer()
+                HStack {
+                    if state.autoisfEnabled {
+                        Text("aiSR")
                             .font(.callout)
                             .fontDesign(.rounded)
-                        Text(
-                            Formatter.insulinFormatterToIncrement(for: 0.1)
-                                .string(from: (state.fetchedTDDs.first?.totalDailyDose ?? 0) as NSNumber) ??
-                                "0"
-                        )
-                        .font(.callout).fontWeight(.bold)
-                        .fontDesign(.rounded)
-                        .layoutPriority(2)
-                        Text(
-                            String(localized: "U", comment: "Insulin unit")
-                        )
-                        .font(.callout).fontWeight(.bold).fontDesign(.rounded)
-                        .layoutPriority(1)
-                    }
-                    .onTapGesture {
-                        onTDDTap: do {
-                            // Set preferences in AppState
-                            appState.statSelectedViewType = .insulin
-                            appState.statSelectedInsulinChartType = .totalDailyDose
-                            appState.statSelectedInsulinTimeInterval = .week
+                            .foregroundColor(Color.loopGreen)
 
-                            // Show statistics modal
-                            state.showModal(for: .statistics)
+                        if let determination = state.determinationsFromPersistence.first,
+                           let autoISFratioValue = determination.autoISFratio as? Decimal
+                        {
+                            Text(
+                                Formatter.decimalFormatterWithTwoFractionDigits.string(
+                                    from: NSDecimalNumber(decimal: autoISFratioValue)
+                                ) ?? "0"
+                            )
+                            .font(.callout).fontWeight(.bold)
+                            .fontDesign(.rounded)
+                        } else {
+                            Text("--")
+                                .font(.callout).fontWeight(.bold)
+                                .fontDesign(.rounded)
+                        }
+                    } else {
+                        Text("AS")
+                            .font(.callout)
+                            .fontDesign(.rounded)
+                            .foregroundColor(Color.zt)
+
+                        if let determination = state.determinationsFromPersistence.first,
+                           let autoISFratioValue = determination.autoISFratio as? Decimal
+                        {
+                            Text(
+                                Formatter.decimalFormatterWithTwoFractionDigits.string(
+                                    from: NSDecimalNumber(decimal: autoISFratioValue)
+                                ) ?? "0"
+                            )
+                            .font(.callout).fontWeight(.bold)
+                            .fontDesign(.rounded)
+                        } else {
+                            Text("--")
+                                .font(.callout).fontWeight(.bold)
+                                .fontDesign(.rounded)
                         }
                     }
                 }
-            }
-            .lineLimit(1) // Ensure all text stays on a single line
-            .allowsTightening(true)
-            .minimumScaleFactor(0.5) // Allow the text to scale down if needed
-            .fixedSize(horizontal: false, vertical: true) // Prevent vertical scaling
-            .padding(.horizontal)
+
+            }.padding(.horizontal)
         }
 
         @ViewBuilder func adjustmentsOverrideView(_ overrideString: String) -> some View {
@@ -922,7 +995,7 @@ extension Home {
                 let bolusString =
                     (bolusProgressFormatter.string(from: bolusFraction as NSNumber) ?? "0")
                         + String(localized: " of ", comment: "Bolus string partial message: 'x U of y U' in home view") +
-                        (Formatter.decimalFormatterWithTwoFractionDigits.string(from: bolusTotal as NSNumber) ?? "0")
+                        (bolusProgressFormatter.string(from: bolusTotal as NSNumber) ?? "0")
                         + String(localized: " U", comment: "Insulin unit")
 
                 ZStack {
@@ -1043,9 +1116,9 @@ extension Home {
                         rightHeaderPanel(geo)
                     }.padding(.trailing, 20)
 
-                    /// left panel with pump related info
+                    /// left panel with meal related info
                     HStack {
-                        pumpView
+                        leftHeaderPanel(geo)
                         Spacer()
                     }.padding(.leading, 20)
                 }
@@ -1060,8 +1133,12 @@ extension Home {
                     }
                 }
 
-                mealPanel(geo).padding(.top, UIDevice.adjustPadding(min: nil, max: 30))
-                    .padding(.bottom, UIDevice.adjustPadding(min: nil, max: 20))
+//                mealPanel(geo).padding(.top, UIDevice.adjustPadding(min: nil, max: 30))
+//                    .padding(.bottom, UIDevice.adjustPadding(min: nil, max: 20))
+
+                horizontalPumpView
+                    .padding(.top, UIDevice.adjustPadding(min: nil, max: 10))
+                    .padding(.bottom, UIDevice.adjustPadding(min: nil, max: 10))
 
                 mainChart(geo: geo)
 

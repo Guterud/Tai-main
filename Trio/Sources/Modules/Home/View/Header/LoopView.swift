@@ -18,26 +18,16 @@ struct LoopView: View {
 
     let determination: [OrefDetermination]
 
-    private let rect = CGRect(x: 0, y: 0, width: 15, height: 15)
+    private let rect = CGRect(x: 0, y: 0, width: 18, height: 18)
 
     var body: some View {
-        loopStatusWithMinutes
-            .padding(.vertical, 5)
-            .padding(.horizontal, 10)
-            .overlay(
-                Capsule()
-                    .stroke(color.opacity(0.4), lineWidth: 2)
-            )
-    }
-
-    private var loopStatusWithMinutes: some View {
         HStack(alignment: .center) {
             ZStack {
                 if isLooping {
                     CircleProgress()
                 } else {
                     Circle()
-                        .strokeBorder(color, lineWidth: 3)
+                        .strokeBorder(color, lineWidth: 3.2)
                         .frame(width: rect.width, height: rect.height, alignment: .center)
                         .mask(mask(in: rect).fill(style: FillStyle(eoFill: true)))
                 }
@@ -63,9 +53,9 @@ struct LoopView: View {
         if minutesAgo > 1440 {
             return "--"
         } else if minutesAgo <= 1 {
-            return "<" + "\u{00A0}" + "1" + String(localized: "m", comment: "Abbreviation for Minutes")
+            return "<" + "1" + String(localized: "m", comment: "Abbreviation for Minutes")
         } else {
-            return minuteString + "\u{00A0}" + String(localized: "m", comment: "Abbreviation for Minutes")
+            return minuteString + String(localized: "m", comment: "Abbreviation for Minutes")
         }
     }
 
@@ -109,7 +99,7 @@ struct CircleProgress: View {
     @State private var rotationAngle = 0.0
     @State private var pulse = false
 
-    private let rect = CGRect(x: 0, y: 0, width: 15, height: 15) // Same dimensions as in LoopView
+    private let rect = CGRect(x: 0, y: 0, width: 16, height: 16) // Same dimensions as in LoopView
     private var backgroundGradient: AngularGradient {
         // Create a custom angular gradient based on TaiStyle colors but with custom rotation
         AngularGradient(
@@ -130,13 +120,13 @@ struct CircleProgress: View {
     let timer = Timer.publish(every: 0.03, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        let rect = CGRect(x: 0, y: 0, width: 15, height: 15)
+        let rect = CGRect(x: 0, y: 0, width: 18, height: 18)
 
         ZStack {
             Circle()
                 .trim(from: 0, to: 1)
 //                .stroke(backgroundGradient, style: StrokeStyle(lineWidth: 3))
-                .stroke(backgroundGradient, style: StrokeStyle(lineWidth: pulse ? 6 : 3))
+                .stroke(backgroundGradient, style: StrokeStyle(lineWidth: pulse ? 6 : 3.2))
                 .scaleEffect(pulse ? 0.5 : 1)
                 .animation(
                     Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true),
@@ -153,18 +143,18 @@ struct CircleProgress: View {
     }
 }
 
-extension View {
-    func animateForever(
-        using animation: Animation = Animation.easeInOut(duration: 1),
-        autoreverses: Bool = false,
-        _ action: @escaping () -> Void
-    ) -> some View {
-        let repeated = animation.repeatForever(autoreverses: autoreverses)
-
-        return onAppear {
-            withAnimation(repeated) {
-                action()
-            }
-        }
-    }
-}
+// extension View {
+//    func animateForever(
+//        using animation: Animation = Animation.easeInOut(duration: 1),
+//        autoreverses: Bool = false,
+//        _ action: @escaping () -> Void
+//    ) -> some View {
+//        let repeated = animation.repeatForever(autoreverses: autoreverses)
+//
+//        return onAppear {
+//            withAnimation(repeated) {
+//                action()
+//            }
+//        }
+//    }
+// }

@@ -74,7 +74,8 @@ extension DataTable {
         }
 
         var body: some View {
-            let toggleCustomPicker: Bool = state.autoisf
+            var toggleCustomPicker: Bool = state.autoisf
+
             ZStack(alignment: .center, content: {
                 VStack {
                     if toggleCustomPicker {
@@ -97,22 +98,22 @@ extension DataTable {
                                     state.mode = .treatments
                                 }
                             }
-                            Divider().frame(height: textHeight + 4).background(Color.secondary)
-                            HStack {
-                                Text(DataTable.Mode.meals.name)
-                                    .font(.subheadline)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.5)
-                            }
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 8)
-                            .background(state.mode == .meals ? Color.loopGray.opacity(0.4) : Color.clear)
-                            .cornerRadius(8)
-                            .onTapGesture {
-                                withAnimation {
-                                    state.mode = .meals
-                                }
-                            }
+//                            Divider().frame(height: textHeight + 4).background(Color.secondary)
+//                            HStack {
+//                                Text(DataTable.Mode.meals.name)
+//                                    .font(.subheadline)
+//                                    .lineLimit(1)
+//                                    .minimumScaleFactor(0.5)
+//                            }
+//                            .padding(.vertical, 6)
+//                            .padding(.horizontal, 8)
+//                            .background(state.mode == .meals ? Color.loopGray.opacity(0.4) : Color.clear)
+//                            .cornerRadius(8)
+//                            .onTapGesture {
+//                                withAnimation {
+//                                    state.mode = .meals
+//                                }
+//                            }
                             Divider().frame(height: textHeight + 4).background(Color.secondary)
                             HStack {
                                 Text(DataTable.Mode.glucose.name)
@@ -150,6 +151,11 @@ extension DataTable {
                             }
                             Divider().frame(height: textHeight + 4).background(Color.secondary)
                             HStack(spacing: 2) {
+                                Text("autoISF")
+                                    .font(.subheadline)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.5)
+                                    .layoutPriority(2)
                                 Image(systemName: "list.bullet.rectangle")
                                     .foregroundColor(Color.uam)
                                     .font(.subheadline)
@@ -263,26 +269,6 @@ extension DataTable {
             ).buttonStyle(.borderless)
         }
 
-        private var treatmentsList: some View {
-            List {
-                HStack {
-                    Text("Insulin").foregroundStyle(.secondary)
-                    Spacer()
-                    Text("Time").foregroundStyle(.secondary)
-                }
-                if !pumpEventStored.isEmpty {
-                    ForEach(pumpEventStored.filter({ !showFutureEntries ? $0.timestamp ?? Date() <= Date() : true })) { item in
-                        treatmentView(item)
-                    }
-                } else {
-                    ContentUnavailableView(
-                        "No data.",
-                        systemImage: "syringe"
-                    )
-                }
-            }.listRowBackground(Color.chart)
-        }
-
         private var mealsList: some View {
             List {
                 HStack {
@@ -297,10 +283,70 @@ extension DataTable {
                 } else {
                     ContentUnavailableView(
                         "No data.",
-                        systemImage: "fork.knife"
+                        systemImage: "syringe"
                     )
                 }
             }.listRowBackground(Color.chart)
+        }
+
+        private var combinedTreatments: [TreatmentItem] {
+            // Convert Pump Events to TreatmentItem
+            let treatments = pumpEventStored.compactMap { event -> TreatmentItem? in
+                guard let id = event.objectID as NSManagedObjectID? else {
+                    print("🚨 PumpEventStored has nil objectID") // Debugging
+                    return nil
+                }
+                return TreatmentItem(
+                    id: id,
+                    timestamp: event.timestamp ?? Date(), // ✅ Prevents nil crashes
+                    isMeal: false,
+                    pumpEvent: event,
+                    carbEntry: nil
+                )
+            }
+
+            // Convert Carb Entries to TreatmentItem
+            let meals = carbEntryStored.compactMap { meal -> TreatmentItem? in
+                guard let id = meal.objectID as NSManagedObjectID? else {
+                    print("🚨 CarbEntryStored has nil objectID") // Debugging
+                    return nil
+                }
+                return TreatmentItem(
+                    id: id,
+                    timestamp: meal.date ?? Date(), // ✅ Prevents nil crashes
+                    isMeal: true,
+                    pumpEvent: nil,
+                    carbEntry: meal
+                )
+            }
+
+            // Merge and sort chronologically
+            let combined = (treatments + meals)
+                .filter { showFutureEntries || $0.timestamp <= Date() } // ✅ Apply the future filter
+                .sorted { $0.timestamp > $1.timestamp } // Sort by timestamp descending
+
+            return combined
+        }
+
+        private var treatmentsList: some View {
+            List {
+                HStack {
+                    Text("Insulin / Meal").foregroundStyle(.secondary)
+                    Spacer()
+                    filterEntriesButton
+                    Spacer()
+                    Text("Time").foregroundStyle(.secondary)
+                }
+
+                ForEach(combinedTreatments) { item in
+                    if item.isMeal, let meal = item.carbEntry {
+                        mealView(meal)
+                    } else if let pumpEvent = item.pumpEvent {
+                        treatmentView(pumpEvent)
+                    }
+                }
+            }
+            .listRowBackground(Color.chart)
         }
 
         private var adjustmentsList: some View {
@@ -388,17 +434,10 @@ extension DataTable {
 
         @ViewBuilder private func adjustmentView(for item: AdjustmentItem) -> some View {
             let formattedDates =
-                "\(Formatter.dateFormatter.string(from: item.startDate)) - \(Formatter.dateFormatter.string(from: item.endDate))"
-
-            let targetDescription: String = {
-                guard let target = item.target, target != 0 else {
-                    return ""
-                }
-                return "\(state.units == .mgdL ? target : target.asMmolL) \(state.units.rawValue)"
-            }()
+                "\(Formatter.timeFormatter.string(from: item.startDate)) - \(Formatter.timeFormatter.string(from: item.endDate))"
 
             let labels: [String] = [
-                targetDescription,
+                "\(item.target) \(state.units.rawValue)",
                 formattedDates
             ].filter { !$0.isEmpty }
 
@@ -460,7 +499,7 @@ extension DataTable {
 
                             Spacer()
 
-                            Text(Formatter.dateFormatter.string(from: glucose.date ?? Date()))
+                            Text(Formatter.timeFormatter.string(from: glucose.date ?? Date()))
                         }.swipeActions {
                             Button(
                                 "Delete",
@@ -592,10 +631,42 @@ extension DataTable {
         @ViewBuilder private func treatmentView(_ item: PumpEventStored) -> some View {
             HStack {
                 if let bolus = item.bolus, let amount = bolus.amount {
-                    Image(systemName: "circle.fill").foregroundColor(Color.insulin)
+                    if bolus.isSMB {
+                        Image(systemName: "triangle.fill")
+                            .foregroundColor(Color.insulin) // Color the triangle as you need
+                            .rotationEffect(.degrees(180)) // Rotate the triangle
+                            .scaleEffect(x: 0.8, y: 0.9) // Distort the triangle to fit
+                            .overlay(
+                                // White outline for the triangle using stroke
+                                Image(systemName: "triangle")
+                                    .foregroundColor(Color.primary) // White outline
+                                    .rotationEffect(.degrees(180))
+                                    .scaleEffect(x: 0.8, y: 0.9)
+                            )
+                    } else if bolus.isExternal {
+                        Image(systemName: "diamond.fill")
+                            .foregroundColor(Color.purple) // Color the rhombus as you need
+                            .scaleEffect(x: 0.75, y: 0.9) // Distort the rhombus
+                            .overlay(
+                                // White outline for the rhombus using stroke
+                                Image(systemName: "diamond")
+                                    .foregroundColor(Color.primary) // White outline
+                                    .scaleEffect(x: 0.75, y: 0.9)
+                            )
+                    } else {
+                        Image(systemName: "circle.fill")
+                            .foregroundColor(Color.teal) // Default to circle
+                            .overlay(
+                                // White outline for the circle using stroke
+                                Circle()
+                                    .stroke(Color.primary, lineWidth: 1)
+                                    .padding(2)
+                            )
+                    }
+
                     Text(bolus.isSMB ? "SMB" : item.type ?? "Bolus")
                     Text(
-                        (Formatter.decimalFormatterWithTwoFractionDigits.string(from: amount) ?? "0") +
+                        (Formatter.insulinFormatterToIncrement(for: state.bolusIncrement).string(from: amount) ?? "0") +
                             String(localized: " U", comment: "Insulin unit")
                     )
                     .foregroundColor(.secondary)
@@ -606,7 +677,7 @@ extension DataTable {
                     Image(systemName: "circle.fill").foregroundColor(Color.insulin.opacity(0.4))
                     Text("Temp Basal")
                     Text(
-                        (Formatter.decimalFormatterWithTwoFractionDigits.string(from: rate) ?? "0") +
+                        (Formatter.insulinFormatterToIncrement(for: state.bolusIncrement).string(from: rate) ?? "0") +
                             String(localized: " U/hr", comment: "Unit insulin per hour")
                     )
                     .foregroundColor(.secondary)
@@ -618,7 +689,7 @@ extension DataTable {
                     Text(item.type ?? "Pump Event")
                 }
                 Spacer()
-                Text(Formatter.dateFormatter.string(from: item.timestamp ?? Date())).moveDisabled(true)
+                Text(Formatter.timeFormatter.string(from: item.timestamp ?? Date())).moveDisabled(true)
             }
             .swipeActions {
                 if item.bolus != nil {
@@ -668,6 +739,8 @@ extension DataTable {
         }
 
         @ViewBuilder private func mealView(_ meal: CarbEntryStored) -> some View {
+            let isFPU = meal.isFPU
+
             VStack {
                 HStack {
                     if meal.isFPU {
@@ -679,6 +752,11 @@ extension DataTable {
                         )
                     } else {
                         Image(systemName: "circle.fill").foregroundColor(Color.loopYellow)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.primary, lineWidth: 1)
+                                    .padding(2)
+                            )
                         Text("Carbs")
                         Text(
                             (Formatter.decimalFormatterWithTwoFractionDigits.string(for: meal.carbs) ?? "0") +
@@ -688,7 +766,7 @@ extension DataTable {
 
                     Spacer()
 
-                    Text(Formatter.dateFormatter.string(from: meal.date ?? Date()))
+                    Text(Formatter.timeFormatter.string(from: meal.date ?? Date()))
                         .moveDisabled(true)
                 }
                 if let note = meal.note, note != "" {
@@ -741,8 +819,8 @@ extension DataTable {
                         state.showCarbEntryEditor = true
                     }
                 )
-                .tint(!state.settingsManager.settings.useFPUconversion && meal.isFPU ? Color(.systemGray4) : Color.blue)
-                .disabled(!state.settingsManager.settings.useFPUconversion && meal.isFPU)
+                .tint(!state.useFPUconversion && isFPU ? Color(.systemGray4) : Color.blue)
+                .disabled(!state.useFPUconversion && isFPU)
             }
             .alert(
                 Text(alertTitle),
@@ -774,6 +852,24 @@ extension DataTable {
             let formattedValue = formatter.string(from: glucoseValue as NSNumber) ?? "--"
 
             return formattedValue
+        }
+    }
+
+    /// A unified struct that can represent either a pump event or a carb entry
+    private struct TreatmentItem: Identifiable {
+        let id: NSManagedObjectID
+        let timestamp: Date
+        let isMeal: Bool
+        let pumpEvent: PumpEventStored?
+        let carbEntry: CarbEntryStored?
+
+        // Provide a fallback for timestamp to avoid nil crashes
+        init(id: NSManagedObjectID, timestamp: Date?, isMeal: Bool, pumpEvent: PumpEventStored?, carbEntry: CarbEntryStored?) {
+            self.id = id
+            self.timestamp = timestamp ?? Date() // Prevents nil timestamp crashes
+            self.isMeal = isMeal
+            self.pumpEvent = pumpEvent
+            self.carbEntry = carbEntry
         }
     }
 }

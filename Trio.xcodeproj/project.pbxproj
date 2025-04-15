@@ -255,6 +255,7 @@
 		491D6FBF2D56741C00C49F67 /* TempTargetRunStored+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491D6FBA2D56741C00C49F67 /* TempTargetRunStored+CoreDataProperties.swift */; };
 		491D6FC02D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491D6FBB2D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift */; };
 		492B87012D9EC02700D5E42B /* TaiStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 492B87002D9EC02700D5E42B /* TaiStyle.swift */; };
+		492B89D82DAE5E1B00D5E42B /* HorizontalPumpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 492B89D72DAE5E1B00D5E42B /* HorizontalPumpView.swift */; };
 		49AC5B642D7F2833005A47F3 /* CustomDateTimePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49AC5B632D7F2833005A47F3 /* CustomDateTimePicker.swift */; };
 		49B21BBD2D7F102100D0B6C3 /* MainChartHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B21BBC2D7F102100D0B6C3 /* MainChartHelper.swift */; };
 		49B21BF02D7F21D100D0B6C3 /* AutoISFHistoryStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B21BEE2D7F21D100D0B6C3 /* AutoISFHistoryStateModel.swift */; };
@@ -265,7 +266,6 @@
 		49B21BF72D7F231500D0B6C3 /* autoISFHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B21BF62D7F231500D0B6C3 /* autoISFHistory.swift */; };
 		49B9B57F2D5768D2009C6B59 /* AdjustmentStored+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B9B57E2D5768D2009C6B59 /* AdjustmentStored+Helper.swift */; };
 		49CCD2142CAE5E99002A9476 /* BulletList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49CCD2102CAE5E99002A9476 /* BulletList.swift */; };
-		49E741542D8039C000D8E47B /* TherapyParameterDisplayType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E741532D8039C000D8E47B /* TherapyParameterDisplayType.swift */; };
 		49F298B72D2D7DBB00E4C00D /* AutoISFSettingsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298B42D2D7DBB00E4C00D /* AutoISFSettingsDataFlow.swift */; };
 		49F298B82D2D7DBB00E4C00D /* AutoISFSettingsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298B62D2D7DBB00E4C00D /* AutoISFSettingsStateModel.swift */; };
 		49F298B92D2D7DBB00E4C00D /* AutoISFSettingsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F298B52D2D7DBB00E4C00D /* AutoISFSettingsProvider.swift */; };
@@ -1037,6 +1037,7 @@
 		491D6FBB2D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TempTargetStored+CoreDataClass.swift"; sourceTree = "<group>"; };
 		491D6FBC2D56741C00C49F67 /* TempTargetStored+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TempTargetStored+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		492B87002D9EC02700D5E42B /* TaiStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaiStyle.swift; sourceTree = "<group>"; };
+		492B89D72DAE5E1B00D5E42B /* HorizontalPumpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HorizontalPumpView.swift; sourceTree = "<group>"; };
 		49AC5B632D7F2833005A47F3 /* CustomDateTimePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomDateTimePicker.swift; sourceTree = "<group>"; };
 		49AC5CB32D7F5EB2005A47F3 /* ci_post_xcodebuild.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; name = ci_post_xcodebuild.sh; path = ci_scripts/ci_post_xcodebuild.sh; sourceTree = "<group>"; };
 		49AC5CE22D7F5F39005A47F3 /* WhatToTest.en-CA.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = "WhatToTest.en-CA.txt"; path = "Testflight/WhatToTest.en-CA.txt"; sourceTree = "<group>"; };
@@ -1049,7 +1050,6 @@
 		49B21BF62D7F231500D0B6C3 /* autoISFHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = autoISFHistory.swift; sourceTree = "<group>"; };
 		49B9B57E2D5768D2009C6B59 /* AdjustmentStored+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AdjustmentStored+Helper.swift"; sourceTree = "<group>"; };
 		49CCD2102CAE5E99002A9476 /* BulletList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulletList.swift; sourceTree = "<group>"; };
-		49E741532D8039C000D8E47B /* TherapyParameterDisplayType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TherapyParameterDisplayType.swift; sourceTree = "<group>"; };
 		49F298B42D2D7DBB00E4C00D /* AutoISFSettingsDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoISFSettingsDataFlow.swift; sourceTree = "<group>"; };
 		49F298B52D2D7DBB00E4C00D /* AutoISFSettingsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoISFSettingsProvider.swift; sourceTree = "<group>"; };
 		49F298B62D2D7DBB00E4C00D /* AutoISFSettingsStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoISFSettingsStateModel.swift; sourceTree = "<group>"; };
@@ -2148,6 +2148,7 @@
 		3833B51F260264B6003021B3 /* Header */ = {
 			isa = PBXGroup;
 			children = (
+				492B89D72DAE5E1B00D5E42B /* HorizontalPumpView.swift */,
 				DD1E53582D273F20008F32A4 /* LoopStatusHelpView.swift */,
 				DDA6E2842D2361F800C2988C /* LoopStatusView.swift */,
 				383420D525FFE38C002D46C1 /* LoopView.swift */,
@@ -2258,18 +2259,6 @@
 			children = (
 				490566642D9AB1C1005C45F7 /* AlertEntry.swift */,
 				49B21BF62D7F231500D0B6C3 /* autoISFHistory.swift */,
-				DDEBB05B2D89E9050032305D /* TimeInRangeType.swift */,
-				3B2F77852D7E52ED005ED9FA /* TDD.swift */,
-				DD4FFF322D458EE600B6CFF9 /* GarminWatchState.swift */,
-				DD3078692D42F94000DE0490 /* GarminDevice.swift */,
-				DD3078672D42F5CE00DE0490 /* WatchGlucoseObject.swift */,
-				BD432CA02D2F4E3300D1EB79 /* WatchMessageKeys.swift */,
-				BD54A9722D281A9C00F9C1EE /* TempTargetPresetWatch.swift */,
-				BD54A95A2D28087700F9C1EE /* OverridePresetWatch.swift */,
-				BDA25EFC2D261BF200035F34 /* WatchState.swift */,
-				715120D12D3C2B84005D9FB6 /* GlucoseNotificationsOption.swift */,
-				DD940BA92CA7585D000830A5 /* GlucoseColorScheme.swift */,
-				DD6D67E32C9C253500660C9B /* ColorSchemeOption.swift */,
 				388E5A5F25B6F2310019842D /* Autosens.swift */,
 				388358C725EEF6D200E024B2 /* BasalProfileEntry.swift */,
 				38D0B3B525EBE24900CB6E88 /* Battery.swift */,
@@ -2318,7 +2307,6 @@
 				38A0364125ED069400FCBB52 /* TempBasal.swift */,
 				3871F39B25ED892B0013ECB5 /* TempTarget.swift */,
 				BD54A9722D281A9C00F9C1EE /* TempTargetPresetWatch.swift */,
-				49E741532D8039C000D8E47B /* TherapyParameterDisplayType.swift */,
 				DDEBB05B2D89E9050032305D /* TimeInRangeType.swift */,
 				38AEE73C25F0200C0013F05B /* TrioSettings.swift */,
 				3811DE8E25C9D80400A708ED /* User.swift */,
@@ -3926,7 +3914,6 @@
 				3811DE8F25C9D80400A708ED /* User.swift in Sources */,
 				5825A1BE2C97335C0046467E /* EditTempTargetForm.swift in Sources */,
 				19D466A329AA2B80004D5F33 /* MealSettingsDataFlow.swift in Sources */,
-				49E741542D8039C000D8E47B /* TherapyParameterDisplayType.swift in Sources */,
 				3811DEB225C9D88300A708ED /* KeychainItemAccessibility.swift in Sources */,
 				38AEE73D25F0200C0013F05B /* TrioSettings.swift in Sources */,
 				38FCF3FD25E997A80078B0D1 /* PumpHistoryStorage.swift in Sources */,
@@ -4167,6 +4154,7 @@
 				3811DE3F25C9D4A100A708ED /* SettingsStateModel.swift in Sources */,
 				CE7CA3582A064E2F004BE681 /* ListStateView.swift in Sources */,
 				193F6CDD2A512C8F001240FD /* Loops.swift in Sources */,
+				492B89D82DAE5E1B00D5E42B /* HorizontalPumpView.swift in Sources */,
 				38B4F3CB25E502E200E76A18 /* WeakObjectSet.swift in Sources */,
 				38E989DD25F5021400C0CED0 /* PumpStatus.swift in Sources */,
 				BDFD165A2AE40438007F0DDA /* TreatmentsRootView.swift in Sources */,

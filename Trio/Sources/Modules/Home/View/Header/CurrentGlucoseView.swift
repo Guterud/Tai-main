@@ -39,7 +39,6 @@ struct CurrentGlucoseView: View {
             ZStack {
                 TrendShape(gradient: gradient, color: triangleColor)
                     .rotationEffect(.degrees(rotationDegrees))
-
                 VStack(alignment: .center) {
                     HStack {
                         if let glucoseValue = glucose.last?.glucose {
@@ -95,18 +94,18 @@ struct CurrentGlucoseView: View {
                     }
                     .frame(alignment: .top)
                 }
-                ZStack {
-                    TaiStyle.linearGradient()
-                        .mask {
-                            Image("tai270black")
-                                .renderingMode(.template)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 20, height: 20)
-                        }
-                }
-                .frame(width: 20, height: 20)
-                .offset(x: -33, y: -42)
+//                ZStack {
+//                    TaiStyle.linearGradient()
+//                        .mask {
+//                            Image("tai270black")
+//                                .renderingMode(.template)
+//                                .resizable()
+//                                .aspectRatio(contentMode: .fit)
+//                                .frame(width: 20, height: 20)
+//                        }
+//                }
+//                .frame(width: 20, height: 20)
+//                .offset(x: -33, y: -42)
             }
             .onChange(of: glucose.last?.directionEnum) {
                 withAnimation {
@@ -207,10 +206,12 @@ struct CircleShape: View {
     }
 
     var body: some View {
-        Circle()
-            .stroke(gradient, lineWidth: 6)
-            .background(Circle().fill(Color.chart))
-            .frame(width: 130, height: 130)
+        ZStack {
+            Circle()
+                .stroke(gradient, lineWidth: 6)
+                .background(Circle().fill(Color.chart))
+                .frame(width: 130, height: 130)
+        }
     }
 }
 

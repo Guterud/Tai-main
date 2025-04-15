@@ -58,7 +58,9 @@ extension Home {
         var eventualBG: Int?
         var allowManualTemp = false
         var units: GlucoseUnits = .mgdL
+        var bolusIncrement: Decimal = 0.1
         var pumpDisplayState: PumpDisplayState?
+        var pumpSet: Bool = false
         var alarm: GlucoseAlarm?
         var manualTempBasal = false
         var isSmoothingEnabled = false
@@ -80,7 +82,6 @@ extension Home {
         var statusTitle = ""
         var isLoopStatusPresented: Bool = false
         var isLegendPresented: Bool = false
-        var therapyParameterDisplayType: TherapyParameterDisplayType = .totalDailyDose
         var roundedTotalBolus: String = ""
         var selectedTab: Int = 0
         var waitForSuggestion: Bool = false
@@ -357,6 +358,7 @@ extension Home {
                 .sink { [weak self] state in
                     guard let self = self else { return }
                     self.pumpDisplayState = state
+                    self.pumpSet = state != nil
                     if state == nil {
                         self.reservoir = nil
                         self.battery = nil
@@ -383,6 +385,7 @@ extension Home {
         @MainActor private func setupSettings() async {
             units = settingsManager.settings.units
             autoisfEnabled = settingsManager.preferences.autoisf
+            bolusIncrement = settingsManager.preferences.bolusIncrement
             allowManualTemp = !settingsManager.settings.closedLoop
             closedLoop = settingsManager.settings.closedLoop
             lastLoopDate = apsManager.lastLoopDate
@@ -398,7 +401,6 @@ extension Home {
             displayXgridLines = settingsManager.settings.xGridLines
             displayYgridLines = settingsManager.settings.yGridLines
             thresholdLines = settingsManager.settings.rulerMarks
-            therapyParameterDisplayType = settingsManager.settings.therapyParameterDisplayType
             showCarbsRequiredBadge = settingsManager.settings.showCarbsRequiredBadge
             forecastDisplayType = settingsManager.settings.forecastDisplayType
             isExerciseModeActive = settingsManager.preferences.exerciseMode
@@ -654,7 +656,6 @@ extension Home.StateModel:
         displayXgridLines = settingsManager.settings.xGridLines
         displayYgridLines = settingsManager.settings.yGridLines
         thresholdLines = settingsManager.settings.rulerMarks
-        therapyParameterDisplayType = settingsManager.settings.therapyParameterDisplayType
         showCarbsRequiredBadge = settingsManager.settings.showCarbsRequiredBadge
         forecastDisplayType = settingsManager.settings.forecastDisplayType
         cgmAvailable = (fetchGlucoseManager.cgmGlucoseSourceType != CGMType.none)
@@ -685,6 +686,7 @@ extension Home.StateModel:
         isExerciseModeActive = settingsManager.preferences.exerciseMode
         lowTTlowersSens = settingsManager.preferences.lowTemptargetLowersSensitivity
         maxIOB = settingsManager.preferences.maxIOB
+        bolusIncrement = settingsManager.preferences.bolusIncrement
     }
 
     func pumpSettingsDidChange(_: PumpSettings) {
@@ -716,6 +718,7 @@ extension Home.StateModel:
         displayPumpStatusHighlightMessage(true)
         displayPumpStatusBadge(true)
         batteryFromPersistence = []
+        pumpSet = false
     }
 }
 
