@@ -1,8 +1,15 @@
-oref0 branch: autoISF3.01 - git version: 0b5f9e3
+oref0 branch: autoISF3.01 - git version: b5332a2
 
 Last commits:
-0b5f9e3 resistanceMode active multiply with autoISF
-03735be increment correction
+b5332a2 use round_basal for insReq
+12a4aa2 Always add minPredBG to rT object
+b82f5f6 Lower min carb ratio to 1 g/U (down from 3)
+68e63ea profile.temptargetset properly solved to avoid undefined
+bba17a9 Remove TDD calc
+6216969 3-digit temp basal rates
+2a0bd4e bolusIncrement for oref
+b555d7b Merge remote-tracking branch 'sam/iob-splitter-bug-fix' into tcd
+a1e5f0c resistanceMode active multiply with autoISF
 53e8fbb fix B30 suppress SMB condition
 b21e9b3 Fixes an incorrect undefined check
 c31d48c insert enable SMB with high BG option
@@ -24,10 +31,3 @@ bdc9ad3 cp source files
 ca59189 profile.keto_protect_basal_percent is 0..1
 afede34 profile.iob_threshold_percent 0..1
 0a0e398 show iobTH adaption in tags
-f0b0fbb logging sens adjustments
-7408a7f remove delta logging
-1d7dbdb tick in mg/dL
-f37f7ec cp to Open-iAPS
-78f9298 delete TDD ytd and avg
-459d91f Merge branch 'dev-TaiAutoISF' of https://github.com/mountrcg/trio-oref into dev-TaiAutoISF
-c17dc5c stats for boluscalc

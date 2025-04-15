@@ -558,366 +558,9 @@ function determine_varSMBratio(profile, bg, target_bg, loop_wanted_smb)
 //end autoISF
 
 var determine_basal = function determine_basal(glucose_status, currenttemp, iob_data, profile, autosens_data, meal_data, tempBasalFunctions, microBolusAllowed, reservoir_data, currentTime, pumphistory, preferences, basalprofile, oref2_variables, middleWare) {
-
-
-   // tdd past 24 hours
-   var pumpData = 0;
-   var logtdd = "";
-   var logBasal = "";
-   var logBolus = "";
-   var logTempBasal = "";
-   var dataLog = "";
-   var logOutPut = "";
-   var current = 0;
-   var tdd = 0;
-   var insulin = 0;
-   var tempInsulin = 0;
-   var bolusInsulin = 0;
-   var scheduledBasalInsulin = 0;
-   var quota = 0;
-   // const weightedAverage = oref2_variables.weightedAverage;
-   // const weightPercentage = profile.weightPercentage;
-   // const average_total_data = oref2_variables.average_total_data;
-   const tempHBT = oref2_variables.hbt;
-   const tempHBTset = oref2_variables.isEnabled;
-   const avgDelta = glucose_status.avgdelta;
-
-
-
-   function addTimeToDate(objDate, _hours) {
-       var ms = objDate.getTime();
-       var add_ms = _hours * 36e5;
-       var newDateObj = new Date(ms + add_ms);
-       return newDateObj;
-   }
-
-   function subtractTimeFromDate(date, hours_) {
-       var ms_ = date.getTime();
-       var add_ms_ = hours_ * 36e5;
-       var new_date = new Date(ms_ - add_ms_);
-       return new_date;
-   }
-
-   function accountForIncrements(insulin) {
-    // If you have not set this to.0.025 (newer Medtronic pumps) in FAX settings, this will be set to 0.05 (older Medtronic pumps and Omnipods) in code.
-    var minimalDose = profile.bolus_increment;
-    //if (minimalDose != 0.025) {minimalDose = 0.05;}
-    console.error("Concentration: oref using minimal increment of " + minimalDose)
-    var incrementsRaw = insulin / minimalDose;
-    if (incrementsRaw >= 1) {
-        var incrementsRounded = Math.floor(incrementsRaw);
-        return round(incrementsRounded * minimalDose, 5);
-    } else { return 0; }
-   }
-
-   function makeBaseString(base_timeStamp) {
-       function addZero(i) {
-           if (i < 10) { i = "0" + i }
-           return i;
-       }
-       let hour = addZero(base_timeStamp.getHours());
-       let minutes = addZero(base_timeStamp.getMinutes());
-       let seconds = "00";
-       let string = hour + ":" + minutes + ":" + seconds;
-       return string;
-   }
-
-   function timeDifferenceOfString(string1, string2) {
-       //Base time strings are in "00:00:00" format
-       var time1 = new Date("1/1/1999 " + string1);
-       var time2 = new Date("1/1/1999 " + string2);
-       var ms1 = time1.getTime();
-       var ms2 = time2.getTime();
-       var difference = (ms1 - ms2) / 36e5;
-       return difference;
-   }
-
-   function calcScheduledBasalInsulin(lastRealTempTime, addedLastTempTime) {
-       var totalInsulin = 0;
-       var old = addedLastTempTime;
-       var totalDuration = (lastRealTempTime - addedLastTempTime) / 36e5;
-       var basDuration = 0;
-       var totalDurationCheck = totalDuration;
-       var durationCurrentSchedule = 0;
-
-       do {
-
-           if (totalDuration > 0) {
-
-               var baseTime_ = makeBaseString(old);
-
-               //Default basalrate in case none is found...
-               var basalScheduledRate_ = basalprofile[0].rate;
-               for (let m = 0; m < basalprofile.length; m++) {
-
-                   var timeToTest = basalprofile[m].start;
-
-                   if (baseTime_ == timeToTest) {
-
-                       if (m + 1 < basalprofile.length) {
-                           let end = basalprofile[m+1].start;
-                           let start = basalprofile[m].start;
-
-                           durationCurrentSchedule = timeDifferenceOfString(end, start);
-
-                           if (totalDuration >= durationCurrentSchedule) {
-                               basDuration = durationCurrentSchedule;
-                           } else if (totalDuration < durationCurrentSchedule) {
-                               basDuration = totalDuration;
-                           }
-
-                       }
-                       else if (m + 1 == basalprofile.length) {
-                           let end = basalprofile[0].start;
-                           let start = basalprofile[m].start;
-                           // First schedule is 00:00:00. Changed places of start and end here.
-                           durationCurrentSchedule = 24 - (timeDifferenceOfString(start, end));
-
-                           if (totalDuration >= durationCurrentSchedule) {
-                               basDuration = durationCurrentSchedule;
-                           } else if (totalDuration < durationCurrentSchedule) {
-                               basDuration = totalDuration;
-                           }
-
-                       }
-                       basalScheduledRate_ = basalprofile[m].rate;
-                       totalInsulin += accountForIncrements(basalScheduledRate_ * basDuration);
-                       totalDuration -= basDuration;
-                       //console.log("Dynamic ratios log: scheduled insulin added: " + accountForIncrements(basalScheduledRate_ * basDuration) + " U. Bas duration: " + basDuration.toPrecision(3) + " h. Base Rate: " + basalScheduledRate_ + " U/h" + ". Time :" + baseTime_);
-                       // Move clock to new date
-                       old = addTimeToDate(old, basDuration);
-                   }
-
-                   else if (baseTime_ > timeToTest) {
-
-                       if (m + 1 < basalprofile.length) {
-                           var timeToTest2 = basalprofile[m+1].start
-
-                           if (baseTime_ < timeToTest2) {
-
-                              //  durationCurrentSchedule = timeDifferenceOfString(end, start);
-                              durationCurrentSchedule = timeDifferenceOfString(timeToTest2, baseTime_);
-
-                               if (totalDuration >= durationCurrentSchedule) {
-                                   basDuration = durationCurrentSchedule;
-                               } else if (totalDuration < durationCurrentSchedule) {
-                                   basDuration = totalDuration;
-                               }
-
-                               basalScheduledRate_ = basalprofile[m].rate;
-                               totalInsulin += accountForIncrements(basalScheduledRate_ * basDuration);
-                               totalDuration -= basDuration;
-                               //console.log("Dynamic ratios log: scheduled insulin added: " + accountForIncrements(basalScheduledRate_ * basDuration) + " U. Bas duration: " + basDuration.toPrecision(3) + " h. Base Rate: " + basalScheduledRate_ + " U/h" + ". Time :" + baseTime_);
-                               // Move clock to new date
-                               old = addTimeToDate(old, basDuration);
-                           }
-                       }
-
-                       else if (m == basalprofile.length - 1) {
-                           // let start = basalprofile[m].start;
-                           let start = baseTime_;
-                           // First schedule is 00:00:00. Changed places of start and end here.
-                           durationCurrentSchedule = timeDifferenceOfString("23:59:59", start);
-
-                           if (totalDuration >= durationCurrentSchedule) {
-                               basDuration = durationCurrentSchedule;
-                           } else if (totalDuration < durationCurrentSchedule) {
-                               basDuration = totalDuration;
-                           }
-
-                           basalScheduledRate_ = basalprofile[m].rate;
-                           totalInsulin += accountForIncrements(basalScheduledRate_ * basDuration);
-                           totalDuration -= basDuration;
-                           //console.log("Dynamic ratios log: scheduled insulin added: " + accountForIncrements(basalScheduledRate_ * basDuration) + " U. Bas duration: " + basDuration.toPrecision(3) + " h. Base Rate: " + basalScheduledRate_ + " U/h" + ". Time :" + baseTime_);
-                           // Move clock to new date
-                           old = addTimeToDate(old, basDuration);
-                       }
-                   }
-               }
-           }
-           //totalDurationCheck to avoid infinite loop
-       } while (totalDuration > 0 && totalDuration < totalDurationCheck);
-
-       // amount of insulin according to pump basal rate schedules
-       return totalInsulin;
-   }
-
-   // Check that there is enough pump history data (>21 hours) for tdd calculation. Estimate the missing hours (24-pumpData) using hours with scheduled basal rates. Not perfect, but sometimes the
-   // pump history in FAX is only 22-23.5 hours, even when you've been looping with FAX for many days. This is to reduce the error from just using pump history as data source as much as possible.
-   // AT basal rates are not used for this estimation, instead the basal rates in pump settings.
-
-   // Check for empty pump history (new FAX loopers). If empty: don't use dynamic settings!
-
-   if (!pumphistory.length) {
-       console.log("Pumphistory is empty!");
-       dynISFenabled = false;
-       enableDynamicCR = false;
-   } else {
-       let phLastEntry = pumphistory.length - 1;
-       var endDate = new Date(pumphistory[phLastEntry].timestamp);
-       var startDate = new Date(pumphistory[0].timestamp);
-
-       // If latest pump event is a temp basal
-       if (pumphistory[0]._type == "TempBasalDuration") {
-           startDate = new Date();
-       }
-       pumpData = (startDate - endDate) / 36e5;
-
-       if (pumpData < 23.9 && pumpData > 21) {
-           var missingHours = 24 - pumpData;
-           // Makes new end date for a total time duration of exakt 24 hour.
-           var endDate_ = subtractTimeFromDate(endDate, missingHours);
-           // endDate - endDate_ = missingHours
-           scheduledBasalInsulin = calcScheduledBasalInsulin(endDate, endDate_);
-           dataLog = "24 hours of data is required for an accurate tdd calculation. Currently only " + pumpData.toPrecision(3) + " hours of pump history data are available. Using your pump scheduled basals to fill in the missing hours. Scheduled basals added: " + scheduledBasalInsulin.toPrecision(5) + " U. ";
-    //    } else if (pumpData < 21) {
-    //        dynISFenabled = false;
-    //        enableDynamicCR = false;
-       } else {  dataLog = ""; }
-   }
-
-   // Calculate tdd ----------------------------------------------------------------------
-
-   var PHlastBolus = 0;
-   var PHlastBolusAge = 0;
-   round(( new Date(systemTime).getTime() - meal_data.lastBolusNormalTime ) / 60000,1)
-   //Bolus:
-   for (let i = 0; i < pumphistory.length; i++) {
-       if (pumphistory[i]._type == "Bolus") {
-           bolusInsulin += pumphistory[i].amount;
-           if (PHlastBolus == 0 && pumphistory[i].amount >= profile.iTime_Start_Bolus) {
-            PHlastBolus = round_basal(pumphistory[i].amount,profile);
-            var PHBolusTime  = new Date(pumphistory[i].timestamp);
-            var currentDate =  new Date();
-            PHlastBolusAge = round((currentDate - PHBolusTime) / 36e5 * 60);
-           }
-       }
-   }
-
-   // Temp basals:
-   for (let j = 1; j < pumphistory.length; j++) {
-       if (pumphistory[j]._type == "TempBasal" && pumphistory[j].rate > 0) {
-           current = j;
-           quota = pumphistory[j].rate;
-           var duration = pumphistory[j-1]['duration (min)'] / 60;
-           var origDur = duration;
-           var pastTime = new Date(pumphistory[j-1].timestamp);
-           var morePresentTime = pastTime;
-           // If temp basal hasn't yet ended, use now as end date for calculation
-           do {
-               j--;
-               if (j == 0) {
-                   morePresentTime =  new Date();
-                   break;
-               } else if (pumphistory[j]._type == "TempBasal" || pumphistory[j]._type == "PumpSuspend") {
-                       morePresentTime = new Date(pumphistory[j].timestamp);
-                       break;
-                 }
-           }
-           while (j > 0);
-
-           var diff = (morePresentTime - pastTime) / 36e5;
-           if (diff < origDur) {
-               duration = diff;
-           }
-
-           insulin = quota * duration;
-           tempInsulin += accountForIncrements(insulin);
-           j = current;
-       }
-   }
-   //  Check and count for when basals are delivered with a scheduled basal rate.
-   //  1. Check for 0 temp basals with 0 min duration. This is for when ending a manual temp basal and (perhaps) continuing in open loop for a while.
-   //  2. Check for temp basals that completes. This is for when disconnected from link/iphone, or when in open loop.
-   //  3. Account for a punp suspension. This is for when pod screams or when MDT or pod is manually suspended.
-   //  4. Account for a pump resume (in case pump/cgm is disconnected before next loop).
-   //  To do: are there more circumstances when scheduled basal rates are used? Do we need to care about "Prime" and "Rewind" with MDT pumps?
-   //
-   for (let k = 0; k < pumphistory.length; k++) {
-       // Check for 0 temp basals with 0 min duration.
-       insulin = 0;
-       if (pumphistory[k]['duration (min)'] == 0 || pumphistory[k]._type == "PumpResume") {
-           let time1 = new Date(pumphistory[k].timestamp);
-           let time2 = time1;
-           let l = k;
-           do {
-               if (l > 0) {
-                   --l;
-                   if (pumphistory[l]._type == "TempBasal") {
-                       time2 = new Date(pumphistory[l].timestamp);
-                       break;
-                   }
-               }
-           } while (l > 0);
-           // duration of current scheduled basal in h
-           let basDuration = (time2 - time1) / 36e5;
-
-           if (basDuration > 0) {
-               scheduledBasalInsulin += calcScheduledBasalInsulin(time2, time1);
-           }
-       }
-   }
-
-   // Check for temp basals that completes
-   for (let n = pumphistory.length -1; n > 0; n--) {
-       if (pumphistory[n]._type == "TempBasalDuration") {
-           // duration in hours
-           let oldBasalDuration = pumphistory[n]['duration (min)'] / 60;
-           // time of old temp basal
-           let oldTime = new Date(pumphistory[n].timestamp);
-           var newTime = oldTime;
-           let o = n;
-           do {
-               --o;
-               if (o >= 0) {
-                   if (pumphistory[o]._type == "TempBasal" || pumphistory[o]._type == "PumpSuspend") {
-                       // time of next (new) temp basal or a pump suspension
-                       newTime = new Date(pumphistory[o].timestamp);
-                       break;
-                   }
-               }
-           } while (o > 0);
-
-           // When latest temp basal is index 0 in pump history
-           if (n == 0 && pumphistory[0]._type == "TempBasalDuration") {
-               newTime = new Date();
-               oldBasalDuration = pumphistory[n]['duration (min)'] / 60;
-           }
-
-           let tempBasalTimeDifference = (newTime - oldTime) / 36e5;
-           let timeOfbasal = tempBasalTimeDifference - oldBasalDuration;
-           // if duration of scheduled basal is more than 0
-           if (timeOfbasal > 0) {
-               // Timestamp after completed temp basal
-               let timeOfScheduledBasal =  addTimeToDate(oldTime, oldBasalDuration);
-               scheduledBasalInsulin += calcScheduledBasalInsulin(newTime, timeOfScheduledBasal);
-           }
-       }
-   }
-
-   tdd = bolusInsulin + tempInsulin + scheduledBasalInsulin;
-
-   var insulin_ = {
-       TDD: round(tdd, 5),
-       bolus: round(bolusInsulin, 5),
-       temp_basal: round(tempInsulin, 5),
-       scheduled_basal: round(scheduledBasalInsulin, 5)
-   }
-   var tdd_before = tdd;
-
-   if (pumpData > 21) {
-       logBolus = ". Bolus insulin: " + bolusInsulin.toPrecision(5) + " U";
-       logTempBasal = ". Temporary basal insulin: " + tempInsulin.toPrecision(5) + " U";
-       logBasal = ". Insulin with scheduled basal rate: " + scheduledBasalInsulin.toPrecision(5) + " U";
-       logtdd = " TDD past 24h is: " + tdd.toPrecision(5) + " U";
-       logOutPut = dataLog + logtdd + logBolus + logTempBasal + logBasal;
-       tddReason = ", TDD, 24h: " + round(tdd,1);
-       console.error(logOutPut);
-   } else { tddReason = ", TDD: Not enough pumpData (< 21h)"; }
-
-   // -------------------- END OF TDD ----------------------------------------------------
-   // ------------------------------------------------------------------------------------
-
+    const tempHBT = oref2_variables.hbt;
+    const tempHBTset = oref2_variables.isEnabled;
+    const avgDelta = glucose_status.avgdelta;
 // Set variables required for evaluating error conditions
     var rT = {}; //short for requestedTemp
     var insulinForManualBolus = 0;
@@ -1013,10 +656,11 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
     var sensitivityRatio = 1;
     var origin_sens = "";
     var normalTarget = 100;    // evaluate high/low temptarget against this, not scheduled target (which might change)
-
-    var exerciseModeActive = (profile.exercise_mode || profile.high_temptarget_raises_sensitivity) && profile.temptargetSet && target_bg > normalTarget
-    var resistanceModeActive = profile.low_temptarget_lowers_sensitivity && profile.temptargetSet && target_bg < normalTarget
-    console.error("TempTarget set: " + profile.temptargetSet + ", exerciseModeActive: " + exerciseModeActive + ", resistanceModeActive: " + resistanceModeActive)
+    var tempTargetSet = false;
+    if (profile.temptargetSet) {tempTargetSet = true};
+    var exerciseModeActive = (profile.exercise_mode || profile.high_temptarget_raises_sensitivity) && tempTargetSet && target_bg > normalTarget
+    var resistanceModeActive = profile.low_temptarget_lowers_sensitivity && tempTargetSet && target_bg < normalTarget
+    console.error("TempTarget set: " + tempTargetSet + ", exerciseModeActive: " + exerciseModeActive + ", resistanceModeActive: " + resistanceModeActive)
     var halfBasalTarget = 160;  // when temptarget is 160 mg/dL, run 50% basal (120 = 75%; 140 = 60%)
                                 // 80 mg/dL with low_temptarget_lowers_sensitivity would give 1.5x basal, but is limited to autosens_max (1.2x by default)
     if ( profile.half_basal_exercise_target ) {
@@ -1147,6 +791,22 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
     var b30duration = profile.b30_duration;
     var iTime = b30duration + 1;
     console.error("B30 enabled: " + profile.use_B30);
+
+    var PHlastBolus = 0;
+    var PHlastBolusAge = 0;
+    round(( new Date(systemTime).getTime() - meal_data.lastBolusNormalTime ) / 60000,1)
+    //Bolus:
+    for (let i = 0; i < pumphistory.length; i++) {
+        if (pumphistory[i]._type == "Bolus") {
+            if (PHlastBolus == 0 && pumphistory[i].amount >= profile.iTime_Start_Bolus) {
+             PHlastBolus = round_basal(pumphistory[i].amount,profile);
+             var PHBolusTime  = new Date(pumphistory[i].timestamp);
+             var currentDate =  new Date();
+             PHlastBolusAge = round((currentDate - PHBolusTime) / 36e5 * 60);
+            }
+        }
+    }
+
     if (profile.use_B30 && profile.use_autoisf) {
         var iTime_Start_Bolus = profile.iTime_Start_Bolus;
         var b30targetLevel = profile.iTime_target;
@@ -1348,8 +1008,6 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
         , 'reservoir' : reservoir_data // The expected reservoir volume at which to deliver the microbolus (the reservoir volume from right before the last pumphistory run)
         , 'deliverAt' : deliverAt // The time at which the microbolus should be delivered
         , 'sensitivityRatio' : sensitivityRatio
-        , 'TDD': tdd_before
-        , 'insulin': insulin_
         , 'avgDelta': avgDelta
         , 'insulinForManualBolus': insulinForManualBolus
         , 'manualBolusErrorString': manualBolusErrorString
@@ -1742,7 +1400,6 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
     rT.auto_ISFratio = round(profile.sens / sens, 2);
     rT.ISF = round(sens, 0);
     rT.CR = round(profile.carb_ratio, 2);
-    rT.TDD = round(tdd_before, 1);
     rT.current_target = round(target_bg, 0); // target in mg/dl
     rT.minDelta = minDelta; //convert_bg(minDelta, profile);
     rT.expectedDelta = expectedDelta; //convert_bg(expectedDelta, profile);
@@ -1777,7 +1434,6 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
     if (lastUAMpredBG > 0) {
         rT.reason += ", UAMpredBG " + convert_bg(lastUAMpredBG, profile);
     }
-//    rT.reason += tddReason;  // not necessary to show TDD in popup
     rT.reason += "; "; // reason.conclusion started
 // Use minGuardBG to prevent overdosing in hypo-risk situations
     // use naive_eventualBG if above 40, but switch to minGuardBG if both eventualBGs hit floor of 39
@@ -1950,13 +1606,13 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
         // calculate 30m low-temp required to get projected BG up to target
         // multiply by 2 to low-temp faster for increased hypo safety
         insulinReq = 2 * Math.min(0, (eventualBG - target_bg) / sens);
-        insulinReq = round(insulinReq , 2);
+        insulinReq = round(insulinReq , 3);
         // calculate naiveInsulinReq based on naive_eventualBG
         var naiveInsulinReq = Math.min(0, (naive_eventualBG - target_bg) / sens);
-        naiveInsulinReq = round( naiveInsulinReq , 2);
+        naiveInsulinReq = round( naiveInsulinReq , 3);
         if (minDelta < 0 && minDelta > expectedDelta) {
             // if we're barely falling, newinsulinReq should be barely negative
-            var newinsulinReq = round((insulinReq * (minDelta / expectedDelta) ), 2);
+            var newinsulinReq = round((insulinReq * (minDelta / expectedDelta) ), 3);
             //console.error("Increasing insulinReq from " + insulinReq + " to " + newinsulinReq);
             insulinReq = newinsulinReq;
         }
@@ -2043,8 +1699,11 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
         if (minPredBG < min_bg && eventualBG > min_bg) {
             rT.manualBolusErrorString = 6;
             rT.insulinForManualBolus = round((eventualBG - target_bg) / sens, 2);
-            rT.minPredBG = minPredBG;
         }
+
+        // Moving this out of the if condition in L1698, so that minPredBG becomes always available in rT object
+        rT.minPredBG = minPredBG;
+
         // if in SMB mode, don't cancel SMB zero temp
         if (! (microBolusAllowed && enableSMB )) {
             rT.reason += convert_bg(eventualBG, profile)+"-"+convert_bg(minPredBG, profile)+" in range: no temp required";
@@ -2076,7 +1735,7 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
 
         // insulinReq is the additional insulin required to get minPredBG down to target_bg
         //console.error(minPredBG,eventualBG);
-        insulinReq = round( (Math.min(minPredBG,eventualBG) - target_bg) / sens, 2);
+        insulinReq = round( (Math.min(minPredBG,eventualBG) - target_bg) / sens, 3);
         insulinForManualBolus = round((eventualBG - target_bg) / sens, 2);
         // if that would put us over max_iob, then reduce accordingly
         if (insulinReq > max_iob-iob_data.iob) {
@@ -2093,7 +1752,7 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
         // rate required to deliver insulinReq more insulin over 30m:
         rate = basal + (2 * insulinReq);
         rate = round_basal(rate, profile);
-        insulinReq = round(insulinReq,3);
+        insulinReq = round_basal(insulinReq, profile);
         rT.insulinReq = insulinReq;
         rT.insulinForManualBolus = round(insulinForManualBolus,2);
         rT.manualBolusErrorString = manualBolusErrorString;
@@ -2102,7 +1761,7 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
         rT.minGuardBG = minGuardBG;
         rT.minPredBG = minPredBG;
         rT.threshold = threshold;
-        rT.reason = "Ins.Req:, " + round(insulinReq,2) + ", " + maxIOBreason + rT.reason;
+        rT.reason = "Ins.Req:, " + insulinReq + ", " + maxIOBreason + rT.reason;
         //console.error(iob_data.lastBolusTime);
         // minutes since last bolus
         var lastBolusAge = round(( new Date(systemTime).getTime() - iob_data.lastBolusTime ) / 60000,1);
