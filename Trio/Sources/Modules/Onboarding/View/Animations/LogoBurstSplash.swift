@@ -51,7 +51,7 @@ struct LogoBurstSplash<Content: View>: View {
                         }
 
                         // logo
-                        Image("trioCircledNoBackground")
+                        Image("taiCircledNoBackground")
                             .resizable()
                             .scaledToFit()
                             .frame(width: 100, height: 100)
