@@ -18,8 +18,6 @@ extension AutoISFHistory {
         @State private var selectedEndTime = Date()
         @State private var selectedTimeIntervalIndex = 1 // Default to 2 hours
         @State private var timeIntervalOptions = []
-        @State private var autoISFResults: [AutoISFHistory] = [] // Holds the fetched results
-
         @State private var selectedEntry: autoISFHistory? // Track selected entry
         @State private var isPopupPresented = false
         @State private var tapped: Bool = false
@@ -58,28 +56,10 @@ extension AutoISFHistory {
             return formatter
         }
 
-        @ViewBuilder func historyISF() -> some View {
-            autoISFview
-        }
-
-        var slots: CGFloat = 9 // Adjusted for new column count
-        var slotwidth: CGFloat = 1
-
         var body: some View {
-            VStack {
+            VStack(spacing: 0) {
+                // Top controls
                 HStack {
-                    if !tapped {
-                        HStack {
-                            Image(systemName: "hand.tap.fill")
-                            Text(String(
-                                localized: "Tap an entry row for details.",
-                                comment: "Text prompting user to tap an entry row for details"
-                            ))
-                        }
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                        .multilineTextAlignment(.leading)
-                    }
                     CustomDateTimePicker(selection: $state.selectedEndTime, minuteInterval: 15)
                         .frame(height: 40)
                     Spacer()
@@ -90,54 +70,104 @@ extension AutoISFHistory {
                     }
                     .pickerStyle(MenuPickerStyle())
                 }
-                .padding(.horizontal)
+                .padding()
 
-                GeometryReader { geometry in
-                    VStack(alignment: .leading) {
-                        HStack(alignment: .lastTextBaseline) {
-                            Text(String(localized: "ISF factors", comment: "Label for ISF factors section")).foregroundColor(.uam)
-                                .frame(width: 5 * slotwidth / slots * geometry.size.width, alignment: .center)
-                            Text(String(localized: "Insulin", comment: "Label for Insulin section")).foregroundColor(.insulin)
-                                .frame(width: 4 * slotwidth / slots * geometry.size.width, alignment: .center)
+                // Table headers with Grid
+                VStack(spacing: 4) {
+                    // Main section headers
+                    Grid(alignment: .trailing, horizontalSpacing: 8, verticalSpacing: 4) {
+                        GridRow {
+                            Text("").gridCellColumns(2)
+                            Text(String(localized: "ISF factors", comment: "Label for ISF factors section"))
+                                .foregroundColor(.uam)
+                                .gridCellColumns(5)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Text(String(localized: "Insulin", comment: "Label for Insulin section"))
+                                .foregroundColor(.insulin)
+                                .gridCellColumns(2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        HStack(alignment: .bottom) {
-                            Group {
-                                Spacer()
-                                Text(String(localized: "Time", comment: "Label for Time"))
-                                Text(String(localized: "BG", comment: "Label for BG")).foregroundColor(.loopGreen)
-                            }
-                            Spacer()
-                            Group {
-                                Text(String(localized: "final", comment: "Label for final")).bold().foregroundColor(.uam)
-                                Spacer()
-                                Text(String(localized: "acce", comment: "Label for acce")).foregroundColor(.loopYellow)
-                                Spacer()
-                                Text(String(localized: "bg", comment: "Label for bg")).foregroundColor(.loopYellow)
-                                Spacer()
-                                Text(String(localized: "pp", comment: "Label for pp")).foregroundColor(.loopYellow)
-                                Spacer()
-                                Text(String(localized: "dura", comment: "Label for dura")).foregroundColor(.loopYellow)
-                            }
-                            Spacer()
-                            Group {
-                                Text(String(localized: "req.", comment: "Label for req.")).foregroundColor(.secondary)
-                                Spacer()
-                                Text(String(localized: "SMB", comment: "Label for SMB")).foregroundColor(.insulin)
+
+                        // Column headers
+                        GridRow {
+                            Text(String(localized: "Time", comment: "Label for Time"))
+                                .frame(width: 50, alignment: .leading)
+                            Text(String(localized: "BG", comment: "Label for BG"))
+                                .foregroundColor(.loopGreen)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            Text(String(localized: "final", comment: "Label for final"))
+                                .bold()
+                                .foregroundColor(.uam)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            Text(String(localized: "acce", comment: "Label for acce"))
+                                .foregroundColor(.loopYellow)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            Text(String(localized: "bg", comment: "Label for bg"))
+                                .foregroundColor(.loopYellow)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            Text(String(localized: "pp", comment: "Label for pp"))
+                                .foregroundColor(.loopYellow)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            Text(String(localized: "dura", comment: "Label for dura"))
+                                .foregroundColor(.loopYellow)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+
+                            Text(String(localized: "req.", comment: "Label for req."))
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            Text(String(localized: "SMB", comment: "Label for SMB"))
+                                .foregroundColor(.insulin)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+                    }
+                    .padding(.horizontal)
+
+                    Divider()
+
+                    // Data rows using ScrollView + LazyVStack to improve performance
+                    ScrollView {
+                        LazyVStack(spacing: 4) {
+                            ForEach(state.autoISFEntries, id: \.self) { entry in
+                                GridEntryRow(
+                                    entry: entry,
+                                    glucoseFormatter: glucoseFormatter,
+                                    units: state.units
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    tapped = true
+                                    selectedEntry = entry
+                                    isPopupPresented = true
+                                }
+                                .padding(.horizontal)
+                                .padding(.vertical, 4)
                             }
                         }
-                        .frame(width: 0.95 * geometry.size.width)
-                        Divider()
-                        historyISF()
                     }
                 }
-            }
 
+                if !tapped {
+                    HStack {
+                        Image(systemName: "hand.tap.fill")
+                        Text(String(
+                            localized: "Tap an entry row for details.",
+                            comment: "Text prompting user to tap an entry row for details"
+                        ))
+                        Spacer()
+                    }
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .multilineTextAlignment(.leading)
+                    .padding()
+                }
+            }
             .font(.caption)
             .onAppear(perform: configureView)
             .navigationBarTitle("")
             .navigationBarItems(leading: Button(action: state.hideModal) {
                 Text(String(localized: "Close", comment: "Close button label"))
-                    .foregroundColor(Color.tabBar) })
+                    .foregroundColor(Color.tabBar)
+            })
             .scrollContentBackground(.hidden)
             .background(appState.trioBackgroundColor(for: colorScheme))
             .overlay(
@@ -145,54 +175,86 @@ extension AutoISFHistory {
             )
         }
 
-        private func convertGlucose(_ value: Decimal, to units: GlucoseUnits) -> Double { // Use 'GlucoseUnits'
+        // Separate view for the grid entry row to improve performance
+        private struct GridEntryRow: View {
+            let entry: autoISFHistory
+            let glucoseFormatter: NumberFormatter
+            let units: GlucoseUnits
+
+            // Formatter for ratio values with consistent decimal places
+            private let ratioFormatter: NumberFormatter = {
+                let formatter = NumberFormatter()
+                formatter.numberStyle = .decimal
+                formatter.minimumFractionDigits = 2
+                formatter.maximumFractionDigits = 2
+                return formatter
+            }()
+
+            private func formatRatio(_ decimal: Decimal?) -> String {
+                guard let decimal = decimal else { return "0.00" }
+                return ratioFormatter.string(from: decimal as NSDecimalNumber) ?? "0.00"
+            }
+
+            private func convertGlucose(_ value: Decimal, to units: GlucoseUnits) -> Double {
+                switch units {
+                case .mmolL:
+                    return Double(value) * 0.0555
+                case .mgdL:
+                    return Double(value)
+                }
+            }
+
+            var body: some View {
+                Grid(alignment: .leading, horizontalSpacing: 8) {
+                    GridRow {
+                        Text(Formatter.timeFormatter.string(from: entry.timestamp ?? Date()))
+                            .frame(width: 50, alignment: .leading)
+
+                        let displayGlucose = convertGlucose(entry.bg ?? 0, to: units)
+                        Text(glucoseFormatter.string(from: NSNumber(value: displayGlucose)) ?? "")
+                            .foregroundColor(.loopGreen)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+
+                        Text(formatRatio(entry.autoISF_ratio))
+                            .foregroundColor(.uam)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+
+                        Text(formatRatio(entry.acce_ratio))
+                            .foregroundColor(.loopYellow)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+
+                        Text(formatRatio(entry.bg_ratio))
+                            .foregroundColor(.loopYellow)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+
+                        Text(formatRatio(entry.pp_ratio))
+                            .foregroundColor(.loopYellow)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+
+                        Text(formatRatio(entry.dura_ratio))
+                            .foregroundColor(.loopYellow)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+
+                        Text("\(entry.insulin_req ?? 0)")
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+
+                        Text("\(entry.smb ?? 0)")
+                            .foregroundColor(.insulin)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                }
+                .background(Color.clear)
+            }
+        }
+
+        private func convertGlucose(_ value: Decimal, to units: GlucoseUnits) -> Double {
             switch units {
             case .mmolL:
                 return Double(value) * 0.0555
             case .mgdL:
                 return Double(value)
             }
-        }
-
-        var autoISFview: some View {
-            GeometryReader { geometry in
-                List {
-                    ForEach(state.autoISFEntries, id: \.self) { entry in
-                        HStack(spacing: 2) {
-                            Text(Formatter.timeFormatter.string(from: entry.timestamp ?? Date()))
-                                .frame(width: 0.8 / slots * geometry.size.width, alignment: .leading)
-
-                            let displayGlucose = convertGlucose(entry.bg ?? 0, to: state.units)
-                            Text(glucoseFormatter.string(from: NSNumber(value: displayGlucose)) ?? "")
-                                //                            Text("\(entry.bg ?? 0)")
-                                .foregroundColor(.loopGreen)
-                                .frame(width: 0.8 / slots * geometry.size.width, alignment: .leading)
-                            Group {
-                                Text("\(entry.autoISF_ratio ?? 1)").foregroundColor(.uam)
-                                Text("\(entry.acce_ratio ?? 1)").foregroundColor(.loopYellow)
-                                Text("\(entry.bg_ratio ?? 1)").foregroundColor(.loopYellow)
-                                Text("\(entry.pp_ratio ?? 1)").foregroundColor(.loopYellow)
-                                Text("\(entry.dura_ratio ?? 1)").foregroundColor(.loopYellow)
-                            }
-                            .frame(width: 0.9 * slotwidth / slots * geometry.size.width, alignment: .center)
-                            Group {
-                                Text("\(entry.insulin_req ?? 0)").foregroundColor(.secondary)
-                                Text("\(entry.smb ?? 0)").foregroundColor(.insulin)
-                            }
-                            .frame(width: 0.85 * slotwidth / slots * geometry.size.width, alignment: .center)
-                        }
-                        .contentShape(Rectangle()) // Make the row tappable
-                        .onTapGesture {
-                            tapped = true
-                            selectedEntry = entry // Update selected row
-                            isPopupPresented = true // Show popup
-                        }
-                    }.listRowBackground(Color.clear)
-                }
-                .scrollContentBackground(.hidden)
-                .frame(maxWidth: .infinity)
-                .listStyle(PlainListStyle())
-            }.navigationBarTitle(Text("autoISF History"), displayMode: .inline)
         }
 
         @ViewBuilder private func popupView() -> some View {
@@ -206,10 +268,10 @@ extension AutoISFHistory {
                         units: state.units,
                         maxIOB: state.maxIOB,
                         iobThresholdPercent: state.iobThresholdPercent,
-                        entries: state.autoISFEntries, // Pass all entries
-                        selectedEntry: $selectedEntry, // Pass selected entry
-                        moveToPreviousEntry: moveToPreviousEntry, // Pass function
-                        moveToNextEntry: moveToNextEntry // Pass function
+                        entries: state.autoISFEntries,
+                        selectedEntry: $selectedEntry,
+                        moveToPreviousEntry: moveToPreviousEntry,
+                        moveToNextEntry: moveToNextEntry
                     )
                     .transition(.move(edge: .top))
                     .animation(.easeInOut)
@@ -222,22 +284,6 @@ extension AutoISFHistory {
         // Get index of current entry
         private var currentIndex: Int? {
             state.autoISFEntries.firstIndex(where: { $0 == selectedEntry })
-        }
-
-        // Check if Up button is possible
-        private var canMoveUp: Bool {
-            if let index = currentIndex {
-                return index > 0
-            }
-            return false
-        }
-
-        // Check if Down button is possible
-        private var canMoveDown: Bool {
-            if let index = currentIndex {
-                return index < state.autoISFEntries.count - 1
-            }
-            return false
         }
 
         // Move to previous entry
