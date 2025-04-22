@@ -68,18 +68,6 @@ extension AutoISFHistory {
         var body: some View {
             VStack {
                 HStack {
-                    if !tapped {
-                        HStack {
-                            Image(systemName: "hand.tap.fill")
-                            Text(String(
-                                localized: "Tap an entry row for details.",
-                                comment: "Text prompting user to tap an entry row for details"
-                            ))
-                        }
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                        .multilineTextAlignment(.leading)
-                    }
                     CustomDateTimePicker(selection: $state.selectedEndTime, minuteInterval: 15)
                         .frame(height: 40)
                     Spacer()
@@ -103,8 +91,8 @@ extension AutoISFHistory {
                         HStack(alignment: .bottom) {
                             Group {
                                 Spacer()
-                                Text(String(localized: "Time", comment: "Label for Time"))
-                                Text(String(localized: "BG", comment: "Label for BG")).foregroundColor(.loopGreen)
+                                Text(String(localized: "Time ", comment: "Label for Time"))
+                                Text(String(localized: " BG", comment: "Label for BG")).foregroundColor(.loopGreen)
                             }
                             Spacer()
                             Group {
@@ -129,6 +117,19 @@ extension AutoISFHistory {
                         Divider()
                         historyISF()
                     }
+                }
+                if !tapped {
+                    HStack {
+                        Image(systemName: "hand.tap.fill")
+                        Text(String(
+                            localized: "Tap an entry row for details.",
+                            comment: "Text prompting user to tap an entry row for details"
+                        ))
+                        Spacer()
+                    }
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .multilineTextAlignment(.leading)
                 }
             }
 
@@ -160,13 +161,13 @@ extension AutoISFHistory {
                     ForEach(state.autoISFEntries, id: \.self) { entry in
                         HStack(spacing: 2) {
                             Text(Formatter.timeFormatter.string(from: entry.timestamp ?? Date()))
-                                .frame(width: 0.8 / slots * geometry.size.width, alignment: .leading)
+                                .frame(width: 1 / slots * geometry.size.width, alignment: .leading)
 
                             let displayGlucose = convertGlucose(entry.bg ?? 0, to: state.units)
                             Text(glucoseFormatter.string(from: NSNumber(value: displayGlucose)) ?? "")
                                 //                            Text("\(entry.bg ?? 0)")
                                 .foregroundColor(.loopGreen)
-                                .frame(width: 0.8 / slots * geometry.size.width, alignment: .leading)
+                                .frame(width: 0.8 / slots * geometry.size.width, alignment: .trailing)
                             Group {
                                 Text("\(entry.autoISF_ratio ?? 1)").foregroundColor(.uam)
                                 Text("\(entry.acce_ratio ?? 1)").foregroundColor(.loopYellow)
