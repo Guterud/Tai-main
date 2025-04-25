@@ -58,7 +58,9 @@ extension AutoISFHistory {
 
         var body: some View {
             VStack(spacing: 0) {
-                // Top controls
+                Text("autoISF calculations")
+                    .font(.headline)
+                    .foregroundColor(.uam)
                 HStack {
                     CustomDateTimePicker(selection: $state.selectedEndTime, minuteInterval: 15)
                         .frame(height: 40)
@@ -74,49 +76,58 @@ extension AutoISFHistory {
 
                 // Table headers with Grid
                 VStack(spacing: 4) {
-                    // Main section headers
                     Grid(alignment: .trailing, horizontalSpacing: 8, verticalSpacing: 4) {
                         GridRow {
                             Text("").gridCellColumns(2)
-                            Text(String(localized: "ISF factors", comment: "Label for ISF factors section"))
-                                .foregroundColor(.uam)
-                                .gridCellColumns(5)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+
                             Text(String(localized: "Insulin", comment: "Label for Insulin section"))
                                 .foregroundColor(.insulin)
                                 .gridCellColumns(2)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Text(String(localized: "ISF factors", comment: "Label for ISF factors section"))
+                                .foregroundColor(.uam)
+                                .gridCellColumns(5)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
-                        // Column headers
                         GridRow {
                             Text(String(localized: "Time", comment: "Label for Time"))
-                                .frame(width: 50, alignment: .leading)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                                .frame(minWidth: 40, alignment: .leading)
+
                             Text(String(localized: "BG", comment: "Label for BG"))
                                 .foregroundColor(.loopGreen)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
-                            Text(String(localized: "final", comment: "Label for final"))
-                                .bold()
-                                .foregroundColor(.uam)
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            Text(String(localized: "acce", comment: "Label for acce"))
-                                .foregroundColor(.loopYellow)
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            Text(String(localized: "bg", comment: "Label for bg"))
-                                .foregroundColor(.loopYellow)
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            Text(String(localized: "pp", comment: "Label for pp"))
-                                .foregroundColor(.loopYellow)
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            Text(String(localized: "dura", comment: "Label for dura"))
-                                .foregroundColor(.loopYellow)
+
+                            Text(String(localized: "SMB", comment: "Label for SMB"))
+                                .foregroundColor(.insulin)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
 
                             Text(String(localized: "req.", comment: "Label for req."))
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
-                            Text(String(localized: "SMB", comment: "Label for SMB"))
-                                .foregroundColor(.insulin)
+
+                            Text(String(localized: "final", comment: "Label for final"))
+                                .bold()
+                                .foregroundColor(.uam)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+
+                            Text(String(localized: "acce", comment: "Label for acce"))
+                                .foregroundColor(.loopYellow)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+
+                            Text(String(localized: "bg", comment: "Label for bg"))
+                                .foregroundColor(.loopYellow)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+
+                            Text(String(localized: "pp", comment: "Label for pp"))
+                                .foregroundColor(.loopYellow)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+
+                            Text(String(localized: "dura", comment: "Label for dura"))
+                                .foregroundColor(.loopYellow)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
                         }
                     }
@@ -124,7 +135,6 @@ extension AutoISFHistory {
 
                     Divider()
 
-                    // Data rows using ScrollView + LazyVStack to improve performance
                     ScrollView {
                         LazyVStack(spacing: 4) {
                             ForEach(state.autoISFEntries, id: \.self) { entry in
@@ -175,13 +185,11 @@ extension AutoISFHistory {
             )
         }
 
-        // Separate view for the grid entry row to improve performance
         private struct GridEntryRow: View {
             let entry: autoISFHistory
             let glucoseFormatter: NumberFormatter
             let units: GlucoseUnits
 
-            // Formatter for ratio values with consistent decimal places
             private let ratioFormatter: NumberFormatter = {
                 let formatter = NumberFormatter()
                 formatter.numberStyle = .decimal
@@ -208,11 +216,21 @@ extension AutoISFHistory {
                 Grid(alignment: .leading, horizontalSpacing: 8) {
                     GridRow {
                         Text(Formatter.timeFormatter.string(from: entry.timestamp ?? Date()))
-                            .frame(width: 50, alignment: .leading)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                            .frame(minWidth: 40, alignment: .leading)
 
                         let displayGlucose = convertGlucose(entry.bg ?? 0, to: units)
                         Text(glucoseFormatter.string(from: NSNumber(value: displayGlucose)) ?? "")
                             .foregroundColor(.loopGreen)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+
+                        Text("\(entry.smb ?? 0)")
+                            .foregroundColor(.insulin)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+
+                        Text("\(entry.insulin_req ?? 0)")
+                            .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .trailing)
 
                         Text(formatRatio(entry.autoISF_ratio))
@@ -233,14 +251,6 @@ extension AutoISFHistory {
 
                         Text(formatRatio(entry.dura_ratio))
                             .foregroundColor(.loopYellow)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-
-                        Text("\(entry.insulin_req ?? 0)")
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-
-                        Text("\(entry.smb ?? 0)")
-                            .foregroundColor(.insulin)
                             .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                 }
