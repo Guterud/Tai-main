@@ -1,6 +1,7 @@
-oref0 branch: autoISF3.01 - git version: 5976f60
+oref0 branch: autoISF3.01 - git version: ecff83c
 
 Last commits:
+ecff83c aimiB30 ignores maxSafeBasal
 5976f60 round bg_isf to 2 decimals
 b5332a2 use round_basal for insReq
 12a4aa2 Always add minPredBG to rT object
@@ -30,4 +31,3 @@ f2a8012 iobTH reporting and logging fixed
 2ffd93b update to autoISF 3.01
 bdc9ad3 cp source files
 ca59189 profile.keto_protect_basal_percent is 0..1
-afede34 profile.iob_threshold_percent 0..1
