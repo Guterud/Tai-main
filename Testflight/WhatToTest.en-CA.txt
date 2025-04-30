@@ -1,3 +1,6 @@
 Beta update 0.4.3
 
-AIMI B30 deativtes on upper BG or Delta
+AIMI B30 deactivtes on upper BG or Delta
+onboarding activated for testing, no autoISF onboarding though
+- error of repeated onboarding after restart still present
+maxDelta_bg_threshold setting now shown as automated in autoISF
