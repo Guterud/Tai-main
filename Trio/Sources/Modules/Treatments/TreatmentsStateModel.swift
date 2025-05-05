@@ -828,7 +828,7 @@ extension Treatments.StateModel {
             // setup vars for bolus calculation
             insulinRequired = (mostRecentDetermination.insulinReq ?? 0) as Decimal
             evBG = (mostRecentDetermination.eventualBG ?? 0) as Decimal
-            minPredBG = (mostRecentDetermination.minPredBGFromReason(with: settingsManager.settings.units) ?? 0) as Decimal
+            minPredBG = (mostRecentDetermination.minPredBG ?? 0) as Decimal
             lastLoopDate = apsManager.lastLoopDate as Date?
             insulin = (mostRecentDetermination.insulinForManualBolus ?? 0) as Decimal
             target = (mostRecentDetermination.currentTarget ?? currentBGTarget as NSDecimalNumber) as Decimal
@@ -862,7 +862,7 @@ extension Treatments.StateModel {
             // Update evBG and minPredBG from simulated determination
             if let simDetermination = simulatedDetermination {
                 evBG = Decimal(simDetermination.eventualBG ?? 0)
-                minPredBG = simDetermination.minPredBGFromReason ?? 0
+                minPredBG = simDetermination.minPredBG ?? 0
                 debugPrint("\(DebuggingIdentifiers.inProgress) minPredBG: \(minPredBG)")
             }
         }
