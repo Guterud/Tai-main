@@ -1,6 +1,6 @@
 Beta update 0.4.3
 
-AIMI B30 deactivtes on upper BG or Delta
-onboarding activated for testing, no autoISF onboarding though
-- error of repeated onboarding after restart still present
-maxDelta_bg_threshold setting now shown as automated in autoISF
+autoISF adaption, iobTH works without even/odd toggle on
+use minPredBG from rT.variable instead of reasion
+onboarding de-activated again
+

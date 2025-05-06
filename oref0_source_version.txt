@@ -1,7 +1,8 @@
-oref0 branch: autoISF3.01 - git version: 9d587ad
+oref0 branch: autoISF3.01 - git version: fe902c1
 
 Last commits:
-9d587ad AIMI deactivates with upperDelta or BG surpassed
+fe902c1 use iobTH without even/off
+78c308c AIMI deactivates with upperDelta or BG surpassed
 48964e7 aimiB30 ignores maxSafeBasal
 5976f60 round bg_isf to 2 decimals
 b5332a2 use round_basal for insReq
@@ -30,4 +31,3 @@ d0ff8d8 rT.reason improvement
 345fe35 target_units for unit switching
 f2a8012 iobTH reporting and logging fixed
 2ffd93b update to autoISF 3.01
-bdc9ad3 cp source files
