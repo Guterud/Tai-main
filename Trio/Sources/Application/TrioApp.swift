@@ -22,9 +22,10 @@ extension Notification.Name {
     let onboardingManager = OnboardingManager.shared
 
     class InitState {
-        var complete = false
-        var error = false
+        var complete: Bool = false
+        var error: Bool = false
         var migrationErrors: [String] = []
+        var migrationFailed: Bool = false
     }
 
     // We use both InitState and @State variables to track coreDataStack
@@ -207,6 +208,7 @@ extension Notification.Name {
         }
 
         initState.migrationErrors = importErrors
+        initState.migrationFailed = importErrors.isNotEmpty
     }
 
     /// Clears any legacy (Trio 0.2.x) delivered and pending notifications related to non-looping alerts.
@@ -297,11 +299,15 @@ extension Notification.Name {
                             .environmentObject(Icons())
                             .onOpenURL(perform: handleURL)
                     }
-//                } else if onboardingManager.shouldShowOnboarding {
-//                    // Show onboarding if needed
-//                    Onboarding.RootView(resolver: resolver, onboardingManager: onboardingManager)
-//                        .preferredColorScheme(colorScheme(for: .dark) ?? nil)
-//                        .transition(.opacity)
+                } else if onboardingManager.shouldShowOnboarding {
+                    // Show onboarding if needed
+                    Onboarding.RootView(
+                        resolver: resolver,
+                        onboardingManager: onboardingManager,
+                        wasMigrationSuccessful: !initState.migrationFailed
+                    )
+                    .preferredColorScheme(colorScheme(for: .dark) ?? nil)
+                    .transition(.opacity)
                 } else {
                     Main.RootView(resolver: resolver)
                         .preferredColorScheme(colorScheme(for: colorSchemePreference) ?? nil)
@@ -360,7 +366,7 @@ extension Notification.Name {
     }
 
     private func performCleanupIfNecessary() {
-        if let lastCleanupDate = UserDefaults.standard.object(forKey: "lastCleanupDate") as? Date {
+        if let lastCleanupDate = PropertyPersistentFlags.shared.lastCleanupDate {
             let sevenDaysAgo = Date().addingTimeInterval(-7 * 24 * 60 * 60)
             if lastCleanupDate < sevenDaysAgo {
                 cleanupOldData()
@@ -377,7 +383,7 @@ extension Notification.Name {
             try await purgeData
 
             // Update the last cleanup date
-            UserDefaults.standard.set(Date(), forKey: "lastCleanupDate")
+            PropertyPersistentFlags.shared.lastCleanupDate = Date()
         }
     }
 
