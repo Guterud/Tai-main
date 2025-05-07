@@ -5,6 +5,7 @@ extension PumpConfig {
     struct RootView: BaseView {
         let resolver: Resolver
         let displayClose: Bool
+        let bluetoothManager: BluetoothStateManager
         @StateObject var state = StateModel()
         @State private var showConcentrationEditor = false
         @State private var showEditConcentrationWarning = false
@@ -88,7 +89,13 @@ extension PumpConfig {
                     Section(
                         header: Text("Pump Integration to Trio"),
                         content: {
-                            if let pumpState = state.pumpState {
+                            if bluetoothManager.bluetoothAuthorization != .authorized {
+                                HStack {
+                                    Spacer()
+                                    BluetoothRequiredView()
+                                    Spacer()
+                                }
+                            } else if let pumpState = state.pumpState {
                                 Button {
                                     state.setupPump = true
                                 } label: {
@@ -319,7 +326,7 @@ extension PumpConfig {
                                 VStack(alignment: .leading) {
                                     Text("• Medtronic")
                                     Text("• Omnipod Eros")
-                                    Text("• Omnipod Dash")
+                                    Text("• Omnipod DASH")
                                     Text("• Dana (RS/-i)")
                                     Text("• Pump Simulator")
                                 }
@@ -334,7 +341,7 @@ extension PumpConfig {
                 .confirmationDialog("Pump Model", isPresented: $showPumpSelection) {
                     Button("Medtronic") { state.addPump(.minimed) }
                     Button("Omnipod Eros") { state.addPump(.omnipod) }
-                    Button("Omnipod Dash") { state.addPump(.omnipodBLE) }
+                    Button("Omnipod DASH") { state.addPump(.omnipodBLE) }
                     Button("Dana(RS/-i)") { state.addPump(.dana) }
                     Button("Pump Simulator") { state.addPump(.simulator) }
                 } message: { Text("Select Pump Model") }

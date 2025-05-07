@@ -1,6 +1,7 @@
-Beta update 0.4.3
+Beta update 0.5.0
 
 autoISF adaption, iobTH works without even/odd toggle on
 use minPredBG from rT.variable instead of reasion
-onboarding de-activated again
+onboarding fixed & activated again
+fixes from Trio CoreData
 
