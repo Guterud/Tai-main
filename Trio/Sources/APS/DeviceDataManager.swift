@@ -535,6 +535,7 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
                     guard let type = $0.type, type == .tempBasal else { return true }
                     return $0.dose?.unitsPerHour ?? 0 <= Double(settingsManager.pumpSettings.maxBasal / concentration)
                 }
+                debug(.deviceManager, "Storing \(events.count) new pump events: \(events)")
                 try await pumpHistoryStorage.storePumpEvents(events)
                 lastEventDate = events.last?.date
                 completion(nil)

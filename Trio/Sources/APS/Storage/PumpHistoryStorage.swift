@@ -106,7 +106,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
 
                     guard existingEvents.isEmpty else {
                         // Duplicate found, do not store the event
-                        print("Duplicate event found with timestamp: \(event.date)")
+                        debug(.coreData, "Duplicate event found with timestamp: \(event.date)")
 
                         if let existingEvent = existingEvents.first(where: { $0.type == EventType.bolus.rawValue }) {
                             if existingEvent.timestamp == event.date {
@@ -118,7 +118,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                                     existingEvent.isUploadedToHealth = false
                                     existingEvent.isUploadedToTidepool = false
 
-                                    print("Updated existing event with smaller value: \(amount)")
+                                    debug(.coreData, "Updated existing event with smaller value: \(amount)")
                                 }
                             }
                         }
@@ -145,7 +145,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
 
                     guard existingEvents.isEmpty else {
                         // Duplicate found, do not store the event
-                        print("Duplicate event found with timestamp: \(event.date)")
+                        debug(.coreData, "Duplicate event found with timestamp: \(event.date)")
                         continue
                     }
 
@@ -174,7 +174,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                 case .suspend:
                     guard existingEvents.isEmpty else {
                         // Duplicate found, do not store the event
-                        print("Duplicate event found with timestamp: \(event.date)")
+                        debug(.coreData, "Duplicate event found with timestamp: \(event.date)")
                         continue
                     }
                     let newPumpEvent = PumpEventStored(context: self.context)
@@ -188,7 +188,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                 case .resume:
                     guard existingEvents.isEmpty else {
                         // Duplicate found, do not store the event
-                        print("Duplicate event found with timestamp: \(event.date)")
+                        debug(.coreData, "Duplicate event found with timestamp: \(event.date)")
                         continue
                     }
                     let newPumpEvent = PumpEventStored(context: self.context)
@@ -202,7 +202,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                 case .rewind:
                     guard existingEvents.isEmpty else {
                         // Duplicate found, do not store the event
-                        print("Duplicate event found with timestamp: \(event.date)")
+                        debug(.coreData, "Duplicate event found with timestamp: \(event.date)")
                         continue
                     }
                     let newPumpEvent = PumpEventStored(context: self.context)
@@ -216,7 +216,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                 case .prime:
                     guard existingEvents.isEmpty else {
                         // Duplicate found, do not store the event
-                        print("Duplicate event found with timestamp: \(event.date)")
+                        debug(.coreData, "Duplicate event found with timestamp: \(event.date)")
                         continue
                     }
                     let newPumpEvent = PumpEventStored(context: self.context)
@@ -230,7 +230,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                 case .alarm:
                     guard existingEvents.isEmpty else {
                         // Duplicate found, do not store the event
-                        print("Duplicate event found with timestamp: \(event.date)")
+                        debug(.coreData, "Duplicate event found with timestamp: \(event.date)")
                         continue
                     }
                     let newPumpEvent = PumpEventStored(context: self.context)
@@ -252,16 +252,15 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                 try self.context.save()
 
                 self.updateSubject.send(())
-                debugPrint("\(DebuggingIdentifiers.succeeded) stored pump events in Core Data")
+                debug(.coreData, "\(DebuggingIdentifiers.succeeded) stored pump events in Core Data")
             } catch let error as NSError {
-                debugPrint("\(DebuggingIdentifiers.failed) failed to store pump events with error: \(error.userInfo)")
+                debug(.coreData, "\(DebuggingIdentifiers.failed) failed to store pump events with error: \(error.userInfo)")
                 throw error
             }
         }
     }
 
     func storeExternalInsulinEvent(amount: Decimal, timestamp: Date) async {
-        debug(.default, "External insulin saved")
         await context.perform {
             // create pump event
             let newPumpEvent = PumpEventStored(context: self.context)
@@ -283,10 +282,10 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
             do {
                 guard self.context.hasChanges else { return }
                 try self.context.save()
-
+                debug(.coreData, "External insulin saved")
                 self.updateSubject.send(())
             } catch {
-                print(error.localizedDescription)
+                debug(.coreData, "Failed to store external insulin in context: \(error)")
             }
         }
     }
