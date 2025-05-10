@@ -60,17 +60,17 @@ struct DiagnosticsStepView: View {
                     )
                     BulletPoint(
                         String(
-                            localized: "Trio collects the app's state on crash, device, iOS and general system info, and a stack trace."
+                            localized: "Tai collects the app's state on crash, device, iOS and general system info, and a stack trace."
                         )
                     )
                     BulletPoint(
                         String(
-                            localized: "Trio does not collect any health related data, e.g. glucose readings, insulin rates or doses, meal data, setting values, or similar."
+                            localized: "Tai does not collect any health related data, e.g. glucose readings, insulin rates or doses, meal data, setting values, or similar."
                         )
                     )
                     BulletPoint(
                         String(
-                            localized: "Trio does not track any usage metrics or any other personal data about users other than the used iPhone model and iOS version."
+                            localized: "Tai does not track any usage metrics or any other personal data about users other than the used iPhone model and iOS version."
                         )
                     )
                 }

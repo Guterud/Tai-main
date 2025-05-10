@@ -20,11 +20,17 @@ struct AlgorithmSettingsImportantNotesStepView: View {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.bgDarkBlue, Color.orange)
                         .symbolRenderingMode(.palette)
-                    Text("Important").foregroundStyle(Color.orange)
+                    Text("Note to Tai users:").foregroundStyle(Color.orange)
                 }.bold()
-
-                Text("Dynamic ISF requires at least ") + Text("7 days")
-                    .bold() + Text(" of usage data and is not yet configurable.")
+                Text(
+                    "If you are an expert user and mix your own insulin, it’s essential to review DIA and Custom Peak Time of your insulin after the onboarding, as they are reset to defaults."
+                )
+                Text(
+                    "Check the other additional \"advanced settings\" like the basal safety multipliers, as they are also reset to defaults during onboarding."
+                )
+                Text(
+                    "You also have to redo the Tai specific algorithm settings in Settings > Algorithm > Extensions!"
+                )
             }
             .frame(maxWidth: .infinity)
             .padding()
@@ -48,7 +54,7 @@ struct AlgorithmSettingsImportantNotesStepView: View {
                 )
                 BulletPoint(String(localized: "All additional \"advanced settings\" have been reset."))
                 BulletPoint(
-                    String(localized: "The duration of insulin action (DIA) is now locked to Trio’s new default of 10 hours.")
+                    String(localized: "The duration of insulin action (DIA) is now reset to Trio’s new default of 10 hours.")
                 )
                 BulletPoint(
                     String(localized: "We strongly recommend not changing DIA — it’s essential to stable and safe operation.")
