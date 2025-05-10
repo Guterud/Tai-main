@@ -54,10 +54,10 @@ extension BasalProfileEditor {
                     ).alignsMarkStylesWithPlotArea()
 
                     LineMark(x: .value("End Date", endDate), y: .value("Amount", profile.amount))
-                        .lineStyle(.init(lineWidth: 1)).foregroundStyle(Color.purple)
+                        .lineStyle(.init(lineWidth: 1)).foregroundStyle(Color.insulin)
 
                     LineMark(x: .value("Start Date", startDate), y: .value("Amount", profile.amount))
-                        .lineStyle(.init(lineWidth: 1)).foregroundStyle(Color.purple)
+                        .lineStyle(.init(lineWidth: 1)).foregroundStyle(Color.insulin)
                 }
             }
             .chartXAxis {

@@ -607,7 +607,8 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                         )
 
                         await MainActor.run {
-                            minPredBG = determinationObjects.first?.minPredBGFromReason ?? 54
+                            minPredBG = determinationObjects.first?
+                                .minPredBGFromReason(with: self.settingsManager.settings.units) ?? 54
                         }
 
                     } catch let error as CoreDataError {

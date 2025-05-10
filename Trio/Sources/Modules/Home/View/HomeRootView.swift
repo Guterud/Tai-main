@@ -1120,7 +1120,7 @@ extension Home {
 
                         /// glucose bobble
                         glucoseView
-
+                    }
                     /// left panel with meal related info
                     HStack {
                         leftHeaderPanel(geo)

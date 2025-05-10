@@ -528,6 +528,26 @@ extension Determination: Codable {
         case carbRatio = "CR"
         case received
         case receivedAlt = "recieved"
+        // autoISF
+        case smbRatio = "SMBratio"
+        case duraISFratio = "dura_ISFratio"
+        case bgISFratio = "bg_ISFratio"
+        case ppISFratio = "pp_ISFratio"
+        case acceISFratio = "acce_ISFratio"
+        case autoISFratio = "auto_ISFratio"
+        case iobTH = "iob_THeffective"
+        case tick
+        // acce calc
+        case parabolaFitMinutes = "parabola_fit_minutes"
+        case parabolaFitLastDelta = "parabola_fit_last_delta"
+        case parabolaFitNextDelta = "parabola_fit_next_delta"
+        case parabolaFitCorrelation = "parabola_fit_correlation"
+        case parabolaFitA0 = "parabola_fit_a0"
+        case parabolaFitA1 = "parabola_fit_a1"
+        case parabolaFitA2 = "parabola_fit_a2"
+        case duraMin = "dura_min"
+        case duraAvg = "dura_avg"
+        case bgAcce = "bg_acce"
     }
 
     init(from decoder: Decoder) throws {
@@ -570,6 +590,26 @@ extension Determination: Codable {
         } else {
             received = nil
         }
+
+        // autoISF
+        smbRatio = try container.decodeIfPresent(Decimal.self, forKey: .smbRatio)
+        duraISFratio = try container.decodeIfPresent(Decimal.self, forKey: .duraISFratio)
+        bgISFratio = try container.decodeIfPresent(Decimal.self, forKey: .bgISFratio)
+        ppISFratio = try container.decodeIfPresent(Decimal.self, forKey: .ppISFratio)
+        acceISFratio = try container.decodeIfPresent(Decimal.self, forKey: .acceISFratio)
+        autoISFratio = try container.decodeIfPresent(Decimal.self, forKey: .autoISFratio)
+        iobTH = try container.decodeIfPresent(Decimal.self, forKey: .iobTH)
+        tick = nil
+        parabolaFitMinutes = try container.decodeIfPresent(Decimal.self, forKey: .parabolaFitMinutes)
+        parabolaFitLastDelta = try container.decodeIfPresent(Decimal.self, forKey: .parabolaFitLastDelta)
+        parabolaFitNextDelta = try container.decodeIfPresent(Decimal.self, forKey: .parabolaFitNextDelta)
+        parabolaFitCorrelation = try container.decodeIfPresent(Decimal.self, forKey: .parabolaFitCorrelation)
+        parabolaFitA0 = try container.decodeIfPresent(Decimal.self, forKey: .parabolaFitA0)
+        parabolaFitA1 = try container.decodeIfPresent(Decimal.self, forKey: .parabolaFitA1)
+        parabolaFitA2 = try container.decodeIfPresent(Decimal.self, forKey: .parabolaFitA2)
+        duraMin = try container.decodeIfPresent(Decimal.self, forKey: .duraMin)
+        duraAvg = try container.decodeIfPresent(Decimal.self, forKey: .duraAvg)
+        bgAcce = try container.decodeIfPresent(Decimal.self, forKey: .bgAcce)
     }
 
     func encode(to encoder: Encoder) throws {
