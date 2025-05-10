@@ -43,7 +43,7 @@ struct Preferences: JSON, Equatable {
     var suspendZerosIOB: Bool = false
     var timestamp: Date?
     var smbThresholdRatio: Decimal = 0.5
-    var maxDeltaBGthreshold: Decimal = 0.3
+    var maxDeltaBGthreshold: Decimal = 0.2
     // start dynISF config for oref variables
     var adjustmentFactor: Decimal = 0.8
     var adjustmentFactorSigmoid: Decimal = 0.5
