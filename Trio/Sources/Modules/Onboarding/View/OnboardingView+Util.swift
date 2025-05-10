@@ -251,13 +251,13 @@ enum OnboardingStep: Int, CaseIterable, Identifiable, Equatable {
         case .unitSelection:
             return "numbers.rectangle"
         case .glucoseTarget:
-            return "target"
+            return "arrow.up.circle.badge.clock"
         case .basalRates:
-            return "chart.xyaxis.line"
+            return "chart.bar.xaxis"
         case .carbRatio:
             return "fork.knife"
         case .insulinSensitivity:
-            return "drop.fill"
+            return "arrow.up.arrow.down"
         case .deliveryLimits:
             return "slider.horizontal.3"
         case .algorithmSettings:

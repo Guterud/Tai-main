@@ -408,6 +408,28 @@ struct OnboardingStepContent: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 60, height: 60)
+            } else if currentStep == .glucoseTarget {
+                Image(systemName: "arrow.up.circle.badge.clock")
+                    .rotationEffect(.degrees(90))
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color.primary, Color.loopGreen)
+                    .frame(width: 60, height: 60)
+                    .background(
+                        Circle()
+                            .fill(currentStep.accentColor.opacity(0.2))
+                    )
+            } else if currentStep == .carbRatio {
+                Image("premeal")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundColor(currentStep.accentColor)
+                    .frame(width: 40, height: 40)
+                    .frame(width: 60, height: 60)
+                    .background(
+                        Circle()
+                            .fill(currentStep.accentColor.opacity(0.2))
+                    )
             } else if currentStep == .bluetooth {
                 Image(currentStep.iconName)
                     .font(.system(size: 40))

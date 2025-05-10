@@ -15,16 +15,22 @@ struct WelcomeStepView: View {
                     .multilineTextAlignment(.center)
 
                 Text(
-                    "Welcome to Trio - an automated insulin delivery system for iOS based on the OpenAPS algorithm with adaptations."
+                    "Welcome to Tai - an automated insulin delivery system for iOS based on Trio using the OpenAPS algorithm with autoISF and other adaptations."
                 )
                 .multilineTextAlignment(.leading)
                 .foregroundColor(.secondary)
 
                 Text(
-                    "Trio is designed to help manage your diabetes efficiently. To get the most out of the app, we'll guide you through setting up some essential parameters."
+                    "Trio is designed to help manage your diabetes efficiently. To get the most out of the app, we'll guide you through setting up some essential Trio parameters. Tai specific settings need to be done manually after Trio onboarding."
                 )
                 .multilineTextAlignment(.leading)
                 .foregroundColor(.secondary)
+
+                Text(
+                    "Tai specific settings like autoISF or Ketoacidosis Protection need to be done manually after Trio onboarding."
+                )
+                .multilineTextAlignment(.leading)
+                .foregroundColor(.primary)
 
                 Text("Let's go through a few quick steps to ensure Trio works optimally for you.")
                     .multilineTextAlignment(.leading)

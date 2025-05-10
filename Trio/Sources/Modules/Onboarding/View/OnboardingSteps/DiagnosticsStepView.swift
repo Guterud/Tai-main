@@ -51,7 +51,7 @@ struct DiagnosticsStepView: View {
             .opacity(state.diagnosticsSharingOption == .disabled ? 0.35 : 1)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("Why does Trio collect this data?").bold()
+                Text("Why does Tai collect this data?").bold()
                 VStack(alignment: .leading, spacing: 4) {
                     BulletPoint(
                         String(
@@ -60,22 +60,22 @@ struct DiagnosticsStepView: View {
                     )
                     BulletPoint(
                         String(
-                            localized: "Trio collects the app's state on crash, device, iOS and general system info, and a stack trace."
+                            localized: "Tai collects the app's state on crash, device, iOS and general system info, and a stack trace."
                         )
                     )
                     BulletPoint(
                         String(
-                            localized: "Trio does not collect any health related data, e.g. glucose readings, insulin rates or doses, meal data, setting values, or similar."
+                            localized: "Tai does not collect any health related data, e.g. glucose readings, insulin rates or doses, meal data, setting values, or similar."
                         )
                     )
                     BulletPoint(
                         String(
-                            localized: "Trio does not track any usage metrics or any other personal data about users other than the used iPhone model and iOS version."
+                            localized: "Tai does not track any usage metrics or any other personal data about users other than the used iPhone model and iOS version."
                         )
                     )
                 }
                 Text(
-                    "Diagnostics are sent to a Google Firebase Crashlytics project, which is securely maintained and accessed only by the Trio team."
+                    "Diagnostics are sent to a Google Firebase Crashlytics project, which is securely maintained and accessed only by the Tai author."
                 )
             }
             .multilineTextAlignment(.leading)
