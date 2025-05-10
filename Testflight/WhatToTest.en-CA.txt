@@ -1,4 +1,9 @@
-Beta update 0.4.1
+Beta update 0.4.1 - Closed Beta
 
-Trio closed beta 0.3.0(17) - G7 fix
-autoISF History for smaller screens
+Trio closed beta 0.4.1 - onboarding ...
+autoISF History refacxtor
+rename logfiles <date>.log
+don't show setting maxDeltaBGThreshold - autoISF automates that
+increase boundaries for Basal multipliers to 10
+
+
