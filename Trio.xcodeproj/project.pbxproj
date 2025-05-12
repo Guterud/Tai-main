@@ -261,6 +261,7 @@
 		491D6FC02D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491D6FBB2D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift */; };
 		492B87012D9EC02700D5E42B /* TaiStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 492B87002D9EC02700D5E42B /* TaiStyle.swift */; };
 		492B88F52DADAFBA00D5E42B /* AlertEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 492B88F42DADAFBA00D5E42B /* AlertEntry.swift */; };
+		4961C4AA2DD26E1900A02420 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 19DA487F29CD2B8400EEA1E7 /* Assets.xcassets */; };
 		498B3E812DB96E6C00737DD3 /* WatchLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDFF20492DB29EF500AB8A96 /* WatchLogger.swift */; };
 		498B3E822DB96EF000737DD3 /* WatchStateSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDFF204D2DB2C00B00AB8A96 /* WatchStateSnapshot.swift */; };
 		498ED7052D80515B00D18CAF /* InsulinConcentrationDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498ED7022D80515B00D18CAF /* InsulinConcentrationDataFlow.swift */; };
@@ -268,7 +269,6 @@
 		498ED7072D80515B00D18CAF /* InsulinConcentrationStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498ED7042D80515B00D18CAF /* InsulinConcentrationStateModel.swift */; };
 		498ED7092D80516F00D18CAF /* InsulinConcentrationRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498ED7082D80516F00D18CAF /* InsulinConcentrationRootView.swift */; };
 		498ED7BE2D80811800D18CAF /* HorizontalPumpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498ED7BD2D80811800D18CAF /* HorizontalPumpView.swift */; };
-		492B88F52DADAFBA00D5E42B /* AlertEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 492B88F42DADAFBA00D5E42B /* AlertEntry.swift */; };
 		49AC5B642D7F2833005A47F3 /* CustomDateTimePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49AC5B632D7F2833005A47F3 /* CustomDateTimePicker.swift */; };
 		49B21BBD2D7F102100D0B6C3 /* MainChartHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B21BBC2D7F102100D0B6C3 /* MainChartHelper.swift */; };
 		49B21BF02D7F21D100D0B6C3 /* AutoISFHistoryStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B21BEE2D7F21D100D0B6C3 /* AutoISFHistoryStateModel.swift */; };
@@ -1100,12 +1100,12 @@
 		491D6FBB2D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TempTargetStored+CoreDataClass.swift"; sourceTree = "<group>"; };
 		491D6FBC2D56741C00C49F67 /* TempTargetStored+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TempTargetStored+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		492B87002D9EC02700D5E42B /* TaiStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaiStyle.swift; sourceTree = "<group>"; };
+		492B88F42DADAFBA00D5E42B /* AlertEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertEntry.swift; sourceTree = "<group>"; };
 		498ED7022D80515B00D18CAF /* InsulinConcentrationDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinConcentrationDataFlow.swift; sourceTree = "<group>"; };
 		498ED7032D80515B00D18CAF /* InsulinConcentrationProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinConcentrationProvider.swift; sourceTree = "<group>"; };
 		498ED7042D80515B00D18CAF /* InsulinConcentrationStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinConcentrationStateModel.swift; sourceTree = "<group>"; };
 		498ED7082D80516F00D18CAF /* InsulinConcentrationRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinConcentrationRootView.swift; sourceTree = "<group>"; };
 		498ED7BD2D80811800D18CAF /* HorizontalPumpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HorizontalPumpView.swift; sourceTree = "<group>"; };
-		492B88F42DADAFBA00D5E42B /* AlertEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertEntry.swift; sourceTree = "<group>"; };
 		49AC5B632D7F2833005A47F3 /* CustomDateTimePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomDateTimePicker.swift; sourceTree = "<group>"; };
 		49AC5CB32D7F5EB2005A47F3 /* ci_post_xcodebuild.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; name = ci_post_xcodebuild.sh; path = ci_scripts/ci_post_xcodebuild.sh; sourceTree = "<group>"; };
 		49AC5CE22D7F5F39005A47F3 /* WhatToTest.en-CA.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = "WhatToTest.en-CA.txt"; path = "Testflight/WhatToTest.en-CA.txt"; sourceTree = "<group>"; };
@@ -1902,15 +1902,13 @@
 		3811DE0325C9D31700A708ED /* Modules */ = {
 			isa = PBXGroup;
 			children = (
-				498ED7002D80510D00D18CAF /* InsulinConcentration */,
-				49B21BEF2D7F21D100D0B6C3 /* AutoISFHistory */,
-				49F299332D2D82EA00E4C00D /* B30Settings */,
-				49F298C92D2D7E2100E4C00D /* KetoProtectSettings */,
-				49AC05B72D0989BD005EBACD /* AutoISFSettings */,
 				DDD163032C4C67B400CD525A /* Adjustments */,
 				DD1745382C55BF8B00211FAC /* AlgorithmAdvancedSettings */,
 				DDF690FE2DA2C9EE008BF16C /* AppDiagnostics */,
+				49B21BEF2D7F21D100D0B6C3 /* AutoISFHistory */,
+				49AC05B72D0989BD005EBACD /* AutoISFSettings */,
 				DD1745422C55C5C400211FAC /* AutosensSettings */,
+				49F299332D2D82EA00E4C00D /* B30Settings */,
 				A42F1FEDFFD0DDE00AAD54D3 /* BasalProfileEditor */,
 				3811DE0425C9D32E00A708ED /* Base */,
 				BD7DA9A32AE06DBA00601B20 /* BolusCalculatorConfig */,
@@ -1927,7 +1925,9 @@
 				F90692CD274B99850037068D /* HealthKit */,
 				3811DE2725C9D49500A708ED /* Home */,
 				19E1F7E629D0828B005C8D20 /* IconConfig */,
+				498ED7002D80510D00D18CAF /* InsulinConcentration */,
 				D8F047E14D567F2B5DBEFD96 /* ISFEditor */,
+				49F298C92D2D7E2100E4C00D /* KetoProtectSettings */,
 				DDF847DB2C5C28550049BB3B /* LiveActivitySettings */,
 				3811DE1A25C9D48300A708ED /* Main */,
 				5031FE61F63C2A8A8B7674DD /* ManualTempBasal */,
@@ -2391,7 +2391,6 @@
 				38D0B3D825EC07C400CB6E88 /* CarbsEntry.swift */,
 				19D4E4EA29FC6A9F00351451 /* Charts.swift */,
 				DD6D67E32C9C253500660C9B /* ColorSchemeOption.swift */,
-				E592A36F2CEEC01E009A472C /* ContactTrickEntry.swift */,
 				3811DF0125CA9FEA00A708ED /* Credentials.swift */,
 				19A910352A24D6D700C8951B /* DateFilter.swift */,
 				DD21FCB42C6952AD00AF2C25 /* DecimalPickerSettings.swift */,
@@ -2400,13 +2399,11 @@
 				DD6B7CB32C7B71F700B75029 /* ForecastDisplayType.swift */,
 				DD3078692D42F94000DE0490 /* GarminDevice.swift */,
 				DD4FFF322D458EE600B6CFF9 /* GarminWatchState.swift */,
-				383948D925CD64D500E91849 /* Glucose.swift */,
 				DD940BA92CA7585D000830A5 /* GlucoseColorScheme.swift */,
 				715120D12D3C2B84005D9FB6 /* GlucoseNotificationsOption.swift */,
 				E0D4F80427513ECF00BDF1FE /* HealthKitSample.swift */,
 				1967DFBD29D052C200759F30 /* Icons.swift */,
 				E592A36F2CEEC01E009A472C /* ContactTrickEntry.swift */,
-				38AEE73C25F0200C0013F05B /* TrioSettings.swift */,
 				382C133625F13A1E00715CE1 /* InsulinSensitivities.swift */,
 				38887CCD25F5725200944304 /* IOBEntry.swift */,
 				BDF530D72B40F8AC002CAF43 /* LockScreenView.swift */,
@@ -2452,7 +2449,6 @@
 				49CCD2102CAE5E99002A9476 /* BulletList.swift */,
 				FE66D16A291F74F8005D6F77 /* Bundle+Extensions.swift */,
 				DD82D4B72DCAB2BA00BAFC77 /* PropertyPersistentFlags.swift */,
-				DDCAE8322D78D49C00B1BB51 /* TherapySettingsUtil.swift */,
 				BD249DA62D42FE3800412DEB /* Calendar+GlucoseStatsChart.swift */,
 				CEF1ED6A2D58FB4600FAF41E /* CGMOptions.swift */,
 				38F37827261260DC009DB701 /* Color+Extensions.swift */,
@@ -2638,6 +2634,20 @@
 			path = TrioTests;
 			sourceTree = "<group>";
 		};
+		3B997DD22DC02AEF006B6BB2 /* JSONImporterData */ = {
+			isa = PBXGroup;
+			children = (
+				3BCA5F7B2DC7B15400A7EAC7 /* pumphistory-with-external.json */,
+				DD3C47B22DC5608A003DD20D /* newerSuggested.json */,
+				DDD78AD72DC421B500AC63F3 /* enacted.json */,
+				DDD78AD82DC421B500AC63F3 /* suggested.json */,
+				DDD78A902DC4064800AC63F3 /* carbhistory.json */,
+				3B997DD12DC02AEF006B6BB2 /* glucose.json */,
+				3BD6CE252DC24CFD00FA0472 /* pumphistory-24h-zoned.json */,
+			);
+			path = JSONImporterData;
+			sourceTree = "<group>";
+		};
 		498ED7002D80510D00D18CAF /* InsulinConcentration */ = {
 			isa = PBXGroup;
 			children = (
@@ -2732,20 +2742,6 @@
 				49F299322D2D82EA00E4C00D /* B30SettingsStateModel.swift */,
 			);
 			path = B30Settings;
-			sourceTree = "<group>";
-		};
-		3B997DD22DC02AEF006B6BB2 /* JSONImporterData */ = {
-			isa = PBXGroup;
-			children = (
-				3BCA5F7B2DC7B15400A7EAC7 /* pumphistory-with-external.json */,
-				DD3C47B22DC5608A003DD20D /* newerSuggested.json */,
-				DDD78AD72DC421B500AC63F3 /* enacted.json */,
-				DDD78AD82DC421B500AC63F3 /* suggested.json */,
-				DDD78A902DC4064800AC63F3 /* carbhistory.json */,
-				3B997DD12DC02AEF006B6BB2 /* glucose.json */,
-				3BD6CE252DC24CFD00FA0472 /* pumphistory-24h-zoned.json */,
-			);
-			path = JSONImporterData;
 			sourceTree = "<group>";
 		};
 		4E8C7B59F8065047ECE20965 /* View */ = {
@@ -4133,6 +4129,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BDFF7A872D25F97D0016C40C /* Assets.xcassets in Resources */,
+				4961C4AA2DD26E1900A02420 /* Assets.xcassets in Resources */,
 				DD498F2C2D692BEA00AAEA30 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

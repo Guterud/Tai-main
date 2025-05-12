@@ -112,7 +112,7 @@ struct TrioMainWatchView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     HStack {
-                        Image(systemName: "syringe.fill")
+                        Image(systemName: "drop.circle")
                             .foregroundStyle(Color.insulin)
 
                         Text(isWatchStateDated || isSessionUnreachable ? "--" : state.iob ?? "--")
@@ -125,7 +125,10 @@ struct TrioMainWatchView: View {
                         Text(isWatchStateDated || isSessionUnreachable ? "--" : state.cob ?? "--")
                             .foregroundStyle(isWatchStateDated || isSessionUnreachable ? Color.secondary : Color.white)
 
-                        Image(systemName: "fork.knife")
+                        Image("premeal")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 13, height: 13)
                             .foregroundStyle(Color.orange)
                     }.font(.caption2)
                 }
@@ -153,8 +156,9 @@ struct TrioMainWatchView: View {
                     Button {
                         showingTempTargetSheet = true
                     } label: {
-                        Image(systemName: "target")
-                            .foregroundStyle(isTempTargetActive ? Color.primary : Color.loopGreen.opacity(0.75))
+                        Image(systemName: "arrow.up.circle.badge.clock")
+                            .rotationEffect(.degrees(90))
+                            .foregroundStyle(Color.primary, isTempTargetActive ? Color.primary : Color.loopGreen.opacity(0.75))
                     }
                     .tint(isTempTargetActive ? Color.loopGreen.opacity(0.75) : nil)
                     .disabled(isWatchStateDated || isSessionUnreachable)
