@@ -1,8 +1,4 @@
 Beta update 0.5.0
 
-fixes from Trio CoreData beta release 0.4.0 & 0.4.1
-onboarding hints for Tai
-autoISF adaption, iobTH works without even/odd toggle on
-use minPredBG from rT.variable instead of reasion
-increase boundaries for BasalMultipliers to 10x
+tai+Button
 
