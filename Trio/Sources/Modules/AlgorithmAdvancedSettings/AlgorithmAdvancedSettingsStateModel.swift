@@ -14,7 +14,6 @@ extension AlgorithmAdvancedSettings {
         @Published var currentBasalSafetyMultiplier: Decimal = 4
         @Published var skipNeutralTemps: Bool = false
         @Published var unsuspendIfNoTemp: Bool = false
-        @Published var suspendZerosIOB: Bool = false
         @Published var min5mCarbimpact: Decimal = 8
         @Published var remainingCarbsFraction: Decimal = 1.0
         @Published var remainingCarbsCap: Decimal = 90
@@ -31,8 +30,6 @@ extension AlgorithmAdvancedSettings {
             subscribePreferencesSetting(\.currentBasalSafetyMultiplier, on: $currentBasalSafetyMultiplier) {
                 currentBasalSafetyMultiplier = $0 }
             subscribePreferencesSetting(\.unsuspendIfNoTemp, on: $unsuspendIfNoTemp) { unsuspendIfNoTemp = $0 }
-            subscribePreferencesSetting(\.suspendZerosIOB, on: $suspendZerosIOB) { suspendZerosIOB = $0 }
-            subscribePreferencesSetting(\.suspendZerosIOB, on: $suspendZerosIOB) { suspendZerosIOB = $0 }
             subscribePreferencesSetting(\.min5mCarbimpact, on: $min5mCarbimpact) { min5mCarbimpact = $0 }
             subscribePreferencesSetting(\.remainingCarbsFraction, on: $remainingCarbsFraction) { remainingCarbsFraction = $0 }
             subscribePreferencesSetting(\.remainingCarbsCap, on: $remainingCarbsCap) { remainingCarbsCap = $0 }

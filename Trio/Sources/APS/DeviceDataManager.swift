@@ -514,7 +514,7 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
 
     func pumpManager(_: PumpManager, didError error: PumpManagerError) {
         dispatchPrecondition(condition: .onQueue(processQueue))
-        debug(.deviceManager, "error: \(error.localizedDescription), reason: \(String(describing: error.failureReason))")
+        debug(.deviceManager, "error: \(error), reason: \(String(describing: error.failureReason))")
         errorSubject.send(error)
     }
 
@@ -690,7 +690,7 @@ extension BaseDeviceDataManager: AlertObserver {
             self.pumpManager?.acknowledgeAlert(alertIdentifier: alert.alertIdentifier) { error in
                 if let error = error {
                     self.alertHistoryStorage.ackAlert(alertIssueDate, error.localizedDescription)
-                    debug(.deviceManager, "acknowledge not succeeded with error \(error.localizedDescription)")
+                    debug(.deviceManager, "acknowledge not succeeded with error \(error)")
                 } else {
                     self.alertHistoryStorage.ackAlert(alertIssueDate, nil)
                 }

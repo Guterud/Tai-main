@@ -167,7 +167,7 @@ final class LiveActivityManager: Injectable, ObservableObject, SettingsObserver 
             } catch {
                 debug(
                     .default,
-                    "\(DebuggingIdentifiers.failed) failed to fetch and map determination: \(error.localizedDescription)"
+                    "\(DebuggingIdentifiers.failed) failed to fetch and map determination: \(error)"
                 )
             }
         }
@@ -182,7 +182,7 @@ final class LiveActivityManager: Injectable, ObservableObject, SettingsObserver 
                     await self.updateContentState(determination)
                 }
             } catch {
-                debug(.default, "\(DebuggingIdentifiers.failed) failed to fetch and map override: \(error.localizedDescription)")
+                debug(.default, "\(DebuggingIdentifiers.failed) failed to fetch and map override: \(error)")
             }
         }
     }
@@ -305,7 +305,10 @@ final class LiveActivityManager: Injectable, ObservableObject, SettingsObserver 
         if let currentActivity = currentActivity {
             if currentActivity.needsRecreation(), UIApplication.shared.applicationState == .active {
                 await endActivity()
-                await pushUpdate(state)
+                Task { @MainActor in
+                    await self.pushUpdate(state)
+                }
+                return
             } else {
                 let content = ActivityContent(
                     state: state,
@@ -408,7 +411,9 @@ final class LiveActivityManager: Injectable, ObservableObject, SettingsObserver 
             try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s sleep
         }
 
-        await pushUpdate(contentState)
+        Task { @MainActor in
+            await self.pushUpdate(contentState)
+        }
         debug(.default, "Restarted Live Activity from LiveActivityIntent (via iOS Shortcut)")
     }
 }

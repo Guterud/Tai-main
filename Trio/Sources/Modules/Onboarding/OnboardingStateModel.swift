@@ -25,12 +25,22 @@ extension Onboarding {
 
         // MARK: - App Diagnostics
 
-        var diagnosticsSharingOption: DiagnosticsSharingOption {
-            get { (PropertyPersistentFlags.shared.diagnosticsSharingEnabled ?? true) ? .enabled : .disabled }
-            set { PropertyPersistentFlags.shared.diagnosticsSharingEnabled = (newValue == .enabled) }
+        private var persistedDiagnosticsSharing: Bool? {
+            get { PropertyPersistentFlags.shared.diagnosticsSharingEnabled }
+            set { PropertyPersistentFlags.shared.diagnosticsSharingEnabled = newValue }
         }
 
+        var diagnosticsSharingOption: DiagnosticsSharingOption = .enabled
         var hasAcceptedPrivacyPolicy: Bool = false
+
+        func syncDiagnosticsOptionFromStorage() {
+            diagnosticsSharingOption = (persistedDiagnosticsSharing ?? true) ? .enabled : .disabled
+        }
+
+        func updateDiagnosticsOption(to option: DiagnosticsSharingOption) {
+            diagnosticsSharingOption = option
+            persistedDiagnosticsSharing = (option == .enabled)
+        }
 
         // MARK: - Determine Initial Build State
 
@@ -94,8 +104,8 @@ extension Onboarding {
         var isValidNightscoutURL: Bool = false
         var isConnectingToNS: Bool = false
         var isConnectedToNS: Bool = false
-        var nightscoutImportErrors: [String] = []
-        var nightscoutImportStatus: ImportStatus = .finished
+        var nightscoutImportError: NightscoutImportError?
+        var nightscoutImportStatus: ImportStatus = .none
 
         // MARK: - Units and Pump Omboarding Option
 
@@ -728,6 +738,11 @@ extension Onboarding {
             preferences.sensitivityRaisesTarget = sensitivityRaisesTarget
             preferences.resistanceLowersTarget = resistanceLowersTarget
             preferences.halfBasalExerciseTarget = halfBasalTarget
+
+            // default suspendZeroesIOB to true
+            if !preferences.suspendZerosIOB {
+                preferences.suspendZerosIOB = true
+            }
 
             settingsManager.preferences = preferences
         }

@@ -161,22 +161,26 @@ extension Treatments {
         }
 
         deinit {
-            // Unregister from broadcaster
-            if let broadcaster = broadcaster {
-                broadcaster.unregister(DeterminationObserver.self, observer: self)
-                broadcaster.unregister(BolusFailureObserver.self, observer: self)
-            }
+            debug(.bolusState, "StateModel deinit called")
+        }
 
-            // Cancel Combine subscriptions
+        private var hasCleanedUp = false
+
+        func cleanupTreatmentState() {
+            guard !hasCleanedUp else { return }
+            hasCleanedUp = true
+
             unsubscribe()
-
             bolusProgressCancellable?.cancel()
 
-            debug(.bolusState, "Bolus.StateModel deinitialized")
+            broadcaster?.unregister(DeterminationObserver.self, observer: self)
+            broadcaster?.unregister(BolusFailureObserver.self, observer: self)
+
+            debug(.bolusState, "StateModel cleanup() finished")
         }
 
         private func setupBolusStateConcurrently() {
-            debug(.bolusState, "setupBolusStateConcurrently fired")
+            debug(.bolusState, "Setting up bolus state concurrently...")
             Task {
                 do {
                     try await withThrowingTaskGroup(of: Void.self) { group in
@@ -197,7 +201,7 @@ extension Treatments {
                         try await group.waitForAll()
                     }
                 } catch let error as NSError {
-                    debug(.default, "Failed to setup bolus state concurrently: \(error.localizedDescription)")
+                    debug(.default, "Failed to setup bolus state concurrently: \(error)")
                 }
             }
         }
@@ -559,7 +563,7 @@ extension Treatments {
                     try await apsManager.determineBasalSync()
                 }
             } catch {
-                debug(.default, "\(DebuggingIdentifiers.failed) Failed to save carbs: \(error.localizedDescription)")
+                debug(.default, "\(DebuggingIdentifiers.failed) Failed to save carbs: \(error)")
             }
         }
 
@@ -675,7 +679,7 @@ extension Treatments.StateModel {
             } catch {
                 debug(
                     .default,
-                    "\(DebuggingIdentifiers.failed) Error setting up glucose array: \(error.localizedDescription)"
+                    "\(DebuggingIdentifiers.failed) Error setting up glucose array: \(error)"
                 )
             }
         }
@@ -743,9 +747,9 @@ extension Treatments.StateModel {
 
             updateDeterminationsArray(with: determinationObjects)
         } catch let error as CoreDataError {
-            debug(.default, "Core Data error: \(error.localizedDescription)")
+            debug(.default, "Core Data error: \(error)")
         } catch {
-            debug(.default, "Unexpected error: \(error.localizedDescription)")
+            debug(.default, "Unexpected error: \(error)")
         }
     }
 
@@ -814,7 +818,7 @@ extension Treatments.StateModel {
         } catch {
             debug(
                 .default,
-                "\(DebuggingIdentifiers.failed) Error mapping forecasts for chart: \(error.localizedDescription)"
+                "\(DebuggingIdentifiers.failed) Error mapping forecasts for chart: \(error)"
             )
             return nil
         }
