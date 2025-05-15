@@ -102,14 +102,13 @@ Instructions in greater detail, but not Trio-specific:
 # Documentation
 
 Most of the changes for autoISF are made in oref code of OpenAPS, which is minimized in Tai. So it is not really readable in Xcode, therefore refer to my [oref0-repository](https://github.com/mountrcg/oref0/tree).
+[Discord Trio - Server ](http://discord.triodocs.org)
 
 ## Where to find documentation about autoISF
 * Please visit ga-zelle’s repository [GitHub - ga-zelle/autoISF](https://github.com/ga-zelle/autoISF/tree/A3.2.0.4_ai3.0.1).
   The [**Quick Guide (bzw. Kurzanleitung)**](https://github.com/ga-zelle/autoISF/blob/A3.2.0.4_ai3.0.1/autoISF3.0.1_Quick_Guide.pdf) provides an overview of autoISF and its features. All of this is applicable for Tai as the core Algorithm is 100% identical.
 
-[Discord Trio - Server ](https://discord.gg/KepAG6RdYZ)
-
-[Trio documentation](https://docs.diy-trio.org/)
+[Trio documentation](https://triodocs.org/)
 
 TODO: Add link: Trio Website (under development, not existing yet)
 
@@ -117,7 +116,7 @@ TODO: Add link: Trio Website (under development, not existing yet)
 
 # Support
 
-Not a lot, only some enthusiasts at [FCL & autoISF Discord](https://discord.gg/KUa8Nf2eeU)
+[Trio Facebook Group](https://m.facebook.com/groups/1351938092206709/)
 
 # Contribute
 
@@ -137,4 +136,4 @@ Do you speak JS or Swift? Do you have UI/UX skills? Do you know how to optimize 
 Trio is a collaborative project. We always welcome fellow enthusiasts who can contribute with new code, UI/UX improvements, code reviews, testing and release management.
 If you want to contribute to the development of Trio, please reach out on Discord or Facebook.
 
-For questions or contributions, please join our [Discord server](https://discord.gg/KepAG6RdYZ).
+For questions or contributions, please join our [Discord server](https://discord.triodocs.org).
