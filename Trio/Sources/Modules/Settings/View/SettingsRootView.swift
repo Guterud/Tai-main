@@ -224,6 +224,24 @@ extension Settings {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                             Button {
+                                if let url =
+                                    URL(string: "https://discordapp.com/channels/953929437894803478/1025731124615458848")
+                                {
+                                    UIApplication.shared.open(url)
+                                }
+                            } label: {
+                                HStack {
+                                    Text("Tai Discord")
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.secondary)
+                                        .font(.footnote)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Button {
                                 if let url = URL(string: "https://facebook.triodocs.org") {
                                     UIApplication.shared.open(url)
                                 }
