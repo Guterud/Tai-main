@@ -1,3 +1,3 @@
-Beta update 0.5.0
+Beta update 0.5.1
 
-Trio merges -> #515
+updates up 0.5.0.15

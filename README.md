@@ -59,7 +59,7 @@ If you do have the appropriate settings, you can chose an insulin ratio with the
 
 # Installation
 
-In Terminal, `cd` to the folder where you want your download to reside, change `<branch>` in the command below to the branch you want to download (ie. `tai` or `dev-tai`), and press `return`.
+In Terminal, `cd` to the folder where you want your download to reside, change `<branch>` in the command below to the branch you want to download (ie. `Tai-dev`), and press `return`.
 
 ```
 git clone --branch=<branch> --recurse-submodules https://github.com/mountrcg/Trio.git && cd Trio
@@ -68,6 +68,7 @@ git clone --branch=<branch> --recurse-submodules https://github.com/mountrcg/Tri
 Create a ConfigOverride.xcconfig file that contains your Apple Developer ID (something like `123A4BCDE5`). This will automate signing of the build targets in Xcode:
 
 Copy the command below, and replace `xxxxxxxxxx` by your Apple Developer ID before running the command in Terminal.
+
 ```
 echo 'DEVELOPER_TEAM = xxxxxxxxxx' > ConfigOverride.xcconfig
 ```
@@ -79,7 +80,7 @@ xed .
 
 ## To build directly in GitHub, without using Xcode:
 
-Instructions:
+**Instructions**:
 
 For main branch:
 * https://github.com/nightscout/Trio/blob/tai/fastlane/testflight.md
@@ -92,14 +93,19 @@ Instructions in greater detail, but not Trio-specific:
 
 ## Please understand that Trio with autoISF aka Tai:
 - is an open-source system developed by enthusiasts and for use at your own risk
-- for <img src="FreeAPS/Resources/Assets.xcassets/catWithPodWhiteBG.appiconset/catWithPodWhiteBG1024x1024%201.png"
+- for <img src="Trio/Resources/Assets.xcassets/app_icon_images/catWithPodWhiteBG.imageset/catWithPodWhiteBG 3.png"
      alt="cat"
 	 width=200
 	 /> only
 - and not CE or FDA approved for therapy.
 
+## Documentation
 
-# Documentation
+- [Discord Trio - Server ](https://discord.triodocs.org/)
+- [Trio documentation](https://triodocs.org/)
+- [OpenAPS documentation](https://openaps.readthedocs.io/en/latest/)
+- [Crowdin](https://crowdin.triodocs.org/) is the collaborative platform we are using to manage the **translation** and localization of the Trio App.
+<!--   TODO: Add status graphic for the Crowdin Project -->
 
 Most of the changes for autoISF are made in oref code of OpenAPS, which is minimized in Tai. So it is not really readable in Xcode, therefore refer to my [oref0-repository](https://github.com/mountrcg/oref0/tree).
 [Discord Trio - Server ](http://discord.triodocs.org)
@@ -114,9 +120,9 @@ Most of the changes for autoISF are made in oref code of OpenAPS, which is minim
 [Discord Trio - Server ](http://discord.triodocs.org)
 
 
-TODO: Add link: Trio Website (under development, not existing yet)
+## Contribute
 
-[OpenAPS documentation](https://openaps.readthedocs.io/en/latest/)
+If you would like to give something back to the Trio community, there are several ways to contribute:
 
 # Support
 
