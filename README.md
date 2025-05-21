@@ -59,7 +59,7 @@ If you do have the appropriate settings, you can chose an insulin ratio with the
 
 # Installation
 
-In Terminal, `cd` to the folder where you want your download to reside, change `<branch>` in the command below to the branch you want to download (ie. `tai` or `dev-tai`), and press `return`.
+In Terminal, `cd` to the folder where you want your download to reside, change `<branch>` in the command below to the branch you want to download (ie. `Tai-dev`), and press `return`.
 
 ```
 git clone --branch=<branch> --recurse-submodules https://github.com/mountrcg/Trio.git && cd Trio
@@ -92,7 +92,7 @@ Instructions in greater detail, but not Trio-specific:
 
 ## Please understand that Trio with autoISF aka Tai:
 - is an open-source system developed by enthusiasts and for use at your own risk
-- for <img src="FreeAPS/Resources/Assets.xcassets/catWithPodWhiteBG.appiconset/catWithPodWhiteBG1024x1024%201.png"
+- for <img src="Trio/Resources/Assets.xcassets/app_icon_images/catWithPodWhiteBG.imageset/catWithPodWhiteBG 3.png"
      alt="cat"
 	 width=200
 	 /> only
