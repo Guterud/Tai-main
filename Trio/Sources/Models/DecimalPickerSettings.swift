@@ -1,11 +1,24 @@
 import SwiftUI
+import Swinject
 
-class PickerSettingsProvider: ObservableObject {
+class PickerSettingsProvider: ObservableObject, Injectable {
     static let shared = PickerSettingsProvider()
 
-    var settings = DecimalPickerSettings()
+    @Injected() private var settingsManager: SettingsManager!
 
     private init() {} // Private init to enforce singleton pattern
+
+    // Add this method to configure dependency injection
+    func configure(resolver: Resolver) {
+        injectServices(resolver)
+    }
+
+    var preferences: Preferences { settingsManager.preferences }
+
+    var settings: DecimalPickerSettings {
+        let bolusIncrementValue = preferences.bolusIncrement
+        return DecimalPickerSettings(bolusIncrementValue: bolusIncrementValue)
+    }
 
     // Helper function to generate values for the picker
     func generatePickerValues(from setting: PickerSetting, units: GlucoseUnits) -> [Decimal] {
@@ -51,7 +64,10 @@ struct DecimalPickerSettings {
     var overrideFactor = PickerSetting(value: 0.8, step: 0.05, min: 0.05, max: 1.5, type: PickerSetting.PickerSettingType.factor)
     var fattyMealFactor = PickerSetting(value: 0.7, step: 0.05, min: 0.05, max: 1, type: PickerSetting.PickerSettingType.factor)
     var sweetMealFactor = PickerSetting(value: 1, step: 0.05, min: 0.05, max: 2, type: PickerSetting.PickerSettingType.factor)
-    var maxIOB = PickerSetting(value: 0, step: 1, min: 0, max: 20, type: PickerSetting.PickerSettingType.insulinUnit)
+
+    // maxIOB now uses calculated step based on bolusIncrement
+    var maxIOB: PickerSetting
+
     var maxDailySafetyMultiplier = PickerSetting(
         value: 3,
         step: 0.1,
@@ -90,13 +106,6 @@ struct DecimalPickerSettings {
     var maxSMBBasalMinutes = PickerSetting(value: 30, step: 5, min: 30, max: 180, type: PickerSetting.PickerSettingType.minute)
     var maxUAMSMBBasalMinutes = PickerSetting(value: 30, step: 5, min: 30, max: 180, type: PickerSetting.PickerSettingType.minute)
     var smbInterval = PickerSetting(value: 3, step: 1, min: 1, max: 10, type: PickerSetting.PickerSettingType.minute)
-    var bolusIncrement = PickerSetting(
-        value: 0.1,
-        step: 0.05,
-        min: 0.05,
-        max: 1,
-        type: PickerSetting.PickerSettingType.insulinUnit
-    )
     var insulinPeakTime = PickerSetting(value: 75, step: 1, min: 35, max: 120, type: PickerSetting.PickerSettingType.minute)
     var carbsReqThreshold = PickerSetting(value: 1.0, step: 0.1, min: 0, max: 10, type: PickerSetting.PickerSettingType.gram)
     var noisyCGMTargetMultiplier = PickerSetting(
@@ -261,6 +270,21 @@ struct DecimalPickerSettings {
         max: 2,
         type: PickerSetting.PickerSettingType.insulinUnit
     )
+
+    // Initializer that accepts bolusIncrementValue for dynamic step calculation
+    init(bolusIncrementValue: Decimal = 0.1) {
+        // Initialize maxIOB with step size based on bolusIncrement * 10, but cap at 1.0
+        let calculatedStep = bolusIncrementValue * 10
+        let maxIOBStep = min(calculatedStep, 1.0)
+
+        maxIOB = PickerSetting(
+            value: 0,
+            step: maxIOBStep,
+            min: 0,
+            max: 20,
+            type: PickerSetting.PickerSettingType.insulinUnit
+        )
+    }
 }
 
 struct PickerSetting {
