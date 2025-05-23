@@ -1,4 +1,4 @@
-<img src="https://github.com/mountrcg/Trio-dev/blob/Tai-dev/Trio/Resources/Assets.xcassets/app_icons/taiCircledNoBackground.imageset/taiCircledNoBackground.png" width="120">
+<img src="https://github.com/mountrcg/Trio/blob/Tai-dev/Trio/Resources/Assets.xcassets/app_icons/taiCircledNoBackground.imageset/taiCircledNoBackground.png" width="120">
 
 # **T**rio **a**uto**I**SF fork aka *Tai*
 
@@ -83,10 +83,10 @@ xed .
 **Instructions**:
 
 For main branch:
-* https://github.com/nightscout/Trio/blob/tai/fastlane/testflight.md
+* https://github.com/mountrcg/Trio/blob/Tai-main/fastlane/testflight.md
 
 For dev branch:
-* https://github.com/nightscout/Trio/blob/dev-tai/fastlane/testflight.md
+* https://github.com/mountrcg/Trio/blob/Tai-dev/fastlane/testflight.md
 
 Instructions in greater detail, but not Trio-specific:
 * https://loopkit.github.io/loopdocs/gh-actions/gh-overview/
@@ -108,14 +108,17 @@ Instructions in greater detail, but not Trio-specific:
 <!--   TODO: Add status graphic for the Crowdin Project -->
 
 Most of the changes for autoISF are made in oref code of OpenAPS, which is minimized in Tai. So it is not really readable in Xcode, therefore refer to my [oref0-repository](https://github.com/mountrcg/oref0/tree).
+[Discord Trio - Server ](http://discord.triodocs.org)
+
+* Please visit ga-zelle’s repository [GitHub - ga-zelle/autoISF](https://github.com/ga-zelle/autoISF/tree/A3.2.0.4_ai3.0.1).
 
 ## Where to find documentation about autoISF
 * Please visit ga-zelle’s repository [GitHub - ga-zelle/autoISF](https://github.com/ga-zelle/autoISF/tree/A3.2.0.4_ai3.0.1).
   The [**Quick Guide (bzw. Kurzanleitung)**](https://github.com/ga-zelle/autoISF/blob/A3.2.0.4_ai3.0.1/autoISF3.0.1_Quick_Guide.pdf) provides an overview of autoISF and its features. All of this is applicable for Tai as the core Algorithm is 100% identical.
 
-[Discord Trio - Server ](https://discord.gg/KepAG6RdYZ)
+[Trio documentation](https://triodocs.org/)
+[Discord Trio - Server ](http://discord.triodocs.org)
 
-[Trio documentation](https://docs.diy-trio.org/)
 
 ## Contribute
 
@@ -123,7 +126,7 @@ If you would like to give something back to the Trio community, there are severa
 
 # Support
 
-Not a lot, only some enthusiasts at [FCL & autoISF Discord](https://discord.gg/KUa8Nf2eeU)
+[Trio Facebook Group](https://facebook.triodocs.org)
 
 # Contribute
 
