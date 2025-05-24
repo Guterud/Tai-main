@@ -1,4 +1,3 @@
 Open Beta update 0.5.1
 
-updates up trio Dev 0.5.0.15
-pump icons
+test xdrip with new Bundle and Group ID scheme
