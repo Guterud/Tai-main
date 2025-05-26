@@ -67,7 +67,7 @@ jobs:
           fi
 
       - name: Create alive branches
-        if: env.ALIVE_BRANCH_EXISTS == 'false'
+        if: env.ALIVE_BRANCH_EXISTS == 'false' && (vars.SCHEDULED_BUILD != 'false' || vars.SCHEDULED_SYNC != 'false')
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
