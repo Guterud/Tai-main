@@ -99,7 +99,7 @@ struct HorizontalPumpView: View {
                         if let date = expiresAtDate {
                             HStack(spacing: 4) {
                                 Image(systemName: hourglassIcon)
-                                    .font(.callout)
+                                    .font(.body)
                                     .foregroundStyle(timerColor, Color.yellow)
                                     .symbolRenderingMode(.palette)
 
