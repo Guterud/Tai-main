@@ -221,7 +221,7 @@ extension Adjustments {
                         content: {
                             VStack(alignment: .leading) {
                                 Text(
-                                    "Overrides DO NOT have ANY functionality in Tai. The UI is up to date an can be tested including shortcuts, NS remotes and all displayed information, however NONE of the overriden parameters have any effect.\nOnce oref is ported to Swift, this feature will be added to Tai."
+                                    "Overrides DO NOT have ANY functionality in Tai. The UI is up to date and can be tested, including shortcuts, NS remotes and all displayed information. However NONE of the overriden parameters have any effect.\n\nOnce oref is ported to Swift, this feature will be added to Tai."
                                 ).bold()
                             }
                         }
