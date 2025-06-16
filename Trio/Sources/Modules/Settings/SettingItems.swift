@@ -172,7 +172,6 @@ enum SettingItems {
                 "Current Basal Safety Multiplier",
                 "Skip Neutral Temps",
                 "Unsuspend If No Temp",
-                "Suspend Zeros IOB",
                 "SMB Delivery Ratio",
                 "SMB Interval",
                 "Min 5m Carbimpact",
