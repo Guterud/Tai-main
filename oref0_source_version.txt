@@ -1,7 +1,7 @@
-oref0 branch: autoISF3.01 - git version: 04b1fe3
+oref0 branch: autoISF3.01 - git version: cd2b479
 
 Last commits:
-04b1fe3 Rename output library to trio_[name]
+cd2b479 Rename output library to trio_[name]
 1236511 introduce shouldProtectDueToHIGH
 fe902c1 use iobTH without even/off
 78c308c AIMI deactivates with upperDelta or BG surpassed
