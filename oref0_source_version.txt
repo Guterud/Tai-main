@@ -1,6 +1,12 @@
-oref0 branch: autoISF3.01 - git version: 2c5e153
+oref0 branch: autoISF3.01 - git version: b14f956
 
 Last commits:
+b14f956 logging
+303c27f determine basal call typo
+0b685a8 webpack plugin use
+c3034b7 dynISF
+988e002 fix console_error
+65fa448 variables
 2c5e153 fix shouldProtectDueToHIGH
 a38f052 Rename output library to trio_[name]
 1236511 introduce shouldProtectDueToHIGH
@@ -25,9 +31,3 @@ c31d48c insert enable SMB with high BG option
 6bd4590 pass tested effIOBthreshold
 8bf0c06 fix rT.reason duplicate semicolon
 32e405a Merge pull request #38 from kingst/profile-carbs-fix
-a7c8e7c allow setting SMB_ratio without autoISF
-5d8e90d maxAbsorptionTime in oref
-99edd78 align with AAPS
-7295b27 apply flatCgmMinutes only outside 80-180 range
-c3e7643 fix pp_isf
-d0ff8d8 rT.reason improvement

@@ -1,4 +1,4 @@
 Open Beta update 0.5.1
 
-update to 0.5.0.44
-new oref adaptions
+share logs
+Trio dev 0.5.0.48

@@ -28,7 +28,7 @@ function defaults ( ) {
     , maxMealAbsorptionTime: 6 // Handling of long lasting effects of "heavy meals" containing large cqantities of fat and protein might be improved by letting the system consider meal effects for longer than the default six hours.
     , skip_neutral_temps: false // if true, don't set neutral temps
     , unsuspend_if_no_temp: false // if true, pump will un-suspend after a zero temp finishes
-    , bolussnooze_dia_divisor: 2 // bolus snooze decays after 1/2 of DIA
+    //, bolussnooze_dia_divisor: 2 // bolus snooze decays after 1/2 of DIA
     , min_5m_carbimpact: 8 // mg/dL per 5m (8 mg/dL/5m corresponds to 24g/hr at a CSF of 4 mg/dL/g (x/5*60/4))
     , floating_carbs: false // if true, use all entered carbs for predBGs: don't decay them as COB
     , autotune_isf_adjustmentFraction: 1.0 // keep autotune ISF closer to pump ISF via a weighted average of fullNewISF and pumpISF.  1.0 allows full adjustment, 0 is no adjustment from pump ISF.
@@ -50,7 +50,7 @@ function defaults ( ) {
     , enableSMB_after_carbs: false // enable supermicrobolus for 6h after carbs, even with 0 COB
     , enableSMB_high_bg: false // enable SMBs when a high BG is detected, based on the high BG target (adjusted or profile)
     , enableSMB_high_bg_target: 110 // set the value enableSMB_high_bg will compare against to enable SMB. If BG > than this value, SMBs should enable.
-    //, maxDelta_bg_threshold: 0.2 // maximum change in bg to use SMB, above that will disable SMB
+    , maxDelta_bg_threshold: 0.2 // maximum change in bg to use SMB, above that will disable SMB
     // *** WARNING *** DO NOT USE enableSMB_always or enableSMB_after_carbs with Libre or similar.
     , allowSMB_with_high_temptarget: true // allow supermicrobolus (if otherwise enabled) even with high temp targets
     , maxSMBBasalMinutes: 90 // maximum minutes of basal that can be delivered as a single SMB with uncovered COB
@@ -77,23 +77,18 @@ function defaults ( ) {
     , smb_threshold_ratio: 0.5 //customizable BG threshold ration for SMB's, used in formula threshold = min_bg - (1-threshold_ratio) * (min_bg - 40); default and min value 0.5. The higher the ratio the higher the threshold for SMB's to be applied.
     //, iob_threshold: 0 // IOB threshold that prohibits SMB's being used, 0 disables it
     , iob_threshold_percent: 1 //Default value: 1 for 100%. This is the share of maxIOB above which the Full Loop will disable SMB. With 100% this feature is effectively disabled. Relative level of maxIOB above which SMBs are disabled. Will be between 0..1 from Tai.
-    , enableSMB_EvenOn_OddOff: false // let autoisf switch SMB off with odd temp targets and enforce SMB with even TT
     , enableSMB_EvenOn_OddOff_always: false // let autoisf switch SMB off with odd profile targets
     , dura_ISF_weight: 0.2 // rate at which autoISF grows per hour assuming bg is twice target. When value = 1.0, ISF is reduced to 50% after 1 hour of BG at 2x target
     , autoISF_max: 1.5 // Multiplier cap on how high the autoISF ratio can be and therefore how low it can adjust ISF
     , autoISF_min: 1 // This is a multiplier cap for autoISF to set a limit on how low the autoISF ratio can be, which in turn determines how high it can adjust ISF.
     , smb_max_range_extension: 1 //Default value: 1 This is another key OpenAPS safety cap, and specifies by what factor you can exceed the regular 120 maxSMB/maxUAM minutes. Increase this experimental value slowly and with caution.
-    //, enableautoisf_with_COB: false // Enables autoISF not just for UAM, but also with COB
     , higher_ISFrange_weight: 0  // Default value: 0.0 This is the weight applied to the polygon which adapts ISF if glucose is above target. With 0.0 the effect is effectively disabled.
     , lower_ISFrange_weight: 0 // Default value: 0.0 This is the weight applied to the polygon which adapts ISF if glucose is below target. With 0.0 the effect is effectively disabled.
-    //, delta_ISFrange_weight: 0 // Default value: 0.0 This is the weight applied to the polygon which adapts ISF higher deltas. With 0.0 the effect is effectively disabled.
     , smb_delivery_ratio_bg_range: 0 // Default value: 0, Sensible is 40. The linearly increasing SMB delivery ratio is mapped to the glucose range [target_bg, target_bg+bg_range]. At target_bg the SMB ratio is smb_delivery_ratio_min, at target_bg+bg_range it is smb_delivery_ratio_max. With 0 the linearly increasing SMB ratio is disabled and the fix smb_delivery_ratio is used.
     , smb_delivery_ratio_min: 0.5 // Default value: 0.5 This is the lower end of a linearly increasing ratio rather than the fix value above.
     , smb_delivery_ratio_max: 0.9 // Default value: 0.9 This is the upper end of a linearly increasing ratio rather than the fix value above.
     , smb_delivery_ratio: 0.5 //Default value: 0.5 Used if flexible delivery ratio is not used. This is another key OpenAPS safety cap, and specifies what share of the total insulin required can be delivered as SMB. This is to prevent people from getting into dangerous territory by setting SMB requests from the caregivers phone at the same time. Increase this experimental value slowly and with caution.
     , pp_ISF_weight: 0 // Default value: 0.0 This is the weight applied to the linear slope while glucose rises and  which adapts ISF. With 0.0 this contribution is effectively disabled.
-    //, pp_ISF_hours: 3  // Default value: 3 This is the duration in hours how long after a meal the effect will be active. Oref will delete carb timing after 10 hours latest no matter what you enter.
-    //, enable_pp_ISF_always: false // Enable the postprandial ISF adaptation all the time regardless of when the last meal was taken.
     , enable_BG_acceleration: false //Enable the additional use of autoISF 2.2 BG acceleration adaption
     , bgAccel_ISF_weight: 0 // Default value: 0 This is the weight applied while glucose accelerates and which strengthens ISF. With 0 this contribution is effectively disabled.
     , bgBrake_ISF_weight: 0 // Default value: 0 This is the weight applied while glucose decelerates and which weakens ISF. With 0 this contribution is effectively disabled.
@@ -110,6 +105,14 @@ function defaults ( ) {
     , keto_protect_basal_percent: 0.2 // Percentage of the small safety TBR in % which is given to avoid ketoacidosis. Will be between 0..1 from Tai
     , keto_protect_absolute: false  // Should an absolute TBR be specified instead of percentage of current BR
     , keto_protect_basal_absolute: 0 //absolute safety TBR in U/hr which is given to avoid ketoacidosis.
+    // dynISF
+    , adjustmentFactor: 0.8
+    , adjustmentFactorSigmoid: 0.5
+    , useNewFormula: false
+    , sigmoid: false
+    , weightPercentage: 0.65
+    , tddAdjBasal: false // Enable adjustment of basal based on the ratio of 24 h : 10 day average TDD
+    , threshold_setting: 60 // Use a configurable threshold setting
   }
 }
 
@@ -130,7 +133,7 @@ function displayedDefaults () {
     profile.enableSMB_with_COB = allDefaults.enableSMB_with_COB;
     profile.enableSMB_with_temptarget = allDefaults.enableSMB_with_temptarget;
     profile.enableUAM = allDefaults.enableUAM;
-    //profile.maxDelta_bg_threshold = allDefaults.maxDelta_bg_threshold;
+    profile.maxDelta_bg_threshold = allDefaults.maxDelta_bg_threshold;
     profile.curve = allDefaults.curve;
     profile.offline_hotspot = allDefaults.offline_hotspot;
     profile.bolus_increment = allDefaults.bolus_increment;
@@ -138,23 +141,18 @@ function displayedDefaults () {
     profile.target_units = allDefaults.target_units;
     profile.autoISF_off_Sport = allDefault.autoISF_off_Sport;
     profile.iob_threshold = allDefaults.iob_threshold;
-    profile.enableSMB_EvenOn_OddOff = allDefaults.enableSMB_EvenOn_OddOff;
     profile.enableSMB_EvenOn_OddOff_always = allDefaults.enableSMB_EvenOn_OddOff_always
     profile.dura_ISF_weight = allDefaults.dura_ISF_weight;
     profile.autoISF_max = allDefaults.autoISF_max;
     profile.autoISF_min = allDefaults.autoISF_min;
     profile.smb_delivery_ratio = allDefaults.smb_delivery_ratio;
     profile.smb_max_range_extension = allDefaults.smb_max_range_extension;
-    //profile.enableautoisf_with_COB = allDefaults.enableautoisf_with_COB;
     profile.higher_ISFrange_weight = allDefaults.higher_ISFrange_weight;
     profile.lower_ISFrange_weight = allDefaults.lower_ISFrange_weight;
-    //profile.delta_ISFrange_weight = allDefaults.delta_ISFrange_weight;
     profile.smb_delivery_ratio_bg_range = allDefaults.smb_delivery_ratio_bg_range;
     profile.smb_delivery_ratio_min = allDefaults.smb_delivery_ratio_min;
     profile.smb_delivery_ratio_max = allDefaults.smb_delivery_ratio_max;
     profile.pp_ISF_weight = allDefaults.pp_ISF_weight;
-    //profile.pp_ISF_hours = allDefaults.pp_ISF_hours;
-    //profile.enable_pp_ISF_always = allDefaults.enable_pp_ISF_always;
     profile.enable_BG_acceleration = allDefaults.enable_BG_acceleration;
     profile.bgAccel_ISF_weight = allDefaults.bgAccel_ISF_weight;
     profile.bgBrake_ISF_weight = allDefaults.bgBrake_ISF_weight;
@@ -171,6 +169,13 @@ function displayedDefaults () {
     profile.keto_protect_absolute = allDefaults.keto_protect_absolute;
     profile.keto_protect_basal_absolut = allDefaults.keto_protect_basal_absolute;
     profile.maxMealAbsorptionTime = allDefaults.maxMealAbsorptionTime;
+    profile.adjustmentFactor = allDefaults.adjustmentFactor;
+    profile.adjustmentFactorSigmoid = allDefaults.adjustmentFactorSigmoid;
+    profile.useNewFormula = allDefaults.useNewFormula;
+    profile.sigmoid = allDefaults.sigmoid;
+    profile.weightPercentage = allDefaults.weightPercentage;
+    profile.tddAdjBasal = allDefaults.tddAdjBasal;
+    profile.threshold_setting = allDefaults.threshold_setting;
     console_error(profile);
     return profile
 }
@@ -190,7 +195,7 @@ function generate (inputs, opts) {
   if (inputs.settings.insulin_action_curve > 1) {
     profile.dia =  pumpsettings_data.insulin_action_curve;
   } else {
-      console_error('DIA of', profile.dia, 'is not supported');
+      console.error('DIA of', profile.dia, 'is not supported');
       return -1;
   }
 
@@ -209,15 +214,15 @@ function generate (inputs, opts) {
   profile.max_daily_basal = basal.maxDailyBasal(inputs);
   profile.max_basal = basal.maxBasalLookup(inputs);
   if (profile.current_basal === 0) {
-      console_error("current_basal of",profile.current_basal,"is not supported");
+      console.error("current_basal of",profile.current_basal,"is not supported");
       return -1;
   }
   if (profile.max_daily_basal === 0) {
-      console_error("max_daily_basal of",profile.max_daily_basal,"is not supported");
+      console.error("max_daily_basal of",profile.max_daily_basal,"is not supported");
       return -1;
   }
   if (profile.max_basal < 0.1) {
-      console_error("max_basal of",profile.max_basal,"is not supported");
+      console.error("max_basal of",profile.max_basal,"is not supported");
       return -1;
   }
 
@@ -240,14 +245,14 @@ function generate (inputs, opts) {
   profile.sens = isf.isfLookup(inputs.isf);
   profile.isfProfile = inputs.isf;
   if (profile.sens < 5) {
-      console_error("ISF of",profile.sens,"is not supported");
+      console.error("ISF of",profile.sens,"is not supported");
       return -1;
   }
   if (typeof(inputs.carbratio) !== "undefined") {
     profile.carb_ratio = carb_ratios.carbRatioLookup(inputs, profile);
     profile.carb_ratios = inputs.carbratio;
   } else {
-       console_error("Profile wasn't given carb ratio data, cannot calculate carb_ratio");
+       console.error("Profile wasn't given carb ratio data, cannot calculate carb_ratio");
   }
   return profile;
 }

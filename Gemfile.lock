@@ -157,7 +157,7 @@ GEM
     httpclient (2.9.0)
       mutex_m
     jmespath (1.6.2)
-    json (2.10.2)
+    json (2.12.2)
     jwt (2.10.1)
       base64
     logger (1.7.0)
@@ -184,7 +184,7 @@ GEM
     ruby2_keywords (0.0.5)
     rubyzip (2.4.1)
     security (0.1.5)
-    signet (0.19.0)
+    signet (0.20.0)
       addressable (~> 2.8)
       faraday (>= 0.17.5, < 3.a)
       jwt (>= 1.5, < 3.0)

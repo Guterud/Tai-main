@@ -5,16 +5,24 @@ final class SimpleLogReporter: IssueReporter {
     private let fileManager = FileManager.default
 
     // Constants for maintenance
-    private static let logRetentionDays = 4
-    private static let zipRetentionCount = 3
+    private static let logRetentionDays = 4 // Keep logs for last 4 days
+    private static let zipRetentionCount = 3 // Keep 3 most recent zip files
 
-    // Track last cleanup time to avoid redundant cleanups during normal operation
-    private static var lastDailyCleanupDate: Date?
+    // Property list key for persistent storage
+    private static let lastCleanupDateKey = "SimpleLogReporter.lastDailyCleanupDate"
 
-    private var dateFormatter: DateFormatter {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-        return dateFormatter
+    // Track last cleanup time persistently across app launches
+    private static var lastDailyCleanupDate: Date? {
+        get {
+            UserDefaults.standard.object(forKey: lastCleanupDateKey) as? Date
+        }
+        set {
+            if let date = newValue {
+                UserDefaults.standard.set(date, forKey: lastCleanupDateKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: lastCleanupDateKey)
+            }
+        }
     }
 
     // MARK: - Date and Name Utilities
@@ -30,8 +38,8 @@ final class SimpleLogReporter: IssueReporter {
     }
 
     static func getAllLogNames() -> [String] {
-        var names = [currentLogName()]
-        for i in 1 ..< logRetentionDays {
+        var names: [String] = []
+        for i in 0 ..< logRetentionDays {
             names.append(logNameForDate(daysAgo: i))
         }
         return names
@@ -62,54 +70,108 @@ final class SimpleLogReporter: IssueReporter {
         let logName = SimpleLogReporter.currentLogName()
 
         // Ensure the logs directory exists
-        if !fileManager.fileExists(atPath: SimpleLogReporter.logDir) {
-            try? fileManager.createDirectory(
-                atPath: SimpleLogReporter.logDir,
-                withIntermediateDirectories: true,
-                attributes: nil
-            )
+        let logsDir = SimpleLogReporter.logsDirectory
+        if !fileManager.fileExists(atPath: logsDir.path) {
+            do {
+                try fileManager.createDirectory(at: logsDir, withIntermediateDirectories: true)
+            } catch {
+                debug(.service, "Failed to create logs directory: \(error.localizedDescription)")
+                return
+            }
         }
 
         // Create today's log file if it doesn't exist
-        if !fileManager.fileExists(atPath: SimpleLogReporter.logFile(name: logName)) {
+        let logFileURL = SimpleLogReporter.logFileURL(name: logName)
+        if !fileManager.fileExists(atPath: logFileURL.path) {
             createFile(at: startOfDay)
 
             // Perform cleanup only when date changes
             SimpleLogReporter.performDailyCleanupIfNeeded()
         }
 
-        // Append the log entry
-        let logEntry = "\(dateFormatter.string(from: now)) [\(category)] \(file.file) - \(function) - \(line) - \(message)\n"
-        let data = logEntry.data(using: .utf8)!
-        try? data.append(fileURL: URL(fileURLWithPath: SimpleLogReporter.logFile(name: logName)))
+        // Append the log entry using ISO8601 formatter
+        let logEntry = "\(Formatter.iso8601.string(from: now)) [\(category)] \(file.file) - \(function) - \(line) - \(message)\n"
+        guard let data = logEntry.data(using: .utf8) else {
+            debug(.service, "Failed to encode log entry as UTF-8")
+            return
+        }
+
+        do {
+            try data.append(fileURL: logFileURL)
+        } catch {
+            debug(.service, "Failed to append log entry to \(logFileURL.lastPathComponent): \(error.localizedDescription)")
+        }
     }
 
     private func createFile(at date: Date) {
         let logName = SimpleLogReporter.currentLogName()
-        fileManager.createFile(atPath: SimpleLogReporter.logFile(name: logName), contents: nil, attributes: [.creationDate: date])
+        let logFileURL = SimpleLogReporter.logFileURL(name: logName)
+        let success = fileManager.createFile(atPath: logFileURL.path, contents: nil, attributes: [.creationDate: date])
+        if !success {
+            debug(.service, "Failed to create log file: \(logFileURL.lastPathComponent)")
+        }
     }
 
     // MARK: - File Path Utilities
 
+    static var documentsDirectory: URL {
+        do {
+            return try Disk.url(for: nil, in: .documents)
+        } catch {
+            debug(.service, "Failed to get documents directory: \(error.localizedDescription)")
+            // Fallback to FileManager approach
+            let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+            return paths[0]
+        }
+    }
+
+    static var logsDirectory: URL {
+        do {
+            return try Disk.AppDirectoryURL.logs()
+        } catch {
+            debug(.service, "Failed to get logs directory via Disk: \(error.localizedDescription)")
+            // Fallback to manual construction
+            return documentsDirectory.appendingPathComponent("logs", isDirectory: true)
+        }
+    }
+
+    static func logFileURL(name: String) -> URL {
+        do {
+            return try Disk.AppDirectoryURL.logFile(name: name)
+        } catch {
+            debug(.service, "Failed to get log file URL via Disk: \(error.localizedDescription)")
+            // Fallback to manual construction
+            return logsDirectory.appendingPathComponent("\(name).log")
+        }
+    }
+
+    // Legacy string-based methods for backward compatibility
     static func logFile(name: String) -> String {
-        let fullpath = getDocumentsDirectory().appendingPathComponent("logs/\(name).log").path
-        return fullpath
+        logFileURL(name: name).path
     }
 
     static var logDir: String {
-        getDocumentsDirectory().appendingPathComponent("logs").path
+        logsDirectory.path
     }
 
     static func getDocumentsDirectory() -> URL {
-        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        let documentsDirectory = paths[0]
-        return documentsDirectory
+        documentsDirectory
     }
 
     // MARK: - Watch Log Functions
 
+    static func watchLogFileURL(name: String) -> URL {
+        do {
+            return try Disk.AppDirectoryURL.watchLogFile(name: name)
+        } catch {
+            debug(.service, "Failed to get watch log file URL via Disk: \(error.localizedDescription)")
+            // Fallback to manual construction
+            return logsDirectory.appendingPathComponent("watch_\(name).log")
+        }
+    }
+
     static func watchLogFile(name: String) -> String {
-        getDocumentsDirectory().appendingPathComponent("logs/watch_\(name).log").path
+        watchLogFileURL(name: name).path
     }
 
     static func appendToWatchLog(_ logContent: String) {
@@ -117,40 +179,61 @@ final class SimpleLogReporter: IssueReporter {
         let logName = currentLogName()
 
         let fileManager = FileManager.default
-        let logDir = getDocumentsDirectory().appendingPathComponent("logs")
-        let logFile = URL(fileURLWithPath: watchLogFile(name: logName))
+        let logsDir = logsDirectory
+        let logFileURL = watchLogFileURL(name: logName)
 
         // Create logs directory if needed
-        if !fileManager.fileExists(atPath: logDir.path) {
-            try? fileManager.createDirectory(at: logDir, withIntermediateDirectories: true)
+        if !fileManager.fileExists(atPath: logsDir.path) {
+            do {
+                try fileManager.createDirectory(at: logsDir, withIntermediateDirectories: true)
+            } catch {
+                debug(.service, "Failed to create logs directory for watch logs: \(error.localizedDescription)")
+                return
+            }
         }
 
         // Check if need to create a new log file for today
         let needNewFile: Bool
-        if fileManager.fileExists(atPath: logFile.path) {
+        if fileManager.fileExists(atPath: logFileURL.path) {
             // Check if the file was created on a previous day
-            if let attributes = try? fileManager.attributesOfItem(atPath: logFile.path),
-               let creationDate = attributes[.creationDate] as? Date,
-               creationDate < startOfDay
-            {
-                needNewFile = true
-            } else {
-                needNewFile = false
+            do {
+                let attributes = try fileManager.attributesOfItem(atPath: logFileURL.path)
+                if let creationDate = attributes[.creationDate] as? Date,
+                   creationDate < startOfDay
+                {
+                    needNewFile = true
+                } else {
+                    needNewFile = false
+                }
+            } catch {
+                debug(.service, "Failed to get watch log file attributes: \(error.localizedDescription)")
+                needNewFile = true // Default to creating new file if we can't check
             }
         } else {
             needNewFile = true
         }
 
         if needNewFile {
-            fileManager.createFile(atPath: logFile.path, contents: nil, attributes: [.creationDate: startOfDay])
+            let success = fileManager.createFile(atPath: logFileURL.path, contents: nil, attributes: [.creationDate: startOfDay])
+            if !success {
+                debug(.service, "Failed to create watch log file: \(logFileURL.lastPathComponent)")
+                return
+            }
 
             // Perform cleanup only when date changes
             performDailyCleanupIfNeeded()
         }
 
         // Append the log entry
-        if let data = (logContent + "\n").data(using: .utf8) {
-            try? data.append(fileURL: logFile)
+        guard let data = (logContent + "\n").data(using: .utf8) else {
+            debug(.service, "Failed to encode watch log content as UTF-8")
+            return
+        }
+
+        do {
+            try data.append(fileURL: logFileURL)
+        } catch {
+            debug(.service, "Failed to append to watch log \(logFileURL.lastPathComponent): \(error.localizedDescription)")
         }
     }
 
@@ -163,7 +246,7 @@ final class SimpleLogReporter: IssueReporter {
         // If we've never done a daily cleanup or it was on a previous day
         if lastDailyCleanupDate == nil || !Calendar.current.isDate(lastDailyCleanupDate!, inSameDayAs: today) {
             // Only remove logs beyond retention period - no zip cleanup here
-            cleanupLogDirectory()
+            cleanupLogs()
             lastDailyCleanupDate = today
             debug(.service, "Performed daily log cleanup on \(Formatter.logDateFormatter.string(from: today))")
         }
@@ -171,53 +254,70 @@ final class SimpleLogReporter: IssueReporter {
 
     // MARK: - Cleanup Functions
 
-    // Cleanup log files to match retention period
-    static func cleanupLogDirectory(retentionDays: Int = logRetentionDays) {
+    // Generic helper function for directory cleanup
+    private static func cleanupDirectory(
+        at directory: URL,
+        keepLast: Int? = nil,
+        olderThanDays: Int? = nil,
+        extensions: [String] = []
+    ) throws -> Int {
         let fileManager = FileManager.default
 
-        let logDirPath = logDir
-
-        guard fileManager.fileExists(atPath: logDirPath) else {
-            return
+        guard fileManager.fileExists(atPath: directory.path) else {
+            return 0
         }
 
-        do {
-            let logDirURL = URL(fileURLWithPath: logDirPath)
-            let contents = try fileManager.contentsOfDirectory(
-                at: logDirURL,
-                includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey],
-                options: [.skipsHiddenFiles]
-            )
+        let contents = try fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        )
 
-            let calendar = Calendar.current
-            let now = Date()
-            guard let cutoffDate = calendar.date(byAdding: .day, value: -retentionDays, to: now) else {
-                return
+        // Filter by extensions if specified
+        let filteredFiles = extensions.isEmpty ? contents : contents.filter { fileURL in
+            extensions.contains(fileURL.pathExtension)
+        }
+
+        var filesToDelete: [URL] = []
+
+        if let keepLast = keepLast {
+            // Sort by creation date (newest first) and keep only the specified number
+            let sortedFiles = try filteredFiles.sorted {
+                let date1 = try $0.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
+                let date2 = try $1.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
+                return date1 > date2
             }
 
-            let cutoffDateString = Formatter.logDateFormatter.string(from: cutoffDate)
-            debug(.service, "Cleaning up log files older than \(cutoffDateString)")
+            if sortedFiles.count > keepLast {
+                filesToDelete.append(contentsOf: sortedFiles.suffix(from: keepLast))
+            }
+        }
 
-            var removedCount = 0
-            for fileURL in contents {
-                guard fileURL.pathExtension == "log" else {
-                    continue
-                }
+        if let olderThanDays = olderThanDays {
+            // Delete files older than specified days
+            let calendar = Calendar.current
+            guard let cutoffDate = calendar.date(byAdding: .day, value: -olderThanDays, to: Date()) else {
+                return 0
+            }
 
+            for fileURL in filteredFiles {
                 let filename = fileURL.deletingPathExtension().lastPathComponent
                 var fileDate: Date?
 
-                if filename.hasPrefix("watch_") {
-                    // For watch logs, extract the date part after "watch_"
-                    let dateStart = filename.index(filename.startIndex, offsetBy: 6)
-                    let dateSubstring = String(filename[dateStart...])
-                    fileDate = Formatter.logDateFormatter.date(from: dateSubstring)
-                } else {
-                    // Regular logs - try to parse the whole filename as a date
-                    fileDate = Formatter.logDateFormatter.date(from: filename)
+                // Special handling for log files with date parsing
+                if fileURL.pathExtension == "log" {
+                    if filename.hasPrefix("watch_") {
+                        // For watch logs, extract the date part after "watch_"
+                        let dateStart = filename.index(filename.startIndex, offsetBy: 6)
+                        let dateSubstring = String(filename[dateStart...])
+                        fileDate = Formatter.logDateFormatter.date(from: dateSubstring)
+                    } else {
+                        // Regular logs - try to parse the whole filename as a date
+                        fileDate = Formatter.logDateFormatter.date(from: filename)
+                    }
                 }
 
-                // If no parsing the date from the filename, fall back to file attributes
+                // If no date parsed from filename, fall back to file attributes
                 if fileDate == nil {
                     do {
                         let attributes = try fileURL.resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
@@ -230,106 +330,73 @@ final class SimpleLogReporter: IssueReporter {
                 }
 
                 if let date = fileDate, date < cutoffDate {
-                    do {
-                        try fileManager.removeItem(at: fileURL)
-                        removedCount += 1
-                    } catch {
-                        debug(
-                            .service,
-                            "Failed to remove old log file \(fileURL.lastPathComponent): \(error.localizedDescription)"
-                        )
-                    }
+                    filesToDelete.append(fileURL)
                 }
             }
+        }
+
+        // Remove duplicates (in case a file matches both criteria)
+        let uniqueFilesToDelete = Array(Set(filesToDelete))
+
+        var removedCount = 0
+        for fileURL in uniqueFilesToDelete {
+            do {
+                try fileManager.removeItem(at: fileURL)
+                removedCount += 1
+            } catch {
+                debug(
+                    .service,
+                    "Failed to remove file \(fileURL.lastPathComponent): \(error.localizedDescription)"
+                )
+            }
+        }
+
+        return removedCount
+    }
+
+    // Clean up old log files
+    static func cleanupLogs() {
+        do {
+            let removedCount = try cleanupDirectory(
+                at: logsDirectory,
+                olderThanDays: logRetentionDays,
+                extensions: ["log"]
+            )
 
             if removedCount > 0 {
-                debug(.service, "Removed \(removedCount) log files older than the \(retentionDays)-day retention period")
+                debug(.service, "Removed \(removedCount) log file(s) older than \(logRetentionDays) days")
             }
-
         } catch {
-            debug(.service, "Error cleaning up log directory: \(error.localizedDescription)")
+            debug(.service, "Error cleaning up logs: \(error.localizedDescription)")
         }
     }
 
-    // Clean up zip exports to keep only the most recent ones
-    static func cleanupZipExports(maxToKeep: Int = zipRetentionCount) {
-        let fileManager = FileManager.default
-
-        guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            return
-        }
-
-        let exportsDirectoryURL = documentsDirectory.appendingPathComponent("LogExports", isDirectory: true)
-
-        // Check if directory exists
-        guard fileManager.fileExists(atPath: exportsDirectoryURL.path) else {
-            return
-        }
-
+    // Clean up old zip exports
+    static func cleanupZipExports() {
         do {
-            let fileURLs = try fileManager.contentsOfDirectory(
+            let exportsDirectoryURL = try Disk.AppDirectoryURL.logExports()
+            let removedCount = try cleanupDirectory(
                 at: exportsDirectoryURL,
-                includingPropertiesForKeys: [.creationDateKey],
-                options: [.skipsHiddenFiles]
+                keepLast: zipRetentionCount,
+                extensions: ["zip"]
             )
 
-            // Filter and sort zip files by creation date
-            let zipFiles = fileURLs.filter { $0.pathExtension == "zip" }
-            let sortedFiles = try zipFiles.sorted {
-                let date1 = try $0.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
-                let date2 = try $1.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
-                return date1 > date2
-            }
-
-            if sortedFiles.count > maxToKeep {
-                var removedCount = 0
-                for fileURL in sortedFiles.suffix(from: maxToKeep) {
-                    do {
-                        try fileManager.removeItem(at: fileURL)
-                        removedCount += 1
-                    } catch {
-                        debug(
-                            .service,
-                            "Failed to remove old zip file \(fileURL.lastPathComponent): \(error.localizedDescription)"
-                        )
-                    }
-                }
-
-                if removedCount > 0 {
-                    debug(.service, "Removed \(removedCount) old zip files, keeping the \(maxToKeep) most recent")
-                }
+            if removedCount > 0 {
+                debug(.service, "Removed \(removedCount) old zip files, keeping \(zipRetentionCount) most recent")
             }
         } catch {
-            debug(.service, "Error cleaning up zip exports: \(error.localizedDescription)")
+            debug(.service, "Error accessing or cleaning up zip exports directory: \(error.localizedDescription)")
         }
     }
 
     // MARK: - Async Cleanup Methods
-
-    static func cleanupLogDirectoryAsync() async {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .utility).async {
-                cleanupLogDirectory()
-                continuation.resume()
-            }
-        }
-    }
-
-    static func cleanupZipExportsAsync() async {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .utility).async {
-                cleanupZipExports()
-                continuation.resume()
-            }
-        }
-    }
 
     // Combined cleanup method - used by the app's scheduled maintenance
     static func cleanupAllLogsAsync() async {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 // Full cleanup - both logs and zip files
-                cleanupLogDirectory()
+                cleanupLogs()
                 cleanupZipExports()
 
                 // Update daily cleanup date too
