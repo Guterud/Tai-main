@@ -280,16 +280,6 @@ struct TotalDailyDoseChart: View {
                     }
                 }
             }
-            .chartYAxis {
-                AxisMarks(position: .trailing) { value in
-                    if let amount = value.as(Double.self) {
-                        AxisValueLabel {
-                            Text(amount.formatted(.number.precision(.fractionLength(0))))
-                                .font(.footnote)
-                        }
-                    }
-                }
-            }
             .chartXAxis {
                 AxisMarks(preset: .aligned, values: .stride(by: selectedInterval == .day ? .hour : .day)) { value in
                     if let date = value.as(Date.self) {
@@ -304,7 +294,8 @@ struct TotalDailyDoseChart: View {
                                 AxisGridLine()
                             }
                         case .month:
-                            if day % 3 == 0 { // Only show every 3rd day
+                            let weekday = calendar.component(.weekday, from: date)
+                            if weekday == calendar.firstWeekday { // Only show the first day of the week
                                 AxisValueLabel(format: StatChartUtils.dateFormat(for: selectedInterval), centered: true)
                                     .font(.footnote)
                                 AxisGridLine()
