@@ -1,6 +1,8 @@
-oref0 branch: autoISF3.01 - git version: 2c5e153
+oref0 branch: autoISF3.01 - git version: 988e002
 
 Last commits:
+988e002 fix console_error
+65fa448 variables
 2c5e153 fix shouldProtectDueToHIGH
 a38f052 Rename output library to trio_[name]
 1236511 introduce shouldProtectDueToHIGH
@@ -29,5 +31,3 @@ a7c8e7c allow setting SMB_ratio without autoISF
 5d8e90d maxAbsorptionTime in oref
 99edd78 align with AAPS
 7295b27 apply flatCgmMinutes only outside 80-180 range
-c3e7643 fix pp_isf
-d0ff8d8 rT.reason improvement
