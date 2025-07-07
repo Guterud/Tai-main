@@ -170,6 +170,13 @@ function displayedDefaults () {
     profile.keto_protect_absolute = allDefaults.keto_protect_absolute;
     profile.keto_protect_basal_absolut = allDefaults.keto_protect_basal_absolute;
     profile.maxMealAbsorptionTime = allDefaults.maxMealAbsorptionTime;
+    profile.adjustmentFactor = allDefaults.adjustmentFactor;
+    profile.adjustmentFactorSigmoid = allDefaults.adjustmentFactorSigmoid;
+    profile.useNewFormula = allDefaults.useNewFormula;
+    profile.sigmoid = allDefaults.sigmoid;
+    profile.weightPercentage = allDefaults.weightPercentage;
+    profile.tddAdjBasal = allDefaults.tddAdjBasal;
+    profile.threshold_setting = allDefaults.threshold_setting;
     console.error(profile);
     return profile
 }
