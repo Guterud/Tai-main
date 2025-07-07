@@ -6,11 +6,7 @@ var find_meals = require('../meal/history');
 var tz = require('moment-timezone');
 var percentile = require('../percentile');
 
-function detectSensitivity(inputs, now) {
-
-    if (!now) {
-        now = new Date();
-    }
+function detectSensitivity(inputs) {
 
     //console.error(inputs.glucose_data[0]);
     var glucose_data = inputs.glucose_data.map(function prepGlucose (obj) {
@@ -28,7 +24,7 @@ function detectSensitivity(inputs, now) {
         //console.error(glucose_data[0]);
         var lastSiteChange = new Date(new Date(glucose_data[0].date).getTime() - (24 * 60 * 60 * 1000));
     } else {
-        lastSiteChange = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+        lastSiteChange = new Date(new Date().getTime() - (24 * 60 * 60 * 1000));
     }
     if (inputs.iob_inputs.profile.rewind_resets_autosens === true ) {
         // scan through pumphistory and set lastSiteChange to the time of the last pump rewind event
@@ -64,6 +60,7 @@ function detectSensitivity(inputs, now) {
         //console.error(aDate);
         return bDate.getTime() - aDate.getTime();
     });
+    //console.error(meals);
 
     var avgDeltas = [];
     var bgis = [];
@@ -197,6 +194,7 @@ function detectSensitivity(inputs, now) {
             deviation = 0;
         }
         deviation = deviation.toFixed(2);
+
         glucoseDatum = bucketed_data[i];
         //console.error(glucoseDatum);
         BGDate = new Date(glucoseDatum.date);
@@ -365,7 +363,6 @@ function detectSensitivity(inputs, now) {
     }
     avgDeltas.sort(function(a, b){return a-b});
     bgis.sort(function(a, b){return a-b});
-    var deviationsUnsorted = JSON.parse(JSON.stringify(deviations));
     deviations.sort(function(a, b){return a-b});
     for (i=0.9; i > 0.1; i = i - 0.01) {
         //console.error("p="+i.toFixed(2)+": "+percentile(avgDeltas, i).toFixed(2)+", "+percentile(bgis, i).toFixed(2)+", "+percentile(deviations, i).toFixed(2));
@@ -421,8 +418,7 @@ function detectSensitivity(inputs, now) {
     //console.error("Ratio: "+ratio*100+"%: new ISF: "+newisf.toFixed(1)+"mg/dL/U");
     return {
         "ratio": ratio,
-        "newisf": newisf,
-        "deviationsUnsorted": deviationsUnsorted
+        "newisf": newisf
     }
 }
 module.exports = detectSensitivity;

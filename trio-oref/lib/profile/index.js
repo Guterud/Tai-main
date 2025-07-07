@@ -71,10 +71,11 @@ function defaults ( ) {
     //, maxRaw: 200 // highest raw/noisy CGM value considered safe to use for looping
     , calc_glucose_noise: false
     , target_bg: false // set to an integer value in mg/dL to override pump min_bg
+    , threshold_setting: 65 // Increase the safety threshold used to suspend insulin delivery to some defined minimum
+    , smb_threshold_ratio: 0.5 //customizable BG threshold ration for SMB's, used in formula threshold = min_bg - (1-threshold_ratio) * (min_bg - 40); default and min value 0.5. The higher the ratio the higher the threshold for SMB's to be applied.
     // autoISF variables
     , use_autoisf: false // Defaults to false. Enable to use autoISF & SMB Range extension.
     , target_units: "mg/dL" // Trio based user preferences for BG units
-    , smb_threshold_ratio: 0.5 //customizable BG threshold ration for SMB's, used in formula threshold = min_bg - (1-threshold_ratio) * (min_bg - 40); default and min value 0.5. The higher the ratio the higher the threshold for SMB's to be applied.
     //, iob_threshold: 0 // IOB threshold that prohibits SMB's being used, 0 disables it
     , iob_threshold_percent: 1 //Default value: 1 for 100%. This is the share of maxIOB above which the Full Loop will disable SMB. With 100% this feature is effectively disabled. Relative level of maxIOB above which SMBs are disabled. Will be between 0..1 from Tai.
     , enableSMB_EvenOn_OddOff_always: false // let autoisf switch SMB off with odd profile targets
@@ -105,14 +106,6 @@ function defaults ( ) {
     , keto_protect_basal_percent: 0.2 // Percentage of the small safety TBR in % which is given to avoid ketoacidosis. Will be between 0..1 from Tai
     , keto_protect_absolute: false  // Should an absolute TBR be specified instead of percentage of current BR
     , keto_protect_basal_absolute: 0 //absolute safety TBR in U/hr which is given to avoid ketoacidosis.
-    // dynISF
-    , adjustmentFactor: 0.8
-    , adjustmentFactorSigmoid: 0.5
-    , useNewFormula: false
-    , sigmoid: false
-    , weightPercentage: 0.65
-    , tddAdjBasal: false // Enable adjustment of basal based on the ratio of 24 h : 10 day average TDD
-    , threshold_setting: 60 // Use a configurable threshold setting
   }
 }
 
@@ -169,14 +162,7 @@ function displayedDefaults () {
     profile.keto_protect_absolute = allDefaults.keto_protect_absolute;
     profile.keto_protect_basal_absolut = allDefaults.keto_protect_basal_absolute;
     profile.maxMealAbsorptionTime = allDefaults.maxMealAbsorptionTime;
-    profile.adjustmentFactor = allDefaults.adjustmentFactor;
-    profile.adjustmentFactorSigmoid = allDefaults.adjustmentFactorSigmoid;
-    profile.useNewFormula = allDefaults.useNewFormula;
-    profile.sigmoid = allDefaults.sigmoid;
-    profile.weightPercentage = allDefaults.weightPercentage;
-    profile.tddAdjBasal = allDefaults.tddAdjBasal;
-    profile.threshold_setting = allDefaults.threshold_setting;
-    console_error(profile);
+    console.error(profile);
     return profile
 }
 
@@ -195,7 +181,7 @@ function generate (inputs, opts) {
   if (inputs.settings.insulin_action_curve > 1) {
     profile.dia =  pumpsettings_data.insulin_action_curve;
   } else {
-      console_error('DIA of', profile.dia, 'is not supported');
+      console.error('DIA of', profile.dia, 'is not supported');
       return -1;
   }
 
@@ -214,15 +200,15 @@ function generate (inputs, opts) {
   profile.max_daily_basal = basal.maxDailyBasal(inputs);
   profile.max_basal = basal.maxBasalLookup(inputs);
   if (profile.current_basal === 0) {
-      console_error("current_basal of",profile.current_basal,"is not supported");
+      console.error("current_basal of",profile.current_basal,"is not supported");
       return -1;
   }
   if (profile.max_daily_basal === 0) {
-      console_error("max_daily_basal of",profile.max_daily_basal,"is not supported");
+      console.error("max_daily_basal of",profile.max_daily_basal,"is not supported");
       return -1;
   }
   if (profile.max_basal < 0.1) {
-      console_error("max_basal of",profile.max_basal,"is not supported");
+      console.error("max_basal of",profile.max_basal,"is not supported");
       return -1;
   }
 
@@ -245,14 +231,14 @@ function generate (inputs, opts) {
   profile.sens = isf.isfLookup(inputs.isf);
   profile.isfProfile = inputs.isf;
   if (profile.sens < 5) {
-      console_error("ISF of",profile.sens,"is not supported");
+      console.error("ISF of",profile.sens,"is not supported");
       return -1;
   }
   if (typeof(inputs.carbratio) !== "undefined") {
     profile.carb_ratio = carb_ratios.carbRatioLookup(inputs, profile);
     profile.carb_ratios = inputs.carbratio;
   } else {
-       console_error("Profile wasn't given carb ratio data, cannot calculate carb_ratio");
+       console.error("Profile wasn't given carb ratio data, cannot calculate carb_ratio");
   }
   return profile;
 }

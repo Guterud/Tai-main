@@ -1,10 +1,6 @@
 
-function getTime(minutes, testTime) {
+function getTime(minutes) {
     var baseTime = new Date();
-    if (typeof(testTime) !== 'undefined') {
-        baseTime = new Date(testTime);
-    }
-
     baseTime.setHours('00');
     baseTime.setMinutes('00');
     baseTime.setSeconds('00');    

@@ -26,7 +26,6 @@ function recentCarbs(opts, time) {
     var iob_inputs = {
         profile: profile_data
     ,   history: opts.pumphistory
-    ,   clock: time
     };
     var COB_inputs = {
         glucose_data: glucose_data
