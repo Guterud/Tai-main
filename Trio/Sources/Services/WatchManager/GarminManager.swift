@@ -32,7 +32,7 @@ protocol GarminManager {
 ///  - Device registration/unregistration with Garmin ConnectIQ
 ///  - Data persistence for selected devices
 ///  - Generating & sending watch-state updates (glucose, IOB, COB, etc.) to Garmin watch apps.
-final class BaseGarminManager: NSObject, GarminManager, Injectable {
+final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked Sendable {
     // MARK: - Dependencies & Properties
 
     /// Observes system-wide notifications, including `.openFromGarminConnect`.
@@ -54,6 +54,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     @Injected() private var determinationStorage: DeterminationStorage!
 
     @Injected() private var iobService: IOBService!
+
+    @Injected() private var storage: FileStorage!
 
     /// Persists the user's device list between app launches.
     @Persisted(key: "BaseGarminManager.persistedDevices") private var persistedDevices: [GarminDevice] = []
@@ -243,14 +245,101 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         }
     }
 
+    /// Fetches recent temp basal events from CoreData pump history.
+    /// - Returns: An array of `NSManagedObjectID`s for pump events with temp basals.
+    private func fetchTempBasals() async throws -> [NSManagedObjectID] {
+        let results = try await CoreDataStack.shared.fetchEntitiesAsync(
+            ofType: PumpEventStored.self,
+            onContext: backgroundContext,
+            predicate: NSPredicate.pumpHistoryLast24h,
+            key: "timestamp",
+            ascending: true,
+            fetchLimit: 100
+        )
+
+        return try await backgroundContext.perform {
+            guard let pumpEvents = results as? [PumpEventStored] else {
+                throw CoreDataError.fetchError(function: #function, file: #file)
+            }
+            // Filter only events that have a tempBasal
+            return pumpEvents.filter { $0.tempBasal != nil }.map(\.objectID)
+        }
+    }
+
+    /// Gets the scheduled basal rate for a specific time from the basal profile.
+    /// - Parameters:
+    ///   - time: The time to check
+    ///   - profile: The basal profile entries
+    /// - Returns: The scheduled basal rate at that time, or nil if not found
+    private func getCurrentBasalRate(at time: Date, from profile: [BasalProfileEntry]) -> Decimal? {
+        debug(.watchManager, "⌚️ getCurrentBasalRate - Profile entries: \(profile.count)")
+
+        let calendar = Calendar.current
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+        guard let hours = timeComponents.hour, let minutes = timeComponents.minute else {
+            debug(.watchManager, "⌚️ getCurrentBasalRate - Failed to get time components")
+            return nil
+        }
+
+        let totalMinutes = hours * 60 + minutes
+        debug(.watchManager, "⌚️ getCurrentBasalRate - Looking for time: \(hours):\(minutes) (total: \(totalMinutes) minutes)")
+
+        // Special case: If profile has only one entry, it applies for full 24 hours
+        if profile.count == 1 {
+            debug(.watchManager, "⌚️ getCurrentBasalRate - Single entry profile, rate: \(profile[0].rate)")
+            return profile[0].rate
+        }
+
+        // Log all profile entries
+        for (index, entry) in profile.enumerated() {
+            debug(.watchManager, "⌚️ Profile[\(index)]: start=\(entry.start), minutes=\(entry.minutes), rate=\(entry.rate)")
+        }
+
+        // Find the applicable basal rate using binary search (similar to TDDStorage)
+        var left = 0
+        var right = profile.count - 1
+
+        while left <= right {
+            let mid = (left + right) / 2
+            let entry = profile[mid]
+            let nextMinutes = mid + 1 < profile.count ? profile[mid + 1].minutes : 1440
+
+            debug(
+                .watchManager,
+                "⌚️ Binary search - checking entry[\(mid)]: \(entry.minutes) <= \(totalMinutes) < \(nextMinutes)?"
+            )
+
+            if totalMinutes >= entry.minutes, totalMinutes < nextMinutes {
+                debug(.watchManager, "⌚️ getCurrentBasalRate - Found matching rate: \(entry.rate) at entry[\(mid)]")
+                return entry.rate
+            }
+
+            if totalMinutes < entry.minutes {
+                right = mid - 1
+            } else {
+                left = mid + 1
+            }
+        }
+
+        debug(.watchManager, "⌚️ getCurrentBasalRate - No matching rate found after binary search")
+        return nil
+    }
+
     /// Builds a `GarminWatchState` reflecting the latest glucose, trend, delta, eventual BG, ISF, IOB, and COB.
     /// - Returns: A `GarminWatchState` containing the most recent device- and therapy-related info.
     func setupGarminWatchState() async throws -> GarminWatchState {
-        // Skip expensive calculations if no Garmin devices are connected
-        guard !devices.isEmpty else {
+        // Skip expensive calculations if no Garmin devices are connected (except in simulator)
+        #if targetEnvironment(simulator)
+            let skipDeviceCheck = true
+        #else
+            let skipDeviceCheck = false
+        #endif
+
+        guard !devices.isEmpty || skipDeviceCheck else {
             debug(.watchManager, "⌚️❌ Skipping setupGarminWatchState - No Garmin devices connected")
             return GarminWatchState()
         }
+
         do {
             // Get Glucose IDs
             let glucoseIds = try await fetchGlucose()
@@ -260,50 +349,83 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 predicate: NSPredicate.predicateFor30MinAgoForDetermination
             )
 
+            // Fetch temp basal from pump history
+            let tempBasalIds = try await fetchTempBasals()
+
+            // Fetch basal profile to calculate TBR percentage
+            let basalProfile = await storage.retrieveAsync(OpenAPS.Settings.basalProfile, as: [BasalProfileEntry].self) ?? []
+            debug(.watchManager, "⌚️ Basal Profile fetched: \(basalProfile.count) entries")
+
             // Turn those IDs into live NSManagedObjects
             let glucoseObjects: [GlucoseStored] = try await CoreDataStack.shared
                 .getNSManagedObject(with: glucoseIds, context: backgroundContext)
             let determinationObjects: [OrefDetermination] = try await CoreDataStack.shared
                 .getNSManagedObject(with: determinationIds, context: backgroundContext)
+            let tempBasalObjects: [PumpEventStored] = try await CoreDataStack.shared
+                .getNSManagedObject(with: tempBasalIds, context: backgroundContext)
 
             // Perform logic on the background context
             return await backgroundContext.perform {
                 var watchState = GarminWatchState()
 
-                /// Pull `glucose`, `trendRaw`, `delta`, `lastLoopDateInterval`, `iob`, `cob`,  `isf`, and `eventualBGRaw` from the latest determination.
-                let iobValue = self.iobService.currentIOB ?? 0
-                watchState.iob = self.iobFormatterWithOneFractionDigit(iobValue)
+                // Set units_hint based on current unit setting
+                watchState.units_hint = self.units == .mgdL ? "mgdl" : "mmol"
 
+                // Set noise to nil so it won't be included in JSON
+                watchState.noise = nil
+
+                // Set IOB from the IOB service (rounded to 1 decimal place)
+                let iobValue = self.iobService.currentIOB ?? 0
+                watchState.iob = Double(iobValue).roundedDouble(toPlaces: 1)
+
+                // Calculate and set TBR (temporary basal rate percentage)
+                if let lastTempBasal = tempBasalObjects.last?.tempBasal,
+                   let tempRate = lastTempBasal.rate
+                {
+                    // Get current scheduled basal rate
+                    let now = Date()
+                    if let scheduledRate = self.getCurrentBasalRate(at: now, from: basalProfile) {
+                        let tbrPercentage = (Double(truncating: tempRate) / Double(scheduledRate)) * 100
+                        watchState.tbr = Int16(tbrPercentage.rounded())
+
+                        debug(
+                            .watchManager,
+                            "⌚️ TBR Calculation - Temp Rate: \(Double(truncating: tempRate)) U/hr, Scheduled Rate: \(Double(scheduledRate)) U/hr, TBR: \(watchState.tbr ?? 0)%"
+                        )
+                    } else {
+                        debug(.watchManager, "⌚️ TBR Calculation - Could not find scheduled basal rate")
+                    }
+                } else {
+                    // No temp basal running, default to 100%
+                    watchState.tbr = 100
+                    debug(.watchManager, "⌚️ TBR Calculation - No temp basal running, defaulting to 100%")
+                }
+
+                // Process determination data (COB, date, eventualBG, ISF, sensRatio)
                 if let latestDetermination = determinationObjects.first {
-                    watchState.lastLoopDateInterval = latestDetermination.timestamp.map {
-                        guard $0.timeIntervalSince1970 > 0 else { return 0 }
-                        return UInt64($0.timeIntervalSince1970)
+                    // Set date (timestamp in milliseconds)
+                    if let timestamp = latestDetermination.timestamp, timestamp.timeIntervalSince1970 > 0 {
+                        watchState.date = UInt64(timestamp.timeIntervalSince1970 * 1000)
                     }
 
-                    let cobNumber = NSNumber(value: latestDetermination.cob)
-                    watchState.cob = Formatter.integerFormatter.string(from: cobNumber)
+                    // Set COB (rounded to 1 decimal place)
+                    let cobValue = Double(latestDetermination.cob)
+                    watchState.cob = cobValue.roundedDouble(toPlaces: 1)
 
-                    // Get the setting from settingsManager and only include sensRatio if setting is .sensRatio
+                    // Set sensRatio based on settings (rounded to 2 decimal places)
                     let currentSetting = self.settingsManager.settings.garminWatchSetting
                     if currentSetting == .sensRatio {
                         let sensRatio = latestDetermination.autoISFratio ?? 1
-                        watchState.sensRatio = sensRatio.description
+                        let sensRatioValue = Double(truncating: sensRatio as NSNumber)
+                        watchState.sensRatio = sensRatioValue.roundedDouble(toPlaces: 2)
                     }
-                    // If garminWatchSetting is .cob, sensRatio remains nil and won't be included in JSON
 
+                    // Set ISF and eventualBG (no unit conversion, raw values)
                     let insulinSensitivity = latestDetermination.insulinSensitivity ?? 0
                     let eventualBG = latestDetermination.eventualBG ?? 0
 
-                    if self.units == .mgdL {
-                        watchState.isf = insulinSensitivity.description
-                        watchState.eventualBGRaw = eventualBG.description
-                    } else {
-                        let parsedIsf = Double(truncating: insulinSensitivity).asMmolL
-                        let parsedEventualBG = Double(truncating: eventualBG).asMmolL
-
-                        watchState.isf = parsedIsf.description
-                        watchState.eventualBGRaw = parsedEventualBG.description
-                    }
+                    watchState.isf = Int16(truncating: insulinSensitivity)
+                    watchState.eventualBG = Int16(truncating: eventualBG)
                 }
 
                 // If no glucose data is present, just return partial watch state
@@ -311,45 +433,20 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                     return watchState
                 }
 
-                // Format the current glucose reading
-                if self.units == .mgdL {
-                    watchState.glucose = "\(latestGlucose.glucose)"
-                } else {
-                    let mgdlValue = Decimal(latestGlucose.glucose)
-                    let latestGlucoseValue = Double(truncating: mgdlValue.asMmolL as NSNumber)
-                    watchState.glucose = "\(latestGlucoseValue)"
-                }
+                // Set SGV (sensor glucose value - raw value, no conversion)
+                watchState.sgv = Int16(latestGlucose.glucose)
 
-                // Convert direction to a textual trend
-                watchState.trendRaw = latestGlucose.direction ?? "--"
+                // Set direction (trend)
+                watchState.direction = latestGlucose.direction ?? "--"
 
-                // Calculate a glucose delta if we have at least two readings
+                // Calculate delta if we have at least two readings (raw value, no conversion)
                 if glucoseObjects.count >= 2 {
-                    var deltaValue = Decimal(glucoseObjects[0].glucose - glucoseObjects[1].glucose)
-
-                    if self.units == .mmolL {
-                        deltaValue = Double(truncating: deltaValue as NSNumber).asMmolL
-                    }
-
-                    let formattedDelta = deltaValue.description
-                    watchState.delta = deltaValue < 0 ? "\(formattedDelta)" : "+\(formattedDelta)"
+                    let deltaValue = glucoseObjects[0].glucose - glucoseObjects[1].glucose
+                    watchState.delta = Int16(deltaValue)
                 }
 
-//                debug(
-//                    .watchManager,
-//                    """
-//                    📱 Setup GarminWatchState - \
-//                    glucose: \(watchState.glucose ?? "nil"), \
-//                    trendRaw: \(watchState.trendRaw ?? "nil"), \
-//                    delta: \(watchState.delta ?? "nil"), \
-//                    eventualBGRaw: \(watchState.eventualBGRaw ?? "nil"), \
-//                    isf: \(watchState.isf ?? "nil"), \
-//                    sensRatio: \(watchState.sensRatio ?? "nil"), \
-//                    cob: \(watchState.cob ?? "nil"), \
-//                    iob: \(watchState.iob ?? "nil"), \
-//                    lastLoopDateInterval: \(watchState.lastLoopDateInterval?.description ?? "nil")
-//                    """
-//                )
+                // Log the complete watch state for review
+                self.logWatchState(watchState)
 
                 return watchState
             }
@@ -360,6 +457,28 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             )
             throw error
         }
+    }
+
+    /// Logs the complete watch state for debugging
+    private func logWatchState(_ watchState: GarminWatchState) {
+        debug(
+            .watchManager,
+            """
+            📱 GarminWatchState Summary:
+            ├─ date: \(watchState.date?.description ?? "nil")
+            ├─ sgv: \(watchState.sgv?.description ?? "nil")
+            ├─ delta: \(watchState.delta?.description ?? "nil")
+            ├─ direction: \(watchState.direction ?? "nil")
+            ├─ units_hint: \(watchState.units_hint ?? "nil")
+            ├─ noise: \(watchState.noise?.description ?? "nil")
+            ├─ iob: \(watchState.iob?.description ?? "nil")
+            ├─ tbr: \(watchState.tbr?.description ?? "nil")
+            ├─ cob: \(watchState.cob?.description ?? "nil")
+            ├─ eventualBG: \(watchState.eventualBG?.description ?? "nil")
+            ├─ isf: \(watchState.isf?.description ?? "nil")
+            └─ sensRatio: \(watchState.sensRatio?.description ?? "nil")
+            """
+        )
     }
 
     // MARK: - Device & App Registration
@@ -530,21 +649,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 }
             }
         )
-    }
-
-    func iobFormatterWithOneFractionDigit(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.decimalSeparator = "."
-        formatter.maximumFractionDigits = 1
-        formatter.minimumFractionDigits = 1
-
-        // Prevent small values from rounding to 0 by enforcing a minimum threshold
-        if value.magnitude < 0.1, value != 0 {
-            return value > 0 ? "0.1" : "-0.1"
-        }
-
-        return formatter.string(from: value as NSNumber) ?? "\(value)"
     }
 }
 
