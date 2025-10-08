@@ -345,7 +345,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
             // Fetch the latest OrefDetermination object if available
             let determinationIds = try await determinationStorage.fetchLastDeterminationObjectID(
-                predicate: NSPredicate.predicateFor30MinAgoForDetermination
+                predicate: NSPredicate.enactedDetermination
             )
 
             // Fetch temp basal from pump history
