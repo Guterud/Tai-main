@@ -257,7 +257,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
             // Fetch the latest OrefDetermination object if available
             let determinationIds = try await determinationStorage.fetchLastDeterminationObjectID(
-                predicate: NSPredicate.predicateFor30MinAgoForDetermination
+                predicate: NSPredicate.enactedDetermination
             )
 
             // Turn those IDs into live NSManagedObjects
