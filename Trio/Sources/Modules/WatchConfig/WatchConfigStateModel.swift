@@ -9,6 +9,7 @@ extension WatchConfig {
         @Published var devices: [IQDevice] = []
         @Published var confirmBolusFaster = false
         @Published var garminDataType: GarminDataType = .cob
+        @Published var garminWatchface: GarminWatchface = .trio
 
         private(set) var preferences = Preferences()
 
@@ -16,6 +17,7 @@ extension WatchConfig {
             preferences = provider.preferences
             units = settingsManager.settings.units
             subscribeSetting(\.garminDataType, on: $garminDataType) { garminDataType = $0 }
+            subscribeSetting(\.garminWatchface, on: $garminWatchface) { garminWatchface = $0 }
             subscribeSetting(\.confirmBolusFaster, on: $confirmBolusFaster) { confirmBolusFaster = $0 }
 
             devices = garmin.devices

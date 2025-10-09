@@ -5,6 +5,7 @@ struct WatchConfigGarminView: View {
 
     @State private var shouldDisplayHint1: Bool = false
     @State private var shouldDisplayHint2: Bool = false
+    @State private var shouldDisplayHint3: Bool = false
     @State var hintDetent = PresentationDetent.large
     @State var selectedVerboseHint: AnyView?
     @State var hintLabel: String?
@@ -20,7 +21,7 @@ struct WatchConfigGarminView: View {
     }
 
     var body: some View {
-        Form {
+        List {
             Section(
                 header: Text("Garmin Configuration"),
                 content:
@@ -62,16 +63,16 @@ struct WatchConfigGarminView: View {
                 content: {
                     VStack {
                         Picker(
-                            selection: $state.garminDataType,
-                            label: Text("Data Choice").multilineTextAlignment(.leading)
+                            selection: $state.garminWatchface,
+                            label: Text("Watchface").multilineTextAlignment(.leading)
                         ) {
-                            ForEach(GarminDataType.allCases) { selection in
+                            ForEach(GarminWatchface.allCases) { selection in
                                 Text(selection.displayName).tag(selection)
                             }
                         }.padding(.top)
                         HStack(alignment: .center) {
                             Text(
-                                "Choose which data to display on Garmin device."
+                                "Choose which watchface/datafield to support."
                             )
                             .font(.footnote)
                             .foregroundColor(.secondary)
@@ -92,19 +93,39 @@ struct WatchConfigGarminView: View {
                 }
             ).listRowBackground(Color.chart)
 
-            if !state.devices.isEmpty {
-                Section(
-                    header: Text("Garmin Watch"),
-                    content: {
-                        List {
-                            ForEach(state.devices, id: \.uuid) { device in
-                                Text(device.friendlyName)
+            Section(
+                content: {
+                    VStack {
+                        Picker(
+                            selection: $state.garminDataType,
+                            label: Text("Data Choice").multilineTextAlignment(.leading)
+                        ) {
+                            ForEach(GarminDataType.allCases) { selection in
+                                Text(selection.displayName).tag(selection)
                             }
-                            .onDelete(perform: onDelete)
-                        }
-                    }
-                ).listRowBackground(Color.chart)
-            }
+                        }.padding(.top)
+                        HStack(alignment: .center) {
+                            Text(
+                                "Choose which data to display on Garmin device."
+                            )
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .lineLimit(nil)
+                            Spacer()
+                            Button(
+                                action: {
+                                    shouldDisplayHint3.toggle()
+                                },
+                                label: {
+                                    HStack {
+                                        Image(systemName: "questionmark.circle")
+                                    }
+                                }
+                            ).buttonStyle(BorderlessButtonStyle())
+                        }.padding(.top)
+                    }.padding(.vertical)
+                }
+            ).listRowBackground(Color.chart)
         }
         .listSectionSpacing(sectionSpacing)
         .sheet(isPresented: $shouldDisplayHint1) {
@@ -122,6 +143,17 @@ struct WatchConfigGarminView: View {
             SettingInputHintView(
                 hintDetent: $hintDetent,
                 shouldDisplayHint: $shouldDisplayHint2,
+                hintLabel: "Choose Garmin App support.",
+                hintText: Text(
+                    "Choose which watchface and datafield combination on your Garmin device you wish to provide data for. Trying to use watchfaces and data fields of different developers will not work. Both must use the same data structure provided by Trio."
+                ),
+                sheetTitle: String(localized: "Help", comment: "Help sheet title")
+            )
+        }
+        .sheet(isPresented: $shouldDisplayHint3) {
+            SettingInputHintView(
+                hintDetent: $hintDetent,
+                shouldDisplayHint: $shouldDisplayHint3,
                 hintLabel: "Choose data support",
                 hintText: Text(
                     "Choose which data type, along BG and IOB etc., you want to show on your Garmin device. That data type will be shown both on watchface and datafield"

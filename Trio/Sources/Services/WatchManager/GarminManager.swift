@@ -352,14 +352,15 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         debug(.watchManager, "⌚️ getCurrentBasalRate - No matching rate found after binary search")
         return nil
     }
-    
+
     // setup Watchface selection
     private var currentWatchface: GarminWatchface {
         if let watchface = settingsManager.settings.garminWatchface as? GarminWatchface {
             return watchface
         }
         if let rawValue = settingsManager.settings.garminWatchface as? String,
-           let watchface = GarminWatchface(rawValue: rawValue) {
+           let watchface = GarminWatchface(rawValue: rawValue)
+        {
             return watchface
         }
         return .trio
@@ -679,7 +680,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
             // Get current watchface setting
             let watchface = currentWatchface
-            
+
             // Create a watchface app using the UUID from the enum
             guard
                 let watchfaceUUID = watchface.watchfaceUUID,
@@ -689,7 +690,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 continue
             }
 
-            debug(.watchManager, "Garmin: Registering \(watchface.displayName) watchface (UUID: \(watchfaceUUID)) for device \(device.friendlyName ?? "Unknown")")
+            debug(
+                .watchManager,
+                "Garmin: Registering \(watchface.displayName) watchface (UUID: \(watchfaceUUID)) for device \(device.friendlyName ?? "Unknown")"
+            )
 
             // Create a watch data field app using the UUID from the enum
             guard
@@ -700,7 +704,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 continue
             }
 
-            debug(.watchManager, "Garmin: Registering data field (UUID: \(datafieldUUID)) for device \(device.friendlyName ?? "Unknown")")
+            debug(
+                .watchManager,
+                "Garmin: Registering data field (UUID: \(datafieldUUID)) for device \(device.friendlyName ?? "Unknown")"
+            )
 
             // Track both apps for potential messages
             watchApps.append(watchfaceApp)
@@ -710,7 +717,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             connectIQ?.register(forAppMessages: watchfaceApp, delegate: self)
         }
     }
-    
+
     /// Restores previously persisted devices from local storage into `devices`.
     private func restoreDevices() {
         devices = persistedDevices.map(\.iqDevice)
@@ -927,7 +934,7 @@ extension BaseGarminManager: SettingsObserver {
     func settingsDidChange(_: TrioSettings) {
         // Update local units and re-register devices if watchface changed
         units = settingsManager.settings.units
-        
+
         // Re-register devices with potentially new watchface UUID
         registerDevices(devices)
 

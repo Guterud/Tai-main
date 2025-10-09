@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 
 // MARK: - Trio Watchface Data Structure (String-based)
+
 struct GarminTrioWatchState: Hashable, Equatable, Sendable, Encodable {
     var glucose: String?
     var trendRaw: String?
@@ -12,7 +13,7 @@ struct GarminTrioWatchState: Hashable, Equatable, Sendable, Encodable {
     var eventualBGRaw: String?
     var isf: String?
     var sensRatio: String?
-    
+
     static func == (lhs: GarminTrioWatchState, rhs: GarminTrioWatchState) -> Bool {
         lhs.glucose == rhs.glucose &&
             lhs.trendRaw == rhs.trendRaw &&
@@ -24,7 +25,7 @@ struct GarminTrioWatchState: Hashable, Equatable, Sendable, Encodable {
             lhs.isf == rhs.isf &&
             lhs.sensRatio == rhs.sensRatio
     }
-    
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(glucose)
         hasher.combine(trendRaw)
@@ -36,7 +37,7 @@ struct GarminTrioWatchState: Hashable, Equatable, Sendable, Encodable {
         hasher.combine(isf)
         hasher.combine(sensRatio)
     }
-    
+
     // Custom encoding to exclude nil values
     enum CodingKeys: String, CodingKey {
         case glucose
@@ -49,7 +50,7 @@ struct GarminTrioWatchState: Hashable, Equatable, Sendable, Encodable {
         case isf
         case sensRatio
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(glucose, forKey: .glucose)
@@ -65,6 +66,7 @@ struct GarminTrioWatchState: Hashable, Equatable, Sendable, Encodable {
 }
 
 // MARK: - SwissAlpine Watchface Data Structure (Numeric-based)
+
 struct GarminSwissAlpineWatchState: Hashable, Equatable, Sendable, Encodable {
     var transmitTime: UInt64 // Timestamp when this state is transmitted to the watch
     var date: UInt64? // Timestamp of the determination data

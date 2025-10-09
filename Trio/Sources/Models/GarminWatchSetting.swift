@@ -1,12 +1,13 @@
 import Foundation
 
 // MARK: - Garmin Data Type Setting
+
 enum GarminDataType: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
-    
+
     case cob
     case sensRatio
-    
+
     var displayName: String {
         switch self {
         case .cob:
@@ -18,12 +19,13 @@ enum GarminDataType: String, JSON, CaseIterable, Identifiable, Codable, Hashable
 }
 
 // MARK: - Garmin Watchface Setting
+
 enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
-    
+
     case trio
     case swissalpine
-    
+
     var displayName: String {
         switch self {
         case .trio:
@@ -32,7 +34,7 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
             return String(localized: "Swissalpine xDrip+", comment: "")
         }
     }
-    
+
     var watchfaceUUID: UUID? {
         switch self {
         case .trio:
@@ -41,7 +43,7 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
             return UUID(uuidString: "5A643C13-D5A7-40D4-B809-84789FDF4A1F")
         }
     }
-    
+
     var datafieldUUID: UUID? {
         switch self {
         case .trio:

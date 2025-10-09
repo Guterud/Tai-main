@@ -76,7 +76,6 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var timeInRangeType: TimeInRangeType = .timeInTightRange
     var garminDataType: GarminDataType = .cob
     var garminWatchface: GarminWatchface = .trio
-
 }
 
 extension TrioSettings: Decodable {
@@ -323,11 +322,11 @@ extension TrioSettings: Decodable {
             settings.timeInRangeType = timeInRangeType
         }
 
-        if let garminDataType = try? container.decode(garminDataType.self, forKey: .garminDataType) {
+        if let garminDataType = try? container.decode(GarminDataType.self, forKey: .garminDataType) {
             settings.garminDataType = garminDataType
         }
-        
-        if let garminWatchface = try? container.decode(garminWatchface.self, forKey: .garminWatchface) {
+
+        if let garminWatchface = try? container.decode(GarminWatchface.self, forKey: .garminWatchface) {
             settings.garminWatchface = garminWatchface
         }
 
