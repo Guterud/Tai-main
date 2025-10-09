@@ -62,10 +62,10 @@ struct WatchConfigGarminView: View {
                 content: {
                     VStack {
                         Picker(
-                            selection: $state.garminWatchSetting,
+                            selection: $state.garminDataType,
                             label: Text("Data Choice").multilineTextAlignment(.leading)
                         ) {
-                            ForEach(GarminWatchSetting.allCases) { selection in
+                            ForEach(GarminDataType.allCases) { selection in
                                 Text(selection.displayName).tag(selection)
                             }
                         }.padding(.top)
