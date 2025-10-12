@@ -409,74 +409,42 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
     // MARK: - Debug Logging Methods
 
-    /// Logs the Trio watch state for debugging
-    private func logTrioWatchState(_ watchState: GarminTrioWatchState) {
-        guard debugWatchState else { return }
-
-        debug(
-            .watchManager,
-            """
-            📱 GarminTrioWatchState Summary:
-            ├─ glucose: \(watchState.glucose ?? "nil")
-            ├─ trendRaw: \(watchState.trendRaw ?? "nil")
-            ├─ delta: \(watchState.delta ?? "nil")
-            ├─ iob: \(watchState.iob ?? "nil")
-            ├─ cob: \(watchState.cob ?? "nil")
-            ├─ lastLoopDateInterval: \(watchState.lastLoopDateInterval?.description ?? "nil")
-            ├─ eventualBGRaw: \(watchState.eventualBGRaw ?? "nil")
-            ├─ isf: \(watchState.isf ?? "nil")
-            └─ sensRatio: \(watchState.sensRatio ?? "nil")
-            """
-        )
-    }
-
-    /// Logs the SwissAlpine watch state for debugging
     private func logSwissAlpineWatchStates(_ watchStates: [GarminSwissAlpineWatchState]) {
         guard debugWatchState else { return }
 
-        debug(
-            .watchManager,
-            "📱 GarminSwissAlpine: Sending \(watchStates.count) glucose entries"
-        )
+        do {
+            let jsonData = try JSONEncoder().encode(watchStates)
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                // Compact the JSON by removing extra whitespace
+                let compactJson = jsonString.replacingOccurrences(of: "\n", with: "")
+                    .replacingOccurrences(of: "  ", with: " ")
 
-        // Log details of the first (most recent) entry which has all fields
-        if let first = watchStates.first {
-            debug(
-                .watchManager,
-                """
-                📱 SwissAlpine Most Recent Entry:
-                ├─ transmitTime: \(first.transmitTime) (sent time)
-                ├─ date: \(first.date?.description ?? "nil") (glucose time)
-                ├─ sgv: \(first.sgv?.description ?? "nil")
-                ├─ delta: \(first.delta?.description ?? "nil")
-                ├─ direction: \(first.direction ?? "nil")
-                ├─ units_hint: \(first.units_hint ?? "nil")
-                ├─ iob: \(first.iob?.description ?? "nil")
-                ├─ tbr: \(first.tbr?.description ?? "nil")
-                ├─ cob: \(first.cob?.description ?? "nil")
-                ├─ eventualBG: \(first.eventualBG?.description ?? "nil")
-                ├─ isf: \(first.isf?.description ?? "nil")
-                └─ sensRatio: \(first.sensRatio?.description ?? "nil")
-                """
-            )
-
-            // Log time range of all entries
-            if let last = watchStates.last, let firstDate = first.date, let lastDate = last.date {
-                let timeDiff = Double(firstDate - lastDate) / 1000.0 / 60.0 // Convert to minutes
                 debug(
                     .watchManager,
-                    "⌚️ Time range: \(timeDiff.rounded()) minutes of glucose history"
+                    "📱 SwissAlpine: Sending \(watchStates.count) entries: \(compactJson)"
                 )
             }
+        } catch {
+            debug(.watchManager, "📱 SwissAlpine: Sending \(watchStates.count) entries (failed to encode for logging)")
         }
+    }
 
-        // Optionally log a summary of all glucose values
-        let sgvValues = watchStates.compactMap(\.sgv)
-        if !sgvValues.isEmpty {
-            debug(
-                .watchManager,
-                "📊 Glucose values: \(sgvValues.map { String($0) }.joined(separator: ", "))"
-            )
+    private func logTrioWatchState(_ watchState: GarminTrioWatchState) {
+        guard debugWatchState else { return }
+
+        do {
+            let jsonData = try JSONEncoder().encode(watchState)
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                let compactJson = jsonString.replacingOccurrences(of: "\n", with: "")
+                    .replacingOccurrences(of: "  ", with: " ")
+
+                debug(
+                    .watchManager,
+                    "📱 Trio: Sending: \(compactJson)"
+                )
+            }
+        } catch {
+            debug(.watchManager, "📱 Trio: Failed to encode for logging")
         }
     }
 
@@ -636,9 +604,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             return await backgroundContext.perform {
                 var watchStates: [GarminSwissAlpineWatchState] = []
 
-                // Get the current time for transmitTime
-                let transmitTime = UInt64(Date().timeIntervalSince1970 * 1000)
-
                 // Get units hint
                 let unitsHint = self.units == .mgdL ? "mgdl" : "mmol"
 
@@ -675,7 +640,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
                 // Process each glucose reading
                 for (index, glucose) in glucoseObjects.enumerated() {
-                    var watchState = GarminSwissAlpineWatchState(transmitTime: transmitTime)
+                    var watchState = GarminSwissAlpineWatchState()
 
                     // Set timestamp for this glucose reading
                     if let glucoseDate = glucose.date {

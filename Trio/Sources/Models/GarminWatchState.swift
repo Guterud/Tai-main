@@ -68,7 +68,6 @@ struct GarminTrioWatchState: Hashable, Equatable, Sendable, Encodable {
 // MARK: - SwissAlpine Watchface Data Structure (Numeric-based)
 
 struct GarminSwissAlpineWatchState: Hashable, Equatable, Sendable, Encodable {
-    var transmitTime: UInt64 // Timestamp when this state is transmitted to the watch
     var date: UInt64? // Timestamp of the determination data
     var sgv: Int16?
     var delta: Int16?
@@ -83,8 +82,7 @@ struct GarminSwissAlpineWatchState: Hashable, Equatable, Sendable, Encodable {
     var sensRatio: Double?
 
     static func == (lhs: GarminSwissAlpineWatchState, rhs: GarminSwissAlpineWatchState) -> Bool {
-        lhs.transmitTime == rhs.transmitTime &&
-            lhs.date == rhs.date &&
+        lhs.date == rhs.date &&
             lhs.sgv == rhs.sgv &&
             lhs.delta == rhs.delta &&
             lhs.direction == rhs.direction &&
@@ -99,7 +97,6 @@ struct GarminSwissAlpineWatchState: Hashable, Equatable, Sendable, Encodable {
     }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(transmitTime)
         hasher.combine(date)
         hasher.combine(sgv)
         hasher.combine(delta)
@@ -116,7 +113,6 @@ struct GarminSwissAlpineWatchState: Hashable, Equatable, Sendable, Encodable {
 
     // Custom encoding to exclude nil values
     enum CodingKeys: String, CodingKey {
-        case transmitTime
         case date
         case sgv
         case delta
@@ -133,7 +129,6 @@ struct GarminSwissAlpineWatchState: Hashable, Equatable, Sendable, Encodable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(transmitTime, forKey: .transmitTime)
         try container.encodeIfPresent(date, forKey: .date)
         try container.encodeIfPresent(sgv, forKey: .sgv)
         try container.encodeIfPresent(delta, forKey: .delta)
