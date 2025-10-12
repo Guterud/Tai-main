@@ -92,40 +92,41 @@ struct WatchConfigGarminView: View {
                     }.padding(.vertical)
                 }
             ).listRowBackground(Color.chart)
-
-            Section(
-                content: {
-                    VStack {
-                        Picker(
-                            selection: $state.garminDataType,
-                            label: Text("Data Choice").multilineTextAlignment(.leading)
-                        ) {
-                            ForEach(GarminDataType.allCases) { selection in
-                                Text(selection.displayName).tag(selection)
-                            }
-                        }.padding(.top)
-                        HStack(alignment: .center) {
-                            Text(
-                                "Choose which data to display on Garmin device."
-                            )
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                            .lineLimit(nil)
-                            Spacer()
-                            Button(
-                                action: {
-                                    shouldDisplayHint3.toggle()
-                                },
-                                label: {
-                                    HStack {
-                                        Image(systemName: "questionmark.circle")
-                                    }
+            if state.garminWatchface == .trio {
+                Section(
+                    content: {
+                        VStack {
+                            Picker(
+                                selection: $state.garminDataType,
+                                label: Text("Data Choice").multilineTextAlignment(.leading)
+                            ) {
+                                ForEach(GarminDataType.allCases) { selection in
+                                    Text(selection.displayName).tag(selection)
                                 }
-                            ).buttonStyle(BorderlessButtonStyle())
-                        }.padding(.top)
-                    }.padding(.vertical)
-                }
-            ).listRowBackground(Color.chart)
+                            }.padding(.top)
+                            HStack(alignment: .center) {
+                                Text(
+                                    "Choose which data to display on Garmin device."
+                                )
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .lineLimit(nil)
+                                Spacer()
+                                Button(
+                                    action: {
+                                        shouldDisplayHint3.toggle()
+                                    },
+                                    label: {
+                                        HStack {
+                                            Image(systemName: "questionmark.circle")
+                                        }
+                                    }
+                                ).buttonStyle(BorderlessButtonStyle())
+                            }.padding(.top)
+                        }.padding(.vertical)
+                    }
+                ).listRowBackground(Color.chart)
+            }
         }
         .listSectionSpacing(sectionSpacing)
         .sheet(isPresented: $shouldDisplayHint1) {
