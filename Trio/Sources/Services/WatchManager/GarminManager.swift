@@ -93,14 +93,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Current glucose units, either mg/dL or mmol/L, read from user settings.
     private var units: GlucoseUnits = .mgdL
 
-    /// Track previous watchface for change detection
+    /// Track previous watchface settings
     private var previousWatchface: GarminWatchface = .trio
-
-    /// Track previous data type for change detection
     private var previousDataType1: GarminDataType1 = .cob
-
-    /// Track previous data type for change detection
     private var previousDataType2: GarminDataType2 = .tbr
+    private var previousDisableWatchfaceData: Bool = false
 
     /// Queue for handling Core Data change notifications
     private let queue = DispatchQueue(label: "BaseGarminManager.queue", qos: .utility)
@@ -138,6 +135,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         previousWatchface = settingsManager.settings.garminWatchface
         previousDataType1 = settingsManager.settings.garminDataType1
         previousDataType2 = settingsManager.settings.garminDataType2
+        previousDisableWatchfaceData = settingsManager.settings.garminDisableWatchfaceData
 
         broadcaster.register(SettingsObserver.self, observer: self)
 
@@ -162,11 +160,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 Task {
                     do {
                         let watchface = self.currentWatchface
-                        // Skip all processing if watchface is disabled
-                        if watchface == .disabled {
-                            debug(.watchManager, "⌚️ Garmin watchface disabled, skipping message queueing")
-                            return
-                        }
                         if watchface == .swissalpine {
                             let watchStates = try await self.setupGarminSwissAlpineWatchState()
                             let watchStateData = try JSONEncoder().encode(watchStates)
@@ -241,6 +234,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     private var currentDataType2: GarminDataType2 {
         // Direct access since it's not optional
         settingsManager.settings.garminDataType2
+    }
+
+    /// Check if watchface data is disabled
+    private var isWatchfaceDataDisabled: Bool {
+        settingsManager.settings.garminDisableWatchfaceData
     }
 
     // MARK: - Internal Setup / Handlers
@@ -320,7 +318,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
     /// Fetches recent glucose readings from CoreData, up to 288 results.
     /// - Returns: An array of `NSManagedObjectID`s for glucose readings.
-    private func fetchGlucose(limit: Int = 288) async throws -> [NSManagedObjectID] {
+    private func fetchGlucose(limit: Int = 5) async throws -> [NSManagedObjectID] {
         let results = try await CoreDataStack.shared.fetchEntitiesAsync(
             ofType: GlucoseStored.self,
             onContext: backgroundContext,
@@ -346,8 +344,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             onContext: backgroundContext,
             predicate: NSPredicate.pumpHistoryLast24h,
             key: "timestamp",
-            ascending: true,
-            fetchLimit: 100
+            ascending: false, // Most recent first
+            fetchLimit: 5
         )
 
         return try await backgroundContext.perform {
@@ -461,28 +459,22 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         let sensRatio = latestDetermination.autoISFratio ?? 1
                         watchState.sensRatio = sensRatio.description
                     }
-                    // If garminDataType1 is .cob, sensRatio remains nil and won't be included in JSON
 
-                    // Get the setting from settingsManager and only include evBG if setting is .eventualBG
-                    let currentDataType2 = self.currentDataType1
-                    if currentDataType2 == .sensRatio {
-                        let sensRatio = latestDetermination.autoISFratio ?? 1
-                        watchState.sensRatio = sensRatio.description
+                    let eventualBG = latestDetermination.eventualBG ?? 0
+                    if self.units == .mgdL {
+                        watchState.eventualBGRaw = eventualBG.description
+                    } else {
+                        let parsedEventualBG = Double(truncating: eventualBG).asMmolL
+                        watchState.eventualBGRaw = parsedEventualBG.description
                     }
-                    // If garminDataType1 is .cob, sensRatio remains nil and won't be included in JSON
 
                     let insulinSensitivity = latestDetermination.insulinSensitivity ?? 0
-                    let eventualBG = latestDetermination.eventualBG ?? 0
 
                     if self.units == .mgdL {
                         watchState.isf = insulinSensitivity.description
-                        watchState.eventualBGRaw = eventualBG.description
                     } else {
                         let parsedIsf = Double(truncating: insulinSensitivity).asMmolL
-                        let parsedEventualBG = Double(truncating: eventualBG).asMmolL
-
                         watchState.isf = parsedIsf.description
-                        watchState.eventualBGRaw = parsedEventualBG.description
                     }
                 }
 
@@ -574,7 +566,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 let unitsHint = self.units == .mgdL ? "mgdl" : "mmol"
 
                 // Calculate IOB once (same for all entries)
-                let iobValue = Double(self.iobService.currentIOB ?? 0).roundedDouble(toPlaces: 1)
+                let iobValue = Double(self.iobService.currentIOB ?? 0)
 
                 // Calculate COB, sensRatio, ISF, eventualBG from determination
                 var cobValue: Double?
@@ -583,13 +575,13 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 var eventualBGValue: Int16?
 
                 if let latestDetermination = determinationObjects.first {
-                    cobValue = Double(latestDetermination.cob).roundedDouble(toPlaces: 1)
+                    cobValue = Double(latestDetermination.cob)
 
                     // Only include sensRatio if data type setting is .sensRatio
                     let currentDataType1 = self.currentDataType1
                     if currentDataType1 == .sensRatio {
                         let sensRatio = latestDetermination.autoISFratio ?? 1
-                        sensRatioValue = Double(truncating: sensRatio as NSNumber).roundedDouble(toPlaces: 2)
+                        sensRatioValue = Double(truncating: sensRatio as NSNumber)
                     }
 
                     // ISF and eventualBG as raw values (no unit conversion)
@@ -607,14 +599,44 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     }
                 }
 
-                // Get current basal rate directly from temp basal (no percentage calculation)
+                // Get current basal rate directly from temp basal
                 var tbrValue: Double?
-                if let lastTempBasal = tempBasalObjects.last?.tempBasal,
-                   let tempRate = lastTempBasal.rate
+                if let firstTempBasal = tempBasalObjects.first, // Most recent temp basal
+                   let tempBasalData = firstTempBasal.tempBasal,
+                   let tempRate = tempBasalData.rate
                 {
-                    tbrValue = Double(truncating: tempRate).roundedDouble(toPlaces: 2)
+                    // Send raw value without rounding
+                    tbrValue = Double(truncating: tempRate)
+
                     if self.debugWatchState {
-                        debug(.watchManager, "⌚️ Current basal rate: \(tbrValue ?? 0) U/hr")
+                        debug(.watchManager, "⌚️ Current basal rate: \(tbrValue ?? 0) U/hr from temp basal")
+                    }
+                } else {
+                    // If no temp basal, get scheduled basal from profile
+                    let basalProfile = self.settingsManager.preferences.basalProfile as? [BasalProfileEntry] ?? []
+                    if !basalProfile.isEmpty {
+                        let now = Date()
+                        let calendar = Calendar.current
+                        let currentTimeMinutes = calendar.component(.hour, from: now) * 60 + calendar
+                            .component(.minute, from: now)
+
+                        // Find the current basal rate from profile
+                        var currentBasalRate: Double = 0
+                        for entry in basalProfile.reversed() {
+                            if entry.minutes <= currentTimeMinutes {
+                                currentBasalRate = Double(entry.rate)
+                                break
+                            }
+                        }
+
+                        if currentBasalRate > 0 {
+                            // Send raw value without rounding
+                            tbrValue = currentBasalRate
+
+                            if self.debugWatchState {
+                                debug(.watchManager, "⌚️ Current scheduled basal rate: \(tbrValue ?? 0) U/hr from profile")
+                            }
+                        }
                     }
                 }
 
@@ -708,39 +730,48 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             let watchface = currentWatchface
 
             // Create a watchface app using the UUID from the enum
-            guard
-                let watchfaceUUID = watchface.watchfaceUUID,
-                let watchfaceApp = IQApp(uuid: watchfaceUUID, store: UUID(), device: device)
-            else {
-                debug(.watchManager, "Garmin: Could not create \(watchface.displayName) watchface app for device \(device.uuid!)")
-                continue
+            // Only register watchface if data is NOT disabled
+            if !isWatchfaceDataDisabled {
+                if let watchfaceUUID = watchface.watchfaceUUID,
+                   let watchfaceApp = IQApp(uuid: watchfaceUUID, store: UUID(), device: device)
+                {
+                    debug(
+                        .watchManager,
+                        "Garmin: Registering \(watchface.displayName) watchface (UUID: \(watchfaceUUID)) for device \(device.friendlyName ?? "Unknown")"
+                    )
+
+                    // Track watchface app
+                    watchApps.append(watchfaceApp)
+
+                    // Register to receive app-messages from the watchface
+                    connectIQ?.register(forAppMessages: watchfaceApp, delegate: self)
+                } else {
+                    debug(
+                        .watchManager,
+                        "Garmin: Could not create \(watchface.displayName) watchface app for device \(device.uuid!)"
+                    )
+                }
+            } else {
+                debug(.watchManager, "Garmin: Skipping watchface registration - data disabled")
             }
 
-            debug(
-                .watchManager,
-                "Garmin: Registering \(watchface.displayName) watchface (UUID: \(watchfaceUUID)) for device \(device.friendlyName ?? "Unknown")"
-            )
+            // ALWAYS create and register data field app (not affected by disable setting)
+            if let datafieldUUID = watchface.datafieldUUID,
+               let watchDataFieldApp = IQApp(uuid: datafieldUUID, store: UUID(), device: device)
+            {
+                debug(
+                    .watchManager,
+                    "Garmin: Registering data field (UUID: \(datafieldUUID)) for device \(device.friendlyName ?? "Unknown")"
+                )
 
-            // Create a watch data field app using the UUID from the enum
-            guard
-                let datafieldUUID = watchface.datafieldUUID,
-                let watchDataFieldApp = IQApp(uuid: datafieldUUID, store: UUID(), device: device)
-            else {
+                // Track datafield app
+                watchApps.append(watchDataFieldApp)
+
+                // Register to receive app-messages from the datafield
+                connectIQ?.register(forAppMessages: watchDataFieldApp, delegate: self)
+            } else {
                 debug(.watchManager, "Garmin: Could not create data-field app for device \(device.uuid!)")
-                continue
             }
-
-            debug(
-                .watchManager,
-                "Garmin: Registering data field (UUID: \(datafieldUUID)) for device \(device.friendlyName ?? "Unknown")"
-            )
-
-            // Track both apps for potential messages
-            watchApps.append(watchfaceApp)
-            watchApps.append(watchDataFieldApp)
-
-            // Register to receive app-messages from the watchface
-            connectIQ?.register(forAppMessages: watchfaceApp, delegate: self)
         }
     }
 
@@ -796,6 +827,16 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// - Parameter state: The dictionary representing the watch state to be broadcast.
     private func broadcastStateToWatchApps(_ state: Any) {
         watchApps.forEach { app in
+            // Check if this is the watchface app
+            let watchface = currentWatchface
+            let isWatchfaceApp = app.uuid == watchface.watchfaceUUID
+
+            // Skip broadcasting to watchface if data is disabled
+            if isWatchfaceDataDisabled, isWatchfaceApp {
+                debug(.watchManager, "Garmin: Watchface data disabled, skipping broadcast to watchface")
+                return
+            }
+
             connectIQ?.getAppStatus(app) { [weak self] status in
                 guard status?.isInstalled == true else {
                     debug(.watchManager, "Garmin: App not installed on device: \(app.uuid!)")
@@ -840,11 +881,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// - Parameter data: JSON-encoded data representing the latest watch state. If decoding fails,
     ///   the method logs an error and does nothing else.
     func sendWatchStateData(_ data: Data) {
-        // Skip if watchface is disabled
-        if currentWatchface == .disabled {
-            debug(.watchManager, "Garmin: Watchface disabled, not sending data")
-            return
-        }
+        // Note: We don't check isWatchfaceDataDisabled here because broadcastStateToWatchApps
+        // will filter out the watchface app if needed, but datafield should still work
 
         guard let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []) else {
             debug(.watchManager, "Garmin: Invalid JSON for watch-state data")
@@ -869,6 +907,16 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     ///   - msg: The dictionary to send to the watch app.
     ///   - app: The `IQApp` instance representing the watchface or data field.
     private func sendMessage(_ msg: Any, to app: IQApp) {
+        // Check if this is the watchface app
+        let watchface = currentWatchface
+        let isWatchfaceApp = app.uuid == watchface.watchfaceUUID
+
+        // Skip sending if data is disabled AND this is the watchface app
+        if isWatchfaceDataDisabled, isWatchfaceApp {
+            debug(.watchManager, "Garmin: Watchface data disabled, not sending message to watchface")
+            return
+        }
+
         connectIQ?.sendMessage(
             msg,
             to: app,
@@ -939,6 +987,16 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
     func receivedMessage(_ message: Any, from app: IQApp) {
         debug(.watchManager, "Garmin: Received message \(message) from app \(app.uuid!)")
 
+        // Check if this message is from the watchface (not datafield)
+        let watchface = currentWatchface
+        let isFromWatchface = app.uuid == watchface.watchfaceUUID
+
+        // If data is disabled AND the message is from the watchface, ignore it
+        if isWatchfaceDataDisabled, isFromWatchface {
+            debug(.watchManager, "Garmin: Watchface data disabled, ignoring message from watchface")
+            return
+        }
+
         Task {
             // Check if the message is literally the string "status"
             guard
@@ -948,8 +1006,8 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
                 return
             }
 
+            // Normal processing (for datafield or when watchface is enabled)
             do {
-                let watchface = self.currentWatchface
                 if watchface == .swissalpine {
                     let watchStates = try await self.setupGarminSwissAlpineWatchState()
                     let watchStateData = try JSONEncoder().encode(watchStates)
@@ -977,6 +1035,7 @@ extension BaseGarminManager: SettingsObserver {
         let dataType1Changed = previousDataType1 != settings.garminDataType1
         let dataType2Changed = previousDataType2 != settings.garminDataType2
         let unitsChanged = units != settings.units
+        let disabledChanged = previousDisableWatchfaceData != settings.garminDisableWatchfaceData
 
         // Debug what changed BEFORE updating stored values
         if watchfaceChanged {
@@ -1004,31 +1063,37 @@ extension BaseGarminManager: SettingsObserver {
             debug(.watchManager, "Garmin: Units changed")
         }
 
+        if disabledChanged {
+            debug(
+                .watchManager,
+                "Garmin: Watchface data disabled changed from \(previousDisableWatchfaceData) to \(settings.garminDisableWatchfaceData)"
+            )
+
+            // Re-register devices to add/remove watchface app based on disabled state
+            registerDevices(devices)
+
+            if settings.garminDisableWatchfaceData {
+                debug(.watchManager, "Garmin: Watchface app unregistered, datafield continues")
+            } else {
+                debug(.watchManager, "Garmin: Watchface app re-registered")
+            }
+        }
+
         // NOW update stored values AFTER logging the changes
         units = settings.units
         previousWatchface = settings.garminWatchface
         previousDataType1 = settings.garminDataType1
         previousDataType2 = settings.garminDataType2
+        previousDisableWatchfaceData = settings.garminDisableWatchfaceData
 
-        // Handle watchface change
+        // Handle watchface change - need to re-register for different UUID
         if watchfaceChanged {
-            if settings.garminWatchface == .disabled {
-                watchApps.removeAll()
-                debug(.watchManager, "Garmin: Cleared all watch apps due to disabled state")
-                return // Exit early when disabled
-            } else {
-                registerDevices(devices)
-            }
+            registerDevices(devices)
+            debug(.watchManager, "Garmin: Re-registered devices for new watchface")
         }
 
-        // Check if disabled before sending updates
-        if settings.garminWatchface == .disabled {
-            debug(.watchManager, "Garmin: Watchface is disabled, skipping watch state update")
-            return
-        }
-
-        // If any setting changed and we're not disabled, update watch state
-        if watchfaceChanged || dataType1Changed || dataType2Changed || unitsChanged {
+        // If any setting changed, update watch state (datafield will still receive updates)
+        if watchfaceChanged || dataType1Changed || dataType2Changed || unitsChanged || disabledChanged {
             Task {
                 do {
                     if settings.garminWatchface == .swissalpine {

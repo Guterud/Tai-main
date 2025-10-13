@@ -7,6 +7,7 @@ struct WatchConfigGarminView: View {
     @State private var shouldDisplayHint2: Bool = false
     @State private var shouldDisplayHint3: Bool = false
     @State private var shouldDisplayHint4: Bool = false
+    @State private var shouldDisplayHint5: Bool = false
     @State var hintDetent = PresentationDetent.large
     @State var selectedVerboseHint: AnyView?
     @State var hintLabel: String?
@@ -22,7 +23,7 @@ struct WatchConfigGarminView: View {
     }
 
     var body: some View {
-        List {
+        Form {
             Section(
                 header: Text("Garmin Configuration"),
                 content:
@@ -59,13 +60,27 @@ struct WatchConfigGarminView: View {
                 }
             ).listRowBackground(Color.chart)
 
+            if !state.devices.isEmpty {
+                Section(
+                    header: Text("Garmin Watch"),
+                    content: {
+                        List {
+                            ForEach(state.devices, id: \.uuid) { device in
+                                Text(device.friendlyName)
+                            }
+                            .onDelete(perform: onDelete)
+                        }
+                    }
+                ).listRowBackground(Color.chart)
+            }
+
             Section(
                 header: Text("Garmin Watch Settings"),
                 content: {
                     VStack {
                         Picker(
                             selection: $state.garminWatchface,
-                            label: Text("Watchface").multilineTextAlignment(.leading)
+                            label: Text("Watch App selection").multilineTextAlignment(.leading)
                         ) {
                             ForEach(GarminWatchface.allCases) { selection in
                                 Text(selection.displayName).tag(selection)
@@ -96,6 +111,32 @@ struct WatchConfigGarminView: View {
             Section(
                 content: {
                     VStack {
+                        Toggle("Disable Watchface Data", isOn: $state.garminDisableWatchfaceData)
+                        HStack(alignment: .center) {
+                            Text(
+                                "Choose if you only want to use a datafield and no supported watchface!"
+                            )
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .lineLimit(nil)
+                            Spacer()
+                            Button(
+                                action: {
+                                    shouldDisplayHint5.toggle()
+                                },
+                                label: {
+                                    HStack {
+                                        Image(systemName: "questionmark.circle")
+                                    }
+                                }
+                            ).buttonStyle(BorderlessButtonStyle())
+                        }.padding(.top)
+                    }.padding(.vertical)
+                }
+            ).listRowBackground(Color.chart)
+            Section(
+                content: {
+                    VStack {
                         Picker(
                             selection: $state.garminDataType1,
                             label: Text("Data Field 1").multilineTextAlignment(.leading)
@@ -106,7 +147,7 @@ struct WatchConfigGarminView: View {
                         }.padding(.top)
                         HStack(alignment: .center) {
                             Text(
-                                "Choose between COB and Sensitivity Ratio on Garmin device."
+                                "Choose between display of COB or Sensitivity Ratio on Garmin device."
                             )
                             .font(.footnote)
                             .foregroundColor(.secondary)
@@ -140,7 +181,7 @@ struct WatchConfigGarminView: View {
                             }.padding(.top)
                             HStack(alignment: .center) {
                                 Text(
-                                    "Choose between TBR and Eventual BG on Garmin device."
+                                    "Choose between display of TBR or Eventual BG on Garmin device."
                                 )
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
@@ -169,7 +210,7 @@ struct WatchConfigGarminView: View {
                 shouldDisplayHint: $shouldDisplayHint1,
                 hintLabel: "Add Device",
                 hintText: Text(
-                    "Add Garmin Device to Trio. Please look at the docs to see which devices are supported."
+                    "Add Garmin Device to Trio. This happens via Garmin Connect. If you have multiple phones with Garmin Connect and the same Garmin device, you will run into connectivity issue between watch and phone depending of proximity of the phones, which might also affect your watchface function."
                 ),
                 sheetTitle: String(localized: "Help", comment: "Help sheet title")
             )
@@ -181,7 +222,7 @@ struct WatchConfigGarminView: View {
                 hintLabel: "Choose Garmin App support.",
                 hintText: Text(
                     "Choose which watchface and datafield combination on your Garmin device you wish to provide data for. Trying to use watchfaces and data fields of different developers will not work. Both must use the same data structure provided by Trio.\n\n" +
-                        "Important: If you want to use a different watchface on your Garmin device that has no data requirement from this app, change the Watchface option to Disabled! Otherwise you will not be able to get current data once you re-enable the Trio watchface and you will have to re-install it on your Garmin device."
+                        "Also you have to usw this configuration setting here BEFORE you switch the watchface on your Garmin device to the another watchface."
                 ),
                 sheetTitle: String(localized: "Help", comment: "Help sheet title")
             )
@@ -204,6 +245,17 @@ struct WatchConfigGarminView: View {
                 hintLabel: "Choose data support",
                 hintText: Text(
                     "Choose which data type, along BG and IOB etc., you want to show on your Garmin device. That data type will be shown both on watchface and datafield"
+                ),
+                sheetTitle: String(localized: "Help", comment: "Help sheet title")
+            )
+        }
+        .sheet(isPresented: $shouldDisplayHint5) {
+            SettingInputHintView(
+                hintDetent: $hintDetent,
+                shouldDisplayHint: $shouldDisplayHint5,
+                hintLabel: "Disable watchface data transmission",
+                hintText: Text(
+                    "Important: If you want to use a different watchface on your Garmin device that has no data requirement from this app, use this toggle to disable all data transmission to the Garmin watchface app! Otherwise you will not be able to get current data once you re-enable the the supported watchface that shows Trio data and you will have to re-install it on your Garmin device."
                 ),
                 sheetTitle: String(localized: "Help", comment: "Help sheet title")
             )
