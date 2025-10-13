@@ -145,6 +145,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 .share()
                 .eraseToAnyPublisher()
 
+        // Glucose updates - uses 30s throttling
         glucoseStorage.updatePublisher
             .receive(on: DispatchQueue.global(qos: .background))
             .sink { [weak self] _ in
@@ -163,11 +164,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         if watchface == .swissalpine {
                             let watchStates = try await self.setupGarminSwissAlpineWatchState()
                             let watchStateData = try JSONEncoder().encode(watchStates)
-                            self.sendWatchStateData(watchStateData)
+                            self.sendWatchStateData(watchStateData) // Goes through 30s throttle
                         } else {
                             let watchState = try await self.setupGarminTrioWatchState()
                             let watchStateData = try JSONEncoder().encode(watchState)
-                            self.sendWatchStateData(watchStateData)
+                            self.sendWatchStateData(watchStateData) // Goes through 30s throttle
                         }
                     } catch {
                         debug(
@@ -179,6 +180,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             }
             .store(in: &subscriptions)
 
+        // IOB updates - uses 30s throttling
         iobService.iobPublisher
             .receive(on: DispatchQueue.global(qos: .background))
             .sink { [weak self] _ in
@@ -197,11 +199,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         if watchface == .swissalpine {
                             let watchStates = try await self.setupGarminSwissAlpineWatchState()
                             let watchStateData = try JSONEncoder().encode(watchStates)
-                            self.sendWatchStateData(watchStateData)
+                            self.sendWatchStateData(watchStateData) // Goes through 30s throttle
                         } else {
                             let watchState = try await self.setupGarminTrioWatchState()
                             let watchStateData = try JSONEncoder().encode(watchState)
-                            self.sendWatchStateData(watchStateData)
+                            self.sendWatchStateData(watchStateData) // Goes through 30s throttle
                         }
                     } catch {
                         debug(
@@ -246,6 +248,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Sets up handlers for OrefDetermination and GlucoseStored entity changes in CoreData.
     /// When these change, we re-compute the Garmin watch state and send updates to the watch.
     private func registerHandlers() {
+        // OrefDetermination - immediate send (no throttling)
         coreDataPublisher?
             .filteredByEntityName("OrefDetermination")
             .sink { [weak self] _ in
@@ -264,11 +267,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         if watchface == .swissalpine {
                             let watchStates = try await self.setupGarminSwissAlpineWatchState()
                             let watchStateData = try JSONEncoder().encode(watchStates)
-                            self.sendWatchStateData(watchStateData)
+                            self.sendWatchStateDataImmediately(watchStateData) // Bypass throttling
                         } else {
                             let watchState = try await self.setupGarminTrioWatchState()
                             let watchStateData = try JSONEncoder().encode(watchState)
-                            self.sendWatchStateData(watchStateData)
+                            self.sendWatchStateDataImmediately(watchStateData) // Bypass throttling
                         }
                     } catch {
                         debug(
@@ -280,6 +283,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             }
             .store(in: &subscriptions)
 
+        // Glucose deletion - immediate send (no throttling)
         // Due to the batch insert, this only observes deletion of Glucose entries
         coreDataPublisher?
             .filteredByEntityName("GlucoseStored")
@@ -299,11 +303,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         if watchface == .swissalpine {
                             let watchStates = try await self.setupGarminSwissAlpineWatchState()
                             let watchStateData = try JSONEncoder().encode(watchStates)
-                            self.sendWatchStateData(watchStateData)
+                            self.sendWatchStateDataImmediately(watchStateData) // Bypass throttling
                         } else {
                             let watchState = try await self.setupGarminTrioWatchState()
                             let watchStateData = try JSONEncoder().encode(watchState)
-                            self.sendWatchStateData(watchStateData)
+                            self.sendWatchStateDataImmediately(watchStateData) // Bypass throttling
                         }
                     } catch {
                         debug(
@@ -417,7 +421,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         #endif
 
         guard !devices.isEmpty || skipDeviceCheck else {
-            debug(.watchManager, "⌚️❌ Skipping setupGarminTrioWatchState - No Garmin devices connected")
+            debug(.watchManager, "⌚️⛔ Skipping setupGarminTrioWatchState - No Garmin devices connected")
             return GarminTrioWatchState()
         }
 
@@ -534,7 +538,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         #endif
 
         guard !devices.isEmpty || skipDeviceCheck else {
-            debug(.watchManager, "⌚️❌ Skipping setupGarminSwissAlpineWatchState - No Garmin devices connected")
+            debug(.watchManager, "⌚️⛔ Skipping setupGarminSwissAlpineWatchState - No Garmin devices connected")
             return []
         }
 
@@ -800,9 +804,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
     /// Subscribes to any watch-state dictionaries published via `watchStateSubject`, and throttles them
     /// so updates aren't sent too frequently. Each update triggers a broadcast to all watch apps.
+    /// OPTIMIZED: Changed from 10 seconds to 30 seconds
     private func subscribeToWatchState() {
         watchStateSubject
-            .throttle(for: .seconds(10), scheduler: DispatchQueue.main, latest: true)
+            .throttle(for: .seconds(30), scheduler: DispatchQueue.main, latest: true)
             .sink { [weak self] state in
                 self?.broadcastStateToWatchApps(state)
             }
@@ -891,17 +896,17 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
         if debugWatchState {
             if let dict = jsonObject as? NSDictionary {
-                debug(.watchManager, "Garmin: Sending watch state dictionary with \(dict.count) fields")
+                debug(.watchManager, "Garmin: Sending watch state dictionary with \(dict.count) fields (via 30s throttle)")
             } else if let array = jsonObject as? NSArray {
-                debug(.watchManager, "Garmin: Sending watch state array with \(array.count) entries")
+                debug(.watchManager, "Garmin: Sending watch state array with \(array.count) entries (via 30s throttle)")
             }
         }
 
         watchStateSubject.send(jsonObject)
     }
 
-    /// Sends watch state data immediately, bypassing the 10-second throttling
-    /// Used when re-enabling data transmission after the cooldown period
+    /// Sends watch state data immediately, bypassing the 30-second throttling
+    /// Used for critical updates like determinations and glucose deletions
     private func sendWatchStateDataImmediately(_ data: Data) {
         guard let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []) else {
             debug(.watchManager, "Garmin: Invalid JSON for immediate watch-state data")
@@ -1031,11 +1036,13 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
                 if watchface == .swissalpine {
                     let watchStates = try await self.setupGarminSwissAlpineWatchState()
                     let watchStateData = try JSONEncoder().encode(watchStates)
-                    self.sendWatchStateData(watchStateData)
+                    // Use immediate send for status requests (bypass throttling)
+                    self.sendWatchStateDataImmediately(watchStateData)
                 } else {
                     let watchState = try await self.setupGarminTrioWatchState()
                     let watchStateData = try JSONEncoder().encode(watchState)
-                    self.sendWatchStateData(watchStateData)
+                    // Use immediate send for status requests (bypass throttling)
+                    self.sendWatchStateDataImmediately(watchStateData)
                 }
             } catch {
                 debug(.watchManager, "Garmin: Cannot encode watch state: \(error)")
@@ -1061,7 +1068,7 @@ extension BaseGarminManager: SettingsObserver {
         if watchfaceChanged {
             debug(
                 .watchManager,
-                "Garmin: Watchface changed from \(previousWatchface.displayName) to \(settings.garminWatchface.displayName). Skipping watch state update"
+                "Garmin: Watchface changed from \(previousWatchface.displayName) to \(settings.garminWatchface.displayName). Re-registering devices only, no data update"
             )
         }
 
@@ -1080,7 +1087,7 @@ extension BaseGarminManager: SettingsObserver {
         }
 
         if unitsChanged {
-            debug(.watchManager, "Garmin: Units changed")
+            debug(.watchManager, "Garmin: Units changed - immediate update required")
         }
 
         if disabledChanged {
@@ -1095,7 +1102,7 @@ extension BaseGarminManager: SettingsObserver {
             if settings.garminDisableWatchfaceData {
                 debug(.watchManager, "Garmin: Watchface app unregistered, datafield continues")
             } else {
-                debug(.watchManager, "Garmin: Watchface app re-registered")
+                debug(.watchManager, "Garmin: Watchface app re-registered - sending immediate update")
             }
         }
 
@@ -1106,30 +1113,69 @@ extension BaseGarminManager: SettingsObserver {
         previousDataType2 = settings.garminDataType2
         previousDisableWatchfaceData = settings.garminDisableWatchfaceData
 
-        // Handle watchface change - need to re-register for different UUID
+        // Handle watchface change - ONLY re-register, NO data send
         if watchfaceChanged {
             registerDevices(devices)
-            debug(.watchManager, "Garmin: Re-registered devices for new watchface")
+            debug(.watchManager, "Garmin: Re-registered devices for new watchface UUID")
+            // NO data send here - wait for watch to request or next regular update
         }
 
-        // If any setting changed or watchface data stream is being enabled, update watch state (datafield will still receive updates)
-        if dataType1Changed || dataType2Changed || unitsChanged || (disabledChanged && !settings.garminDisableWatchfaceData) {
+        // Determine which type of update is needed (if any)
+        let needsImmediateUpdate = (
+            unitsChanged ||
+                (disabledChanged && !settings.garminDisableWatchfaceData)
+        ) &&
+            !watchfaceChanged // Don't send if only watchface changed
+
+        let needsThrottledUpdate = (dataType1Changed || dataType2Changed) &&
+            !watchfaceChanged // Don't send if only watchface changed
+
+        // Send immediate update for critical changes
+        if needsImmediateUpdate {
             Task {
                 do {
                     if settings.garminWatchface == .swissalpine {
                         let watchStates = try await self.setupGarminSwissAlpineWatchState()
                         let watchStateData = try JSONEncoder().encode(watchStates)
-                        self.sendWatchStateData(watchStateData)
+                        // Units and re-enabling need immediate update
+                        self.sendWatchStateDataImmediately(watchStateData)
+                        debug(.watchManager, "Garmin: Immediate update sent for units/re-enable change")
                     } else { // Must be .trio
                         let watchState = try await self.setupGarminTrioWatchState()
                         let watchStateData = try JSONEncoder().encode(watchState)
-                        self.sendWatchStateData(watchStateData)
+                        // Units and re-enabling need immediate update
+                        self.sendWatchStateDataImmediately(watchStateData)
+                        debug(.watchManager, "Garmin: Immediate update sent for units/re-enable change")
                     }
-                    debug(.watchManager, "Garmin: Updated watch state sent after settings change")
                 } catch {
                     debug(
                         .watchManager,
-                        "\(DebuggingIdentifiers.failed) Failed to send watch state data after settings change: \(error)"
+                        "\(DebuggingIdentifiers.failed) Failed to send immediate update after settings change: \(error)"
+                    )
+                }
+            }
+        }
+        // Send throttled update for data type changes
+        else if needsThrottledUpdate {
+            Task {
+                do {
+                    if settings.garminWatchface == .swissalpine {
+                        let watchStates = try await self.setupGarminSwissAlpineWatchState()
+                        let watchStateData = try JSONEncoder().encode(watchStates)
+                        // DataType changes use 30s throttling
+                        self.sendWatchStateData(watchStateData)
+                        debug(.watchManager, "Garmin: Throttled update queued for data type change (30s)")
+                    } else { // Must be .trio
+                        let watchState = try await self.setupGarminTrioWatchState()
+                        let watchStateData = try JSONEncoder().encode(watchState)
+                        // DataType changes use 30s throttling
+                        self.sendWatchStateData(watchStateData)
+                        debug(.watchManager, "Garmin: Throttled update queued for data type change (30s)")
+                    }
+                } catch {
+                    debug(
+                        .watchManager,
+                        "\(DebuggingIdentifiers.failed) Failed to send throttled update after settings change: \(error)"
                     )
                 }
             }
