@@ -247,7 +247,7 @@ struct WatchConfigGarminView: View {
                 hintText: Text(
                     "Choose which watchface and datafield combination on your Garmin device you wish to provide data for. Trying to use watchfaces and data fields of different developers will not work. Both must use the same data structure provided by Trio.\n\n" +
                         "Also you have to use this configuration setting here BEFORE you switch the watchface on your Garmin device to another watchface.\n\n" +
-                        "⚠️ Changing the watchface will automatically disable data transmission and lock that setting for 30 seconds to allow time for you to switch the watchface on your Garmin device."
+                        "⚠️ Changing the watchface will automatically disable data transmission and lock that setting for 20 seconds to allow time for you to switch the watchface on your Garmin device."
                 ),
                 sheetTitle: String(localized: "Help", comment: "Help sheet title")
             )
@@ -281,7 +281,7 @@ struct WatchConfigGarminView: View {
                 hintLabel: "Disable watchface data transmission",
                 hintText: Text(
                     "Important: If you want to use a different watchface on your Garmin device that has no data requirement from this app, use this toggle to disable all data transmission to the Garmin watchface app! Otherwise you will not be able to get current data once you re-enable the supported watchface that shows Trio data and you will have to re-install it on your Garmin device.\n\n" +
-                        "Note: When switching between supported watchfaces, data transmission is automatically disabled for 30 seconds. You would manually need to re-enable it."
+                        "Note: When switching between supported watchfaces, data transmission is automatically disabled for 20 seconds. You would manually need to re-enable it."
                 ),
                 sheetTitle: String(localized: "Help", comment: "Help sheet title")
             )

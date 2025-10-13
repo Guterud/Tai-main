@@ -26,16 +26,7 @@ extension WatchConfig {
             subscribeSetting(\.garminDataType1, on: $garminDataType1) { garminDataType1 = $0 }
             subscribeSetting(\.garminDataType2, on: $garminDataType2) { garminDataType2 = $0 }
             subscribeSetting(\.garminWatchface, on: $garminWatchface) { garminWatchface = $0 }
-
-            // Custom handling for garminDisableWatchfaceData to respect the cooldown
-            subscribeSetting(\.garminDisableWatchfaceData, on: $garminDisableWatchfaceData) { [weak self] newValue in
-                guard let self = self else { return }
-                // Only update if not locked or if setting to true
-                if !self.isDisableToggleLocked || newValue {
-                    self.garminDisableWatchfaceData = newValue
-                }
-            }
-
+            subscribeSetting(\.garminDisableWatchfaceData, on: $garminDisableWatchfaceData) { garminDisableWatchfaceData = $0 }
             subscribeSetting(\.confirmBolusFaster, on: $confirmBolusFaster) { confirmBolusFaster = $0 }
 
             devices = garmin.devices
@@ -62,10 +53,10 @@ extension WatchConfig {
             // Cancel any existing timer
             cooldownTimer?.invalidate()
 
-            // Set the cooldown end time (30 seconds from now)
-            cooldownEndTime = Date().addingTimeInterval(30)
+            // Set the cooldown end time (20 seconds from now)
+            cooldownEndTime = Date().addingTimeInterval(20)
             isDisableToggleLocked = true
-            remainingCooldownSeconds = 30
+            remainingCooldownSeconds = 20
 
             // Create a timer that fires every second
             cooldownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
