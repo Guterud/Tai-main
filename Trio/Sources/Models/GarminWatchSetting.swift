@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Garmin Data Type Setting
 
-enum GarminDataType: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
+enum GarminDataType1: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
 
     case cob
@@ -18,6 +18,24 @@ enum GarminDataType: String, JSON, CaseIterable, Identifiable, Codable, Hashable
     }
 }
 
+// MARK: - Garmin Data Type 2 Setting (Swissalpine-specific)
+
+enum GarminDataType2: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
+    var id: String { rawValue }
+
+    case tbr
+    case eventualBG
+
+    var displayName: String {
+        switch self {
+        case .tbr:
+            return String(localized: "TBR (Temp Basal Rate)", comment: "")
+        case .eventualBG:
+            return String(localized: "Eventual BG", comment: "")
+        }
+    }
+}
+
 // MARK: - Garmin Watchface Setting
 
 enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
@@ -25,6 +43,7 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
 
     case trio
     case swissalpine
+    case disabled
 
     var displayName: String {
         switch self {
@@ -32,6 +51,8 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
             return String(localized: "Trio original", comment: "")
         case .swissalpine:
             return String(localized: "Swissalpine xDrip+", comment: "")
+        case .disabled:
+            return String(localized: "Disabled", comment: "")
         }
     }
 
@@ -41,6 +62,8 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
             return UUID(uuidString: "EC3420F6-027D-49B3-B45F-D81D6D3ED90A")
         case .swissalpine:
             return UUID(uuidString: "5A643C13-D5A7-40D4-B809-84789FDF4A1F")
+        case .disabled:
+            return nil // No UUID when disabled
         }
     }
 
@@ -49,7 +72,9 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
         case .trio:
             return UUID(uuidString: "71CF0982-CA41-42A5-8441-EA81D36056C3")
         case .swissalpine:
-            return UUID(uuidString: "71CF0982-CA41-42A5-8441-EA81D36056C3") // Same for now, update if different
+            return UUID(uuidString: "71CF0982-CA41-42A5-8441-EA81D36056C3")
+        case .disabled:
+            return nil // No UUID when disabled
         }
     }
 }

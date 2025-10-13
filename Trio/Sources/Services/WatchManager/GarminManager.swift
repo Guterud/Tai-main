@@ -55,8 +55,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
     @Injected() private var iobService: IOBService!
 
-    @Injected() private var storage: FileStorage!
-
     /// Persists the user's device list between app launches.
     @Persisted(key: "BaseGarminManager.persistedDevices") private var persistedDevices: [GarminDevice] = []
 
@@ -99,7 +97,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     private var previousWatchface: GarminWatchface = .trio
 
     /// Track previous data type for change detection
-    private var previousDataType: GarminDataType = .cob
+    private var previousDataType1: GarminDataType1 = .cob
+
+    /// Track previous data type for change detection
+    private var previousDataType2: GarminDataType2 = .tbr
 
     /// Queue for handling Core Data change notifications
     private let queue = DispatchQueue(label: "BaseGarminManager.queue", qos: .utility)
@@ -135,7 +136,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         units = settingsManager.settings.units
 
         previousWatchface = settingsManager.settings.garminWatchface
-        previousDataType = settingsManager.settings.garminDataType
+        previousDataType1 = settingsManager.settings.garminDataType1
+        previousDataType2 = settingsManager.settings.garminDataType2
 
         broadcaster.register(SettingsObserver.self, observer: self)
 
@@ -160,6 +162,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 Task {
                     do {
                         let watchface = self.currentWatchface
+                        // Skip all processing if watchface is disabled
+                        if watchface == .disabled {
+                            debug(.watchManager, "⌚️ Garmin watchface disabled, skipping message queueing")
+                            return
+                        }
                         if watchface == .swissalpine {
                             let watchStates = try await self.setupGarminSwissAlpineWatchState()
                             let watchStateData = try JSONEncoder().encode(watchStates)
@@ -225,9 +232,15 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     }
 
     /// Safely gets the current Garmin data type setting
-    private var currentDataType: GarminDataType {
+    private var currentDataType1: GarminDataType1 {
         // Direct access since it's not optional
-        settingsManager.settings.garminDataType
+        settingsManager.settings.garminDataType1
+    }
+
+    /// Safely gets the current Garmin data type setting
+    private var currentDataType2: GarminDataType2 {
+        // Direct access since it's not optional
+        settingsManager.settings.garminDataType2
     }
 
     // MARK: - Internal Setup / Handlers
@@ -346,67 +359,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         }
     }
 
-    /// Gets the scheduled basal rate for a specific time from the basal profile.
-    /// - Parameters:
-    ///   - time: The time to check
-    ///   - profile: The basal profile entries
-    /// - Returns: The scheduled basal rate at that time, or nil if not found
-    private func getCurrentBasalRate(at time: Date, from profile: [BasalProfileEntry]) -> Decimal? {
-        if debugWatchState {
-            debug(.watchManager, "⌚️ getCurrentBasalRate - Profile entries: \(profile.count)")
-        }
-
-        let calendar = Calendar.current
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
-        guard let hours = timeComponents.hour, let minutes = timeComponents.minute else {
-            if debugWatchState {
-                debug(.watchManager, "⌚️ getCurrentBasalRate - Failed to get time components")
-            }
-            return nil
-        }
-
-        let totalMinutes = hours * 60 + minutes
-        if debugWatchState {
-            debug(.watchManager, "⌚️ getCurrentBasalRate - Looking for time: \(hours):\(minutes) (total: \(totalMinutes) minutes)")
-        }
-
-        // Special case: If profile has only one entry, it applies for full 24 hours
-        if profile.count == 1 {
-            if debugWatchState {
-                debug(.watchManager, "⌚️ getCurrentBasalRate - Single entry profile, rate: \(profile[0].rate)")
-            }
-            return profile[0].rate
-        }
-
-        // Find the applicable basal rate using binary search
-        var left = 0
-        var right = profile.count - 1
-
-        while left <= right {
-            let mid = (left + right) / 2
-            let entry = profile[mid]
-            let nextMinutes = mid + 1 < profile.count ? profile[mid + 1].minutes : 1440
-
-            if totalMinutes >= entry.minutes, totalMinutes < nextMinutes {
-                if debugWatchState {
-                    debug(.watchManager, "⌚️ getCurrentBasalRate - Found matching rate: \(entry.rate) at entry[\(mid)]")
-                }
-                return entry.rate
-            }
-
-            if totalMinutes < entry.minutes {
-                right = mid - 1
-            } else {
-                left = mid + 1
-            }
-        }
-
-        if debugWatchState {
-            debug(.watchManager, "⌚️ getCurrentBasalRate - No matching rate found after binary search")
-        }
-        return nil
-    }
-
     // MARK: - Debug Logging Methods
 
     private func logSwissAlpineWatchStates(_ watchStates: [GarminSwissAlpineWatchState]) {
@@ -504,12 +456,20 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     watchState.cob = Formatter.integerFormatter.string(from: cobNumber)
 
                     // Get the setting from settingsManager and only include sensRatio if setting is .sensRatio
-                    let currentDataType = self.currentDataType
-                    if currentDataType == .sensRatio {
+                    let currentDataType1 = self.currentDataType1
+                    if currentDataType1 == .sensRatio {
                         let sensRatio = latestDetermination.autoISFratio ?? 1
                         watchState.sensRatio = sensRatio.description
                     }
-                    // If garminDataType is .cob, sensRatio remains nil and won't be included in JSON
+                    // If garminDataType1 is .cob, sensRatio remains nil and won't be included in JSON
+
+                    // Get the setting from settingsManager and only include evBG if setting is .eventualBG
+                    let currentDataType2 = self.currentDataType1
+                    if currentDataType2 == .sensRatio {
+                        let sensRatio = latestDetermination.autoISFratio ?? 1
+                        watchState.sensRatio = sensRatio.description
+                    }
+                    // If garminDataType1 is .cob, sensRatio remains nil and won't be included in JSON
 
                     let insulinSensitivity = latestDetermination.insulinSensitivity ?? 0
                     let eventualBG = latestDetermination.eventualBG ?? 0
@@ -595,9 +555,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 predicate: NSPredicate.enactedDetermination
             )
 
-            // Fetch temp basal and basal profile for TBR
+            // Fetch temp basal from pump history
             let tempBasalIds = try await fetchTempBasals()
-            let basalProfile = await storage.retrieveAsync(OpenAPS.Settings.basalProfile, as: [BasalProfileEntry].self) ?? []
 
             // Turn those IDs into live NSManagedObjects
             let glucoseObjects: [GlucoseStored] = try await CoreDataStack.shared
@@ -614,9 +573,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 // Get units hint
                 let unitsHint = self.units == .mgdL ? "mgdl" : "mmol"
 
-                // Calculate IOB, COB, TBR, ISF, eventualBG once (they're the same for all entries)
+                // Calculate IOB once (same for all entries)
                 let iobValue = Double(self.iobService.currentIOB ?? 0).roundedDouble(toPlaces: 1)
 
+                // Calculate COB, sensRatio, ISF, eventualBG from determination
                 var cobValue: Double?
                 var sensRatioValue: Double?
                 var isfValue: Int16?
@@ -625,61 +585,81 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 if let latestDetermination = determinationObjects.first {
                     cobValue = Double(latestDetermination.cob).roundedDouble(toPlaces: 1)
 
-                    let currentDataType = self.currentDataType
-                    if currentDataType == .sensRatio {
+                    // Only include sensRatio if data type setting is .sensRatio
+                    let currentDataType1 = self.currentDataType1
+                    if currentDataType1 == .sensRatio {
                         let sensRatio = latestDetermination.autoISFratio ?? 1
                         sensRatioValue = Double(truncating: sensRatio as NSNumber).roundedDouble(toPlaces: 2)
                     }
 
+                    // ISF and eventualBG as raw values (no unit conversion)
                     isfValue = Int16(truncating: latestDetermination.insulinSensitivity ?? 0)
                     eventualBGValue = Int16(truncating: latestDetermination.eventualBG ?? 0)
                 }
 
-                // Calculate TBR
-                var tbrValue: Int16 = 100
-                if let lastTempBasal = tempBasalObjects.last?.tempBasal,
-                   let tempRate = lastTempBasal.rate,
-                   let scheduledRate = self.getCurrentBasalRate(at: Date(), from: basalProfile)
-                {
-                    let tbrPercentage = (Double(truncating: tempRate) / Double(scheduledRate)) * 100
-                    tbrValue = Int16(tbrPercentage.rounded())
+                let currentDataType2 = self.currentDataType2
+                var adjustedEventualBGValue: Int16? = eventualBGValue
+                if currentDataType2 == .tbr {
+                    // When TBR is selected, set eventualBG to nil (exclude from JSON)
+                    adjustedEventualBGValue = nil
+                    if self.debugWatchState {
+                        debug(.watchManager, "⌚️ SwissAlpine: TBR mode selected, excluding eventualBG from JSON")
+                    }
                 }
 
-                // Process each glucose reading
+                // Get current basal rate directly from temp basal (no percentage calculation)
+                var tbrValue: Double?
+                if let lastTempBasal = tempBasalObjects.last?.tempBasal,
+                   let tempRate = lastTempBasal.rate
+                {
+                    tbrValue = Double(truncating: tempRate).roundedDouble(toPlaces: 2)
+                    if self.debugWatchState {
+                        debug(.watchManager, "⌚️ Current basal rate: \(tbrValue ?? 0) U/hr")
+                    }
+                }
+
+                // Process each glucose reading (up to 24)
                 for (index, glucose) in glucoseObjects.enumerated() {
                     var watchState = GarminSwissAlpineWatchState()
 
-                    // Set timestamp for this glucose reading
+                    // Set timestamp for this glucose reading (in milliseconds)
                     if let glucoseDate = glucose.date {
                         watchState.date = UInt64(glucoseDate.timeIntervalSince1970 * 1000)
                     }
 
-                    // Set SGV and direction
+                    // Set SGV (raw value, no conversion)
                     watchState.sgv = Int16(glucose.glucose)
+
+                    // Set direction
                     watchState.direction = glucose.direction ?? "--"
 
                     // Calculate delta if we have a next reading
                     if index < glucoseObjects.count - 1 {
                         let deltaValue = glucose.glucose - glucoseObjects[index + 1].glucose
                         watchState.delta = Int16(deltaValue)
+                    } else {
+                        // Last entry has no delta
+                        watchState.delta = nil
                     }
 
-                    // Only include extended data for the most recent reading
+                    // Only include extended data for the most recent reading (index 0)
                     if index == 0 {
                         watchState.units_hint = unitsHint
                         watchState.iob = iobValue
                         watchState.cob = cobValue
-                        watchState.tbr = tbrValue
+                        watchState.tbr = tbrValue // Current basal rate in U/hr
                         watchState.isf = isfValue
-                        watchState.eventualBG = eventualBGValue
+                        watchState.eventualBG = adjustedEventualBGValue
                         watchState.sensRatio = sensRatioValue
+                        // noise is left as nil (will be excluded from JSON)
                     }
 
                     watchStates.append(watchState)
                 }
 
+                // Log the watch states if debugging is enabled
                 if self.debugWatchState {
-                    self.logSwissAlpineWatchStates(watchStates) // Call the array version
+                    self.logSwissAlpineWatchStates(watchStates)
                 }
 
                 return watchStates
@@ -860,6 +840,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// - Parameter data: JSON-encoded data representing the latest watch state. If decoding fails,
     ///   the method logs an error and does nothing else.
     func sendWatchStateData(_ data: Data) {
+        // Skip if watchface is disabled
+        if currentWatchface == .disabled {
+            debug(.watchManager, "Garmin: Watchface disabled, not sending data")
+            return
+        }
+
         guard let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []) else {
             debug(.watchManager, "Garmin: Invalid JSON for watch-state data")
             return
@@ -988,27 +974,29 @@ extension BaseGarminManager: SettingsObserver {
 
         // Check what changed by comparing with stored previous values
         let watchfaceChanged = previousWatchface != settings.garminWatchface
-        let dataTypeChanged = previousDataType != settings.garminDataType
+        let dataType1Changed = previousDataType1 != settings.garminDataType1
+        let dataType2Changed = previousDataType2 != settings.garminDataType2
         let unitsChanged = units != settings.units
 
-        // Update stored values
-        units = settings.units
-        previousWatchface = settings.garminWatchface
-        previousDataType = settings.garminDataType
-
-        // Debug what changed
+        // Debug what changed BEFORE updating stored values
         if watchfaceChanged {
             debug(
                 .watchManager,
                 "Garmin: Watchface changed from \(previousWatchface.displayName) to \(settings.garminWatchface.displayName)"
             )
-            registerDevices(devices)
         }
 
-        if dataTypeChanged {
+        if dataType1Changed {
             debug(
                 .watchManager,
-                "Garmin: Data type changed from \(previousDataType.displayName) to \(settings.garminDataType.displayName)"
+                "Garmin: Data type 1 changed from \(previousDataType1.displayName) to \(settings.garminDataType1.displayName)"
+            )
+        }
+
+        if dataType2Changed {
+            debug(
+                .watchManager,
+                "Garmin: Data type 2 changed from \(previousDataType2.displayName) to \(settings.garminDataType2.displayName)"
             )
         }
 
@@ -1016,15 +1004,38 @@ extension BaseGarminManager: SettingsObserver {
             debug(.watchManager, "Garmin: Units changed")
         }
 
-        // If any setting changed, update watch state
-        if watchfaceChanged || dataTypeChanged || unitsChanged {
+        // NOW update stored values AFTER logging the changes
+        units = settings.units
+        previousWatchface = settings.garminWatchface
+        previousDataType1 = settings.garminDataType1
+        previousDataType2 = settings.garminDataType2
+
+        // Handle watchface change
+        if watchfaceChanged {
+            if settings.garminWatchface == .disabled {
+                watchApps.removeAll()
+                debug(.watchManager, "Garmin: Cleared all watch apps due to disabled state")
+                return // Exit early when disabled
+            } else {
+                registerDevices(devices)
+            }
+        }
+
+        // Check if disabled before sending updates
+        if settings.garminWatchface == .disabled {
+            debug(.watchManager, "Garmin: Watchface is disabled, skipping watch state update")
+            return
+        }
+
+        // If any setting changed and we're not disabled, update watch state
+        if watchfaceChanged || dataType1Changed || dataType2Changed || unitsChanged {
             Task {
                 do {
                     if settings.garminWatchface == .swissalpine {
                         let watchStates = try await self.setupGarminSwissAlpineWatchState()
                         let watchStateData = try JSONEncoder().encode(watchStates)
                         self.sendWatchStateData(watchStateData)
-                    } else {
+                    } else { // Must be .trio
                         let watchState = try await self.setupGarminTrioWatchState()
                         let watchStateData = try JSONEncoder().encode(watchState)
                         self.sendWatchStateData(watchStateData)

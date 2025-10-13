@@ -8,15 +8,17 @@ extension WatchConfig {
         @Published var units: GlucoseUnits = .mgdL
         @Published var devices: [IQDevice] = []
         @Published var confirmBolusFaster = false
-        @Published var garminDataType: GarminDataType = .cob
         @Published var garminWatchface: GarminWatchface = .trio
+        @Published var garminDataType1: GarminDataType1 = .cob
+        @Published var garminDataType2: GarminDataType2 = .tbr
 
         private(set) var preferences = Preferences()
 
         override func subscribe() {
             preferences = provider.preferences
             units = settingsManager.settings.units
-            subscribeSetting(\.garminDataType, on: $garminDataType) { garminDataType = $0 }
+            subscribeSetting(\.garminDataType1, on: $garminDataType1) { garminDataType1 = $0 }
+            subscribeSetting(\.garminDataType2, on: $garminDataType2) { garminDataType2 = $0 }
             subscribeSetting(\.garminWatchface, on: $garminWatchface) { garminWatchface = $0 }
             subscribeSetting(\.confirmBolusFaster, on: $confirmBolusFaster) { confirmBolusFaster = $0 }
 

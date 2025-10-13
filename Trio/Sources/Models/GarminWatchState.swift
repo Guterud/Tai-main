@@ -75,7 +75,7 @@ struct GarminSwissAlpineWatchState: Hashable, Equatable, Sendable, Encodable {
     var noise: Double?
     var units_hint: String?
     var iob: Double?
-    var tbr: Int16?
+    var tbr: Double?
     var cob: Double?
     var eventualBG: Int16?
     var isf: Int16?
