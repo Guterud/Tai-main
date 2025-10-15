@@ -129,7 +129,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
         restoreDevices()
         subscribeToOpenFromGarminConnect()
-        // Note: subscribeToWatchState() removed - using manual timer management
+        subscribeToDeterminationThrottle()
+        // Note: Old subscribeToWatchState() removed - using manual timer management for 30s
 
         units = settingsManager.settings.units
 
@@ -204,7 +205,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             }
             .store(in: &subscriptions)
 
-        // IOB updates - smart throttling (only sends if no immediate update happened)
+        // IOB updates - publish to determinationSubject (same pipeline as determinations)
+        // Since IOB and determinations fire simultaneously, this prevents duplicates
         iobService.iobPublisher
             .receive(on: DispatchQueue.global(qos: .background))
             .sink { [weak self] _ in
@@ -217,8 +219,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     guard !self.devices.isEmpty else { return }
                 #endif
 
-                self.throttledUpdatePending = true
-
                 Task {
                     do {
                         let watchface = self.currentWatchface
@@ -226,12 +226,14 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                             let watchStates = try await self.setupGarminSwissAlpineWatchState()
                             let watchStateData = try JSONEncoder().encode(watchStates)
                             self.currentSendTrigger = "IOB-Update"
-                            self.sendWatchStateDataWithSmartThrottle(watchStateData)
+                            // Use same throttled pipeline as determinations
+                            self.determinationSubject.send(watchStateData)
                         } else {
                             let watchState = try await self.setupGarminTrioWatchState()
                             let watchStateData = try JSONEncoder().encode(watchState)
                             self.currentSendTrigger = "IOB-Update"
-                            self.sendWatchStateDataWithSmartThrottle(watchStateData)
+                            // Use same throttled pipeline as determinations
+                            self.determinationSubject.send(watchStateData)
                         }
                     } catch {
                         debug(
@@ -276,7 +278,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Sets up handlers for OrefDetermination and GlucoseStored entity changes in CoreData.
     /// When these change, we re-compute the Garmin watch state and send updates to the watch.
     private func registerHandlers() {
-        // OrefDetermination - ALWAYS immediate send
+        // OrefDetermination - publish to determinationSubject for Combine throttling
         coreDataPublisher?
             .filteredByEntityName("OrefDetermination")
             .sink { [weak self] _ in
@@ -296,16 +298,15 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                             let watchStates = try await self.setupGarminSwissAlpineWatchState()
                             let watchStateData = try JSONEncoder().encode(watchStates)
                             self.currentSendTrigger = "Determination"
-                            self.sendWatchStateDataImmediately(watchStateData)
-                            self.lastImmediateSendTime = Date()
+                            // Publish to subject for throttling - Combine will dedupe
+                            self.determinationSubject.send(watchStateData)
                         } else {
                             let watchState = try await self.setupGarminTrioWatchState()
                             let watchStateData = try JSONEncoder().encode(watchState)
                             self.currentSendTrigger = "Determination"
-                            self.sendWatchStateDataImmediately(watchStateData)
-                            self.lastImmediateSendTime = Date()
+                            // Publish to subject for throttling - Combine will dedupe
+                            self.determinationSubject.send(watchStateData)
                         }
-                        debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Determination sent immediately")
                     } catch {
                         debug(
                             .watchManager,
@@ -343,81 +344,62 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         }
     }
 
-    /// Smart throttle function with manual timer management
-    private func sendWatchStateDataWithSmartThrottle(_ data: Data) {
-        // Check if an immediate send happened recently
-        if let lastImmediate = lastImmediateSendTime,
-           Date().timeIntervalSince(lastImmediate) < 30
-        {
+    /// 30-second throttle for Status/Settings updates
+    private func sendWatchStateDataWith30sThrottle(_ data: Data) {
+        // Store the latest data (always keep the newest)
+        pendingThrottledData30s = data
+
+        // If timer is already running, just update data - DON'T restart timer
+        if throttleTimer30s?.isValid == true {
             debug(
                 .watchManager,
-                "[\(formatTimeForLog())] Garmin: Throttled update cancelled - immediate send \(Int(Date().timeIntervalSince(lastImmediate)))s ago"
+                "[\(formatTimeForLog())] Garmin: 30s throttle timer running, data updated [Trigger: \(currentSendTrigger)]"
             )
-            throttledUpdatePending = false
             return
         }
 
-        // Store the latest data (always keep the newest)
-        pendingThrottledData = data
-
-        // If timer is already running, invalidate and restart it to ensure fresh 30s window
-        if let existingTimer = throttleTimer, existingTimer.isValid {
-            debug(.watchManager, "[\(formatTimeForLog())] Garmin: Restarting throttle timer with newer data")
-            existingTimer.invalidate()
-            throttleTimer = nil
-        }
-
-        // Create timer on main thread to ensure it runs
+        // Start new 30s timer ONLY if none exists
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
 
-            self.throttleTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
+            self.throttleTimer30s = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
                 guard let self = self,
-                      let dataToSend = self.pendingThrottledData
+                      let dataToSend = self.pendingThrottledData30s
                 else {
                     return
                 }
 
-                // Check one more time if immediate send happened while we were waiting
+                // Check if immediate send (determination/IOB) happened while we were waiting
                 if let lastImmediate = self.lastImmediateSendTime,
                    Date().timeIntervalSince(lastImmediate) < 5
                 {
-                    debug(
-                        .watchManager,
-                        "[\(self.formatTimeForLog())] Garmin: Timer-triggered send cancelled - recent immediate send"
-                    )
-                    self.throttleTimer = nil
-                    self.pendingThrottledData = nil
+                    debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: 30s timer cancelled - recent determination/IOB send")
+                    self.throttleTimer30s = nil
+                    self.pendingThrottledData30s = nil
                     self.throttledUpdatePending = false
                     return
                 }
 
                 // Convert data to JSON object for sending
                 guard let jsonObject = try? JSONSerialization.jsonObject(with: dataToSend, options: []) else {
-                    debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Invalid JSON in throttled data")
-                    self.throttleTimer = nil
-                    self.pendingThrottledData = nil
+                    debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Invalid JSON in 30s throttled data")
+                    self.throttleTimer30s = nil
+                    self.pendingThrottledData30s = nil
                     self.throttledUpdatePending = false
                     return
                 }
 
-                debug(
-                    .watchManager,
-                    "[\(self.formatTimeForLog())] Garmin: Timer fired - sending update after 30s [Trigger: \(self.currentSendTrigger)]"
-                )
+                debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: 30s timer fired - sending collected updates")
                 self.broadcastStateToWatchApps(jsonObject as Any)
 
                 // Clean up
-                self.throttleTimer = nil
-                self.pendingThrottledData = nil
+                self.throttleTimer30s = nil
+                self.pendingThrottledData30s = nil
                 self.throttledUpdatePending = false
             }
 
             self.throttledUpdatePending = true
-            debug(
-                .watchManager,
-                "[\(self.formatTimeForLog())] Garmin: New throttle timer started - will fire in 30s [Trigger: \(self.currentSendTrigger)]"
-            )
+            debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: 30s throttle timer started")
         }
     }
 
@@ -911,6 +893,27 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             .store(in: &cancellables)
     }
 
+    /// Subscribes to determination updates with 10s throttle (first goes through, rest discarded)
+    /// Also handles IOB updates since they fire simultaneously with determinations
+    private func subscribeToDeterminationThrottle() {
+        determinationSubject
+            .throttle(for: .seconds(10), scheduler: DispatchQueue.main, latest: false)
+            .sink { [weak self] data in
+                guard let self = self else { return }
+
+                // Convert data to JSON object for sending
+                guard let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []) else {
+                    debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Invalid JSON in determination data")
+                    return
+                }
+
+                debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Sending determination/IOB (10s throttle passed)")
+                self.lastImmediateSendTime = Date() // Mark for any 30s timers (status requests, settings)
+                self.broadcastStateToWatchApps(jsonObject as Any)
+            }
+            .store(in: &cancellables)
+    }
+
     // Note: Old subscribeToWatchState() removed - using manual timer management instead
 
     // MARK: - Parsing & Broadcasting
@@ -994,7 +997,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Only used for throttled updates (IOB, DataType changes)
     /// - Parameter data: JSON-encoded data representing the latest watch state.
     func sendWatchStateData(_ data: Data) {
-        sendWatchStateDataWithSmartThrottle(data)
+        sendWatchStateDataWith30sThrottle(data)
     }
 
     /// Sends watch state data immediately, bypassing the 30-second throttling
@@ -1025,13 +1028,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     private var failedSendCount = 0
     private var connectionAlertShown = false
 
-    // Manual throttle management
-    private var throttleTimer: Timer?
-    private var pendingThrottledData: Data?
+    // Manual throttle for 30s updates
+    private var throttleTimer30s: Timer?
+    private var pendingThrottledData30s: Data?
 
-    // Determination de-duplication
-    private var lastProcessedDeterminationTime: Date?
-    private let determinationDebounceInterval: TimeInterval = 10 // 10 seconds
+    // Combine subject for 10s throttled Determinations
+    private let determinationSubject = PassthroughSubject<Data, Never>()
 
     // MARK: - Helper: Sending Messages
 
@@ -1186,14 +1188,14 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
                     let watchStates = try await self.setupGarminSwissAlpineWatchState()
                     let watchStateData = try JSONEncoder().encode(watchStates)
                     self.currentSendTrigger = "Status-Request"
-                    // Use throttled send to prevent status request spam
-                    self.sendWatchStateDataWithSmartThrottle(watchStateData)
+                    // Use 30s throttle to prevent status request spam
+                    self.sendWatchStateDataWith30sThrottle(watchStateData)
                 } else {
                     let watchState = try await self.setupGarminTrioWatchState()
                     let watchStateData = try JSONEncoder().encode(watchState)
                     self.currentSendTrigger = "Status-Request"
-                    // Use throttled send to prevent status request spam
-                    self.sendWatchStateDataWithSmartThrottle(watchStateData)
+                    // Use 30s throttle to prevent status request spam
+                    self.sendWatchStateDataWith30sThrottle(watchStateData)
                 }
                 debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Status request queued for throttled send")
             } catch {
@@ -1319,15 +1321,15 @@ extension BaseGarminManager: SettingsObserver {
                         let watchStates = try await self.setupGarminSwissAlpineWatchState()
                         let watchStateData = try JSONEncoder().encode(watchStates)
                         self.currentSendTrigger = "Settings-DataType"
-                        // DataType changes use smart throttling
-                        self.sendWatchStateDataWithSmartThrottle(watchStateData)
+                        // DataType changes use 30s throttling
+                        self.sendWatchStateDataWith30sThrottle(watchStateData)
                         debug(.watchManager, "Garmin: Throttled update queued for data type change")
                     } else { // Must be .trio
                         let watchState = try await self.setupGarminTrioWatchState()
                         let watchStateData = try JSONEncoder().encode(watchState)
                         self.currentSendTrigger = "Settings-DataType"
-                        // DataType changes use smart throttling
-                        self.sendWatchStateDataWithSmartThrottle(watchStateData)
+                        // DataType changes use 30s throttling
+                        self.sendWatchStateDataWith30sThrottle(watchStateData)
                         debug(.watchManager, "Garmin: Throttled update queued for data type change")
                     }
                 } catch {
