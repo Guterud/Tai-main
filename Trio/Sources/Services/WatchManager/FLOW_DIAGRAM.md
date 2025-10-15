@@ -22,27 +22,42 @@
         │         (PassthroughSubject<Data, Never>)            │
         └──────────────────┬───────────────────────────────────┘
                            │
-                           │  .throttle(for: .seconds(10),
+                           │  .throttle(for: .seconds(20),
                            │            latest: false)
                            ↓
         ┌──────────────────────────────────────────────────────┐
         │              Combine Throttle Logic                   │
+        │   .throttle(for: .seconds(20), latest: false)        │
         │                                                       │
         │  ┌────────────────────────────────────┐             │
-        │  │ Event 1 (t=0s)    → SEND ✅        │             │
+        │  │ Event 1 (t=0s)    → HOLD 📦        │             │
+        │  │   [Start 20s timer]                │             │
         │  │ Event 2 (t=0.5s)  → DROP ❌        │             │
         │  │ Event 3 (t=1s)    → DROP ❌        │             │
-        │  │ Event 4 (t=10.1s) → SEND ✅        │             │
+        │  │ Event 4 (t=5s)    → DROP ❌        │             │
+        │  │ [t=20s: Timer fires]               │             │
+        │  │   → SEND Event 1 ✅                │             │
+        │  │                                    │             │
+        │  │ Event 5 (t=20.1s) → HOLD 📦        │             │
+        │  │   [Start new 20s timer]            │             │
+        │  │ Event 6 (t=23s)   → DROP ❌        │             │
+        │  │ [t=40.1s: Timer fires]             │             │
+        │  │   → SEND Event 5 ✅                │             │
         │  └────────────────────────────────────┘             │
+        │                                                       │
+        │  Pattern: HOLD first → DROP rest → SEND after 20s  │
         └──────────────────┬───────────────────────────────────┘
                            │
                            ↓
         ┌──────────────────────────────────────────────────────┐
         │         subscribeToDeterminationThrottle()            │
         │                                                       │
+        │  • Check if recent watchface change (<25s)           │
+        │    - If yes: Don't cache (might be old format) ⚠️    │
+        │    - If no: Cache data ✅                            │
         │  • Convert Data → JSON                               │
         │  • Set lastImmediateSendTime                         │
-        │  • Log: "Sending determination/IOB"                  │
+        │  • Log: "Sending determination/IOB" (if enabled)     │
         └──────────────────┬───────────────────────────────────┘
                            │
                            ↓
