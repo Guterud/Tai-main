@@ -165,28 +165,34 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         let determinationIds = try await self.determinationStorage.fetchLastDeterminationObjectID(
                             predicate: NSPredicate.enactedDetermination
                         )
-                        
+
                         let loopAge = await self.getLoopAge(determinationIds)
-                        
+
                         // Only send if loop is stale (> 8 minutes)
                         if loopAge > 480 { // 8 minutes in seconds
                             let watchface = self.currentWatchface
                             if watchface == .swissalpine {
                                 let watchStates = try await self.setupGarminSwissAlpineWatchState()
                                 let watchStateData = try JSONEncoder().encode(watchStates)
-                                self.currentSendTrigger = "Glucose-Stale-Loop (\(Int(loopAge/60))m)"
+                                self.currentSendTrigger = "Glucose-Stale-Loop (\(Int(loopAge / 60))m)"
                                 self.sendWatchStateDataImmediately(watchStateData)
                                 self.lastImmediateSendTime = Date()
                             } else {
                                 let watchState = try await self.setupGarminTrioWatchState()
                                 let watchStateData = try JSONEncoder().encode(watchState)
-                                self.currentSendTrigger = "Glucose-Stale-Loop (\(Int(loopAge/60))m)"
+                                self.currentSendTrigger = "Glucose-Stale-Loop (\(Int(loopAge / 60))m)"
                                 self.sendWatchStateDataImmediately(watchStateData)
                                 self.lastImmediateSendTime = Date()
                             }
-                            debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Glucose sent immediately - loop age > 8 min (\(Int(loopAge/60))m)")
+                            debug(
+                                .watchManager,
+                                "[\(self.formatTimeForLog())] Garmin: Glucose sent immediately - loop age > 8 min (\(Int(loopAge / 60))m)"
+                            )
                         } else {
-                            debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Glucose skipped - loop age \(Int(loopAge/60))m < 8m")
+                            debug(
+                                .watchManager,
+                                "[\(self.formatTimeForLog())] Garmin: Glucose skipped - loop age \(Int(loopAge / 60))m < 8m"
+                            )
                         }
                     } catch {
                         debug(
@@ -318,17 +324,18 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Helper to get loop age in seconds
     private func getLoopAge(_ determinationIds: [NSManagedObjectID]) async -> TimeInterval {
         guard !determinationIds.isEmpty else { return .infinity }
-        
+
         do {
             let determinations: [OrefDetermination] = try await CoreDataStack.shared
                 .getNSManagedObject(with: determinationIds, context: backgroundContext)
-            
+
             return await backgroundContext.perform {
                 guard let latest = determinations.first,
-                      let timestamp = latest.timestamp else {
+                      let timestamp = latest.timestamp
+                else {
                     return TimeInterval.infinity
                 }
-                
+
                 return Date().timeIntervalSince(timestamp)
             }
         } catch {
@@ -340,59 +347,78 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     private func sendWatchStateDataWithSmartThrottle(_ data: Data) {
         // Check if an immediate send happened recently
         if let lastImmediate = lastImmediateSendTime,
-           Date().timeIntervalSince(lastImmediate) < 30 {
-            debug(.watchManager, "[\(formatTimeForLog())] Garmin: Throttled update cancelled - immediate send \(Int(Date().timeIntervalSince(lastImmediate)))s ago")
+           Date().timeIntervalSince(lastImmediate) < 30
+        {
+            debug(
+                .watchManager,
+                "[\(formatTimeForLog())] Garmin: Throttled update cancelled - immediate send \(Int(Date().timeIntervalSince(lastImmediate)))s ago"
+            )
             throttledUpdatePending = false
             return
         }
-        
+
         // Store the latest data (always keep the newest)
         pendingThrottledData = data
-        
-        // If timer is already running, let it continue with the new data
-        if throttleTimer?.isValid == true {
-            debug(.watchManager, "[\(formatTimeForLog())] Garmin: Throttle timer already running, updated with newer data")
-            return
+
+        // If timer is already running, invalidate and restart it to ensure fresh 30s window
+        if let existingTimer = throttleTimer, existingTimer.isValid {
+            debug(.watchManager, "[\(formatTimeForLog())] Garmin: Restarting throttle timer with newer data")
+            existingTimer.invalidate()
+            throttleTimer = nil
         }
-        
-        // Start new 30s timer
-        throttleTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] timer in
-            guard let self = self,
-                  let dataToSend = self.pendingThrottledData else {
-                timer.invalidate()
-                return
-            }
-            
-            // Check one more time if immediate send happened while we were waiting
-            if let lastImmediate = self.lastImmediateSendTime,
-               Date().timeIntervalSince(lastImmediate) < 5 {
-                debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Timer-triggered send cancelled - recent immediate send")
+
+        // Create timer on main thread to ensure it runs
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
+            self.throttleTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
+                guard let self = self,
+                      let dataToSend = self.pendingThrottledData
+                else {
+                    return
+                }
+
+                // Check one more time if immediate send happened while we were waiting
+                if let lastImmediate = self.lastImmediateSendTime,
+                   Date().timeIntervalSince(lastImmediate) < 5
+                {
+                    debug(
+                        .watchManager,
+                        "[\(self.formatTimeForLog())] Garmin: Timer-triggered send cancelled - recent immediate send"
+                    )
+                    self.throttleTimer = nil
+                    self.pendingThrottledData = nil
+                    self.throttledUpdatePending = false
+                    return
+                }
+
+                // Convert data to JSON object for sending
+                guard let jsonObject = try? JSONSerialization.jsonObject(with: dataToSend, options: []) else {
+                    debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Invalid JSON in throttled data")
+                    self.throttleTimer = nil
+                    self.pendingThrottledData = nil
+                    self.throttledUpdatePending = false
+                    return
+                }
+
+                debug(
+                    .watchManager,
+                    "[\(self.formatTimeForLog())] Garmin: Timer fired - sending update after 30s [Trigger: \(self.currentSendTrigger)]"
+                )
+                self.broadcastStateToWatchApps(jsonObject as Any)
+
+                // Clean up
                 self.throttleTimer = nil
                 self.pendingThrottledData = nil
                 self.throttledUpdatePending = false
-                return
             }
-            
-            // Convert data to JSON object for sending
-            guard let jsonObject = try? JSONSerialization.jsonObject(with: dataToSend, options: []) else {
-                debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Invalid JSON in throttled data")
-                self.throttleTimer = nil
-                self.pendingThrottledData = nil
-                self.throttledUpdatePending = false
-                return
-            }
-            
-            debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Sending update after 30s timer [Trigger: \(self.currentSendTrigger)]")
-            self.broadcastStateToWatchApps(jsonObject as Any)
-            
-            // Clean up
-            self.throttleTimer = nil
-            self.pendingThrottledData = nil
-            self.throttledUpdatePending = false
+
+            self.throttledUpdatePending = true
+            debug(
+                .watchManager,
+                "[\(self.formatTimeForLog())] Garmin: New throttle timer started - will fire in 30s [Trigger: \(self.currentSendTrigger)]"
+            )
         }
-        
-        throttledUpdatePending = true
-        debug(.watchManager, "[\(formatTimeForLog())] Garmin: Throttle timer started - will send in 30s [Trigger: \(currentSendTrigger)]")
     }
 
     /// Fetches recent glucose readings from CoreData, up to specified limit.
@@ -791,7 +817,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
         return formatter.string(from: value as NSNumber) ?? "\(value)"
     }
-    
+
     /// Formats a Date to HH:mm:ss string for logging
     private func formatTimeForLog(_ date: Date = Date()) -> String {
         let formatter = DateFormatter()
@@ -907,9 +933,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         // Log connection health status if we have failures
         if failedSendCount > 0 {
             let timeSinceLastSuccess = lastSuccessfulSendTime.map { Date().timeIntervalSince($0) } ?? .infinity
-            debug(.watchManager, "[\(formatTimeForLog())] Garmin: Broadcasting with \(failedSendCount) recent failures. Last success: \(Int(timeSinceLastSuccess))s ago")
+            debug(
+                .watchManager,
+                "[\(formatTimeForLog())] Garmin: Broadcasting with \(failedSendCount) recent failures. Last success: \(Int(timeSinceLastSuccess))s ago"
+            )
         }
-        
+
         watchApps.forEach { app in
             // Check if this is the watchface app
             let watchface = currentWatchface
@@ -990,16 +1019,20 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
     // Track current send trigger for debugging
     private var currentSendTrigger: String = "Unknown"
-    
+
     // Track connection health
     private var lastSuccessfulSendTime: Date?
     private var failedSendCount = 0
     private var connectionAlertShown = false
-    
+
     // Manual throttle management
     private var throttleTimer: Timer?
     private var pendingThrottledData: Data?
-    
+
+    // Determination de-duplication
+    private var lastProcessedDeterminationTime: Date?
+    private let determinationDebounceInterval: TimeInterval = 10 // 10 seconds
+
     // MARK: - Helper: Sending Messages
 
     /// Sends a message to a given IQApp with optional progress and completion callbacks.
@@ -1030,13 +1063,19 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     self.failedSendCount = 0
                     self.lastSuccessfulSendTime = Date()
                     self.connectionAlertShown = false // Reset alert flag on success
-                    debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Successfully sent message to \(app.uuid!) [Trigger: \(self.currentSendTrigger)]")
+                    debug(
+                        .watchManager,
+                        "[\(self.formatTimeForLog())] Garmin: Successfully sent message to \(app.uuid!) [Trigger: \(self.currentSendTrigger)]"
+                    )
                 default:
                     self.failedSendCount += 1
-                    debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: FAILED to send to \(app.uuid!) [Trigger: \(self.currentSendTrigger)] (Failure #\(self.failedSendCount))")
-                    
+                    debug(
+                        .watchManager,
+                        "[\(self.formatTimeForLog())] Garmin: FAILED to send to \(app.uuid!) [Trigger: \(self.currentSendTrigger)] (Failure #\(self.failedSendCount))"
+                    )
+
                     // After 3 consecutive failures, show alert (but only once)
-                    if self.failedSendCount >= 3 && !self.connectionAlertShown {
+                    if self.failedSendCount >= 3, !self.connectionAlertShown {
                         self.showConnectionLostAlert()
                         self.connectionAlertShown = true
                     }
@@ -1044,7 +1083,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             }
         )
     }
-    
+
     /// Shows an alert when Garmin connection is lost
     private func showConnectionLostAlert() {
         let messageCont = MessageContent(
@@ -1054,7 +1093,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             title: "Garmin Connection Lost"
         )
         router.alertMessage.send(messageCont)
-        
+
         debug(.watchManager, "[\(formatTimeForLog())] Garmin: Connection lost alert shown to user")
     }
 }
@@ -1132,8 +1171,12 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
 
             // Check if we sent an update very recently (within last 10 seconds)
             if let lastImmediate = self.lastImmediateSendTime,
-               Date().timeIntervalSince(lastImmediate) < 10 {
-                debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Status request ignored - just sent update \(Int(Date().timeIntervalSince(lastImmediate)))s ago")
+               Date().timeIntervalSince(lastImmediate) < 10
+            {
+                debug(
+                    .watchManager,
+                    "[\(self.formatTimeForLog())] Garmin: Status request ignored - just sent update \(Int(Date().timeIntervalSince(lastImmediate)))s ago"
+                )
                 return
             }
 
@@ -1230,12 +1273,14 @@ extension BaseGarminManager: SettingsObserver {
         }
 
         // Determine which type of update is needed (if any)
-        let needsImmediateUpdate = (unitsChanged ||
-                                    (disabledChanged && !settings.garminDisableWatchfaceData)) &&
-                                   !watchfaceChanged  // Don't send if only watchface changed
-        
+        let needsImmediateUpdate = (
+            unitsChanged ||
+                (disabledChanged && !settings.garminDisableWatchfaceData)
+        ) &&
+            !watchfaceChanged // Don't send if only watchface changed
+
         let needsThrottledUpdate = (dataType1Changed || dataType2Changed) &&
-                                   !watchfaceChanged  // Don't send if only watchface changed
+            !watchfaceChanged // Don't send if only watchface changed
 
         // Send immediate update for critical changes
         if needsImmediateUpdate {
