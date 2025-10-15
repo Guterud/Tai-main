@@ -373,7 +373,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 if let lastImmediate = self.lastImmediateSendTime,
                    Date().timeIntervalSince(lastImmediate) < 5
                 {
-                    debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: 30s timer cancelled - recent determination/IOB send")
+                    debug(
+                        .watchManager,
+                        "[\(self.formatTimeForLog())] Garmin: 30s timer cancelled - recent determination/IOB send"
+                    )
                     self.throttleTimer30s = nil
                     self.pendingThrottledData30s = nil
                     self.throttledUpdatePending = false
@@ -897,7 +900,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Also handles IOB updates since they fire simultaneously with determinations
     private func subscribeToDeterminationThrottle() {
         determinationSubject
-            .throttle(for: .seconds(10), scheduler: DispatchQueue.main, latest: false)
+            .throttle(for: .seconds(20), scheduler: DispatchQueue.main, latest: false)
             .sink { [weak self] data in
                 guard let self = self else { return }
 
