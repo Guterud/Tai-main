@@ -530,7 +530,7 @@ extension Home {
                     isLooping: state.isLooping,
                     lastLoopDate: state.lastLoopDate,
                     manualTempBasal: state.manualTempBasal,
-                    determination: getMostRecentDetermination().map { [$0] } ?? []
+                    determination: state.determinationsFromPersistence
                 )
                 .onTapGesture {
                     state.isStatusPopupPresented.toggle()
