@@ -594,31 +594,52 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         return UInt64($0.timeIntervalSince1970)
                     }
 
-                    let cobNumber = NSNumber(value: latestDetermination.cob)
-                    watchState.cob = Formatter.integerFormatter.string(from: cobNumber)
+                    // COB with validation
+                    let cobDouble = Double(latestDetermination.cob)
+                    if cobDouble.isFinite, !cobDouble.isNaN, cobDouble >= 0 {
+                        let cobNumber = NSNumber(value: latestDetermination.cob)
+                        watchState.cob = Formatter.integerFormatter.string(from: cobNumber)
+                    }
 
                     // Get the setting from settingsManager and only include sensRatio if setting is .sensRatio
                     let currentDataType1 = self.currentDataType1
                     if currentDataType1 == .sensRatio {
-                        let sensRatio = latestDetermination.autoISFratio ?? 1
-                        watchState.sensRatio = sensRatio.description
+                        if let sensRatio = latestDetermination.autoISFratio {
+                            let sensRatioDouble = Double(truncating: sensRatio as NSNumber)
+                            if sensRatioDouble.isFinite, !sensRatioDouble.isNaN, sensRatioDouble > 0 {
+                                watchState.sensRatio = sensRatio.description
+                            } else {
+                                // Invalid ratio - default to 1.0 (no adjustment)
+                                watchState.sensRatio = "1.0"
+                            }
+                        } else {
+                            // Nil ratio - default to 1.0 (no adjustment)
+                            watchState.sensRatio = "1.0"
+                        }
                     }
 
-                    let eventualBG = latestDetermination.eventualBG ?? 0
-                    if self.units == .mgdL {
-                        watchState.eventualBGRaw = eventualBG.description
-                    } else {
-                        let parsedEventualBG = Double(truncating: eventualBG).asMmolL
-                        watchState.eventualBGRaw = parsedEventualBG.description
+                    // EventualBG with validation (stored as Int16 mg/dL in CoreData)
+                    if let eventualBG = latestDetermination.eventualBG as? Int16 {
+                        if eventualBG >= 0, eventualBG <= 500 {
+                            if self.units == .mgdL {
+                                watchState.eventualBGRaw = eventualBG.description
+                            } else {
+                                let parsedEventualBG = Double(eventualBG).asMmolL
+                                watchState.eventualBGRaw = parsedEventualBG.description
+                            }
+                        }
                     }
 
-                    let insulinSensitivity = latestDetermination.insulinSensitivity ?? 0
-
-                    if self.units == .mgdL {
-                        watchState.isf = insulinSensitivity.description
-                    } else {
-                        let parsedIsf = Double(truncating: insulinSensitivity).asMmolL
-                        watchState.isf = parsedIsf.description
+                    // ISF with validation (stored as Int16 mg/dL in CoreData)
+                    if let insulinSensitivity = latestDetermination.insulinSensitivity as? Int16 {
+                        if insulinSensitivity > 0, insulinSensitivity <= 300 {
+                            if self.units == .mgdL {
+                                watchState.isf = insulinSensitivity.description
+                            } else {
+                                let parsedIsf = Double(insulinSensitivity).asMmolL
+                                watchState.isf = parsedIsf.description
+                            }
+                        }
                     }
                 }
 
@@ -733,15 +754,20 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     // Only include sensRatio if data type setting is .sensRatio
                     let currentDataType1 = self.currentDataType1
                     if currentDataType1 == .sensRatio {
-                        let sensRatio = latestDetermination.autoISFratio ?? 1
-                        let sensRatioDouble = Double(truncating: sensRatio as NSNumber)
-                        if sensRatioDouble.isFinite, !sensRatioDouble.isNaN {
-                            sensRatioValue = sensRatioDouble
-                        } else {
-                            sensRatioValue = nil
-                            if self.debugWatchState {
-                                debug(.watchManager, "⌚️ SwissAlpine: SensRatio is NaN or infinite, excluding from data")
+                        if let sensRatio = latestDetermination.autoISFratio {
+                            let sensRatioDouble = Double(truncating: sensRatio as NSNumber)
+                            if sensRatioDouble.isFinite, !sensRatioDouble.isNaN, sensRatioDouble > 0 {
+                                sensRatioValue = sensRatioDouble
+                            } else {
+                                // Invalid ratio - default to 1.0 (no adjustment)
+                                sensRatioValue = 1.0
+                                if self.debugWatchState {
+                                    debug(.watchManager, "⌚️ SwissAlpine: SensRatio is NaN or infinite, using default 1.0")
+                                }
                             }
+                        } else {
+                            // Nil ratio - default to 1.0 (no adjustment)
+                            sensRatioValue = 1.0
                         }
                     }
 
