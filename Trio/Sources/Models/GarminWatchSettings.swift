@@ -4,6 +4,7 @@ import Foundation
 
 /// Primary data type selection for Garmin watchface and datafield.
 /// Determines whether to display COB or Sensitivity Ratio alongside glucose data.
+/// Used by both Trio and SwissAlpine watchfaces.
 enum GarminDataType1: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
 
@@ -20,7 +21,7 @@ enum GarminDataType1: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
     }
 }
 
-/// Secondary data type selection for SwissAlpine watchface only.
+/// Secondary data type selection for both Trio and SwissAlpine watchfaces.
 /// Determines whether to display Temp Basal Rate or Eventual BG.
 enum GarminDataType2: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
@@ -42,6 +43,7 @@ enum GarminDataType2: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
 
 /// Defines the available Garmin watchfaces with their associated UUIDs.
 /// Each watchface has both a watchface app UUID and a datafield app UUID.
+/// Both watchfaces now use the same data structure and settings (dataType1 and dataType2).
 enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
 
@@ -80,7 +82,8 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
 
 // MARK: - Garmin Watch Settings Group
 
-/// Groups related Garmin watch settings together for easier management
+/// Groups related Garmin watch settings together for easier management.
+/// Both watchfaces use the same settings: dataType1 and dataType2.
 struct GarminWatchSettings: Codable, Hashable {
     var watchface: GarminWatchface = .trio
     var dataType1: GarminDataType1 = .cob
