@@ -137,43 +137,41 @@ struct WatchConfigGarminAppConfigView: View {
                 }
             ).listRowBackground(Color.chart)
 
-            // MARK: - Data Type 2 Selection Section (SwissAlpine Only)
+            // MARK: - Data Type 2 Selection Section (Both Watchfaces)
 
-            if state.garminWatchface == .swissalpine {
-                Section(
-                    content: {
-                        VStack {
-                            Picker(
-                                selection: $state.garminDataType2,
-                                label: Text("Data Field 2").multilineTextAlignment(.leading)
-                            ) {
-                                ForEach(GarminDataType2.allCases) { selection in
-                                    Text(selection.displayName).tag(selection)
-                                }
-                            }.padding(.top)
-                            HStack(alignment: .center) {
-                                Text(
-                                    "Choose between display of TBR or Eventual BG on Garmin device."
-                                )
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                                .lineLimit(nil)
-                                Spacer()
-                                Button(
-                                    action: {
-                                        shouldDisplayHint4.toggle()
-                                    },
-                                    label: {
-                                        HStack {
-                                            Image(systemName: "questionmark.circle")
-                                        }
+            Section(
+                content: {
+                    VStack {
+                        Picker(
+                            selection: $state.garminDataType2,
+                            label: Text("Data Field 2").multilineTextAlignment(.leading)
+                        ) {
+                            ForEach(GarminDataType2.allCases) { selection in
+                                Text(selection.displayName).tag(selection)
+                            }
+                        }.padding(.top)
+                        HStack(alignment: .center) {
+                            Text(
+                                "Choose between display of TBR or Eventual BG on Garmin device."
+                            )
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .lineLimit(nil)
+                            Spacer()
+                            Button(
+                                action: {
+                                    shouldDisplayHint4.toggle()
+                                },
+                                label: {
+                                    HStack {
+                                        Image(systemName: "questionmark.circle")
                                     }
-                                ).buttonStyle(BorderlessButtonStyle())
-                            }.padding(.top)
-                        }.padding(.vertical)
-                    }
-                ).listRowBackground(Color.chart)
-            }
+                                }
+                            ).buttonStyle(BorderlessButtonStyle())
+                        }.padding(.top)
+                    }.padding(.vertical)
+                }
+            ).listRowBackground(Color.chart)
         }
         .listSectionSpacing(sectionSpacing)
         .scrollContentBackground(.hidden)
@@ -187,8 +185,8 @@ struct WatchConfigGarminAppConfigView: View {
                 shouldDisplayHint: $shouldDisplayHint1,
                 hintLabel: "Choose Garmin App support.",
                 hintText: Text(
-                    "Choose which watchface and datafield combination on your Garmin device you wish to provide data for. Trying to use watchfaces and data fields of different developers will not work. Both must use the same data structure provided by Trio.\n\n" +
-                        "Also you have to use this configuration setting here BEFORE you switch the watchface on your Garmin device to another watchface.\n\n" +
+                    "Choose which watchface and datafield combination on your Garmin device you wish to provide data for. Both watchfaces now use the same data structure and configuration options.\n\n" +
+                        "You must use this configuration setting here BEFORE you switch the watchface on your Garmin device to another watchface.\n\n" +
                         "⚠️ Changing the watchface will automatically disable data transmission and lock that setting for 20 seconds to allow time for you to switch the watchface on your Garmin device."
                 ),
                 sheetTitle: String(localized: "Help", comment: "Help sheet title")

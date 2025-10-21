@@ -4,23 +4,27 @@ import Foundation
 
 /// Primary data type selection for Garmin watchface and datafield.
 /// Determines whether to display COB or Sensitivity Ratio alongside glucose data.
+/// Used by both Trio and SwissAlpine watchfaces.
 enum GarminDataType1: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
 
     case cob
+    case isf
     case sensRatio
 
     var displayName: String {
         switch self {
         case .cob:
             return String(localized: "COB", comment: "")
+        case .isf:
+            return String(localized: "Insulin Sensitivity Factor", comment: "")
         case .sensRatio:
             return String(localized: "Sensitivity Ratio", comment: "")
         }
     }
 }
 
-/// Secondary data type selection for SwissAlpine watchface only.
+/// Secondary data type selection for both Trio and SwissAlpine watchfaces.
 /// Determines whether to display Temp Basal Rate or Eventual BG.
 enum GarminDataType2: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
@@ -42,6 +46,7 @@ enum GarminDataType2: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
 
 /// Defines the available Garmin watchfaces with their associated UUIDs.
 /// Each watchface has both a watchface app UUID and a datafield app UUID.
+/// Both watchfaces now use the same data structure and settings (dataType1 and dataType2).
 enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
 
@@ -73,14 +78,15 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
         case .trio:
             return UUID(uuidString: "71CF0982-CA41-42A5-8441-EA81D36056C3")
         case .swissalpine:
-            return UUID(uuidString: "7A2268F6-3381-4474-81BD-0A3E7F458CB8")
+            return UUID(uuidString: "7A2268F6-3381-4474-81BD-0A3E7F458CB7")
         }
     }
 }
 
 // MARK: - Garmin Watch Settings Group
 
-/// Groups related Garmin watch settings together for easier management
+/// Groups related Garmin watch settings together for easier management.
+/// Both watchfaces use the same settings: dataType1 and dataType2.
 struct GarminWatchSettings: Codable, Hashable {
     var watchface: GarminWatchface = .trio
     var dataType1: GarminDataType1 = .cob
