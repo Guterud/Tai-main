@@ -9,12 +9,15 @@ enum GarminDataType1: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
     var id: String { rawValue }
 
     case cob
+    case isf
     case sensRatio
 
     var displayName: String {
         switch self {
         case .cob:
             return String(localized: "COB", comment: "")
+        case .isf:
+            return String(localized: "Insulin Sensitivity Factor", comment: "")
         case .sensRatio:
             return String(localized: "Sensitivity Ratio", comment: "")
         }
