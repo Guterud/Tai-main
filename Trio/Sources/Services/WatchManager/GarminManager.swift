@@ -237,8 +237,21 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             }
             .store(in: &subscriptions)
 
-        // IOB updates - publish to determinationSubject (same pipeline as determinations)
-        // Since IOB and determinations fire simultaneously, this prevents duplicates
+        // ⚠️ IOB TRIGGER TEMPORARILY COMMENTED OUT FOR TESTING
+        // Testing to measure:
+        // 1. Watch battery impact (expected 15-25% improvement)
+        // 2. IOB freshness between enacted determinations (will be stale for up to 5 min)
+        // 3. User acceptance of IOB lag vs battery savings
+        //
+        // Background: Two types of determinations exist:
+        // - Enacted: Loop acts on pump (temp basal, bolus) → Saved to CoreData → Updates loop time
+        // - Suggested: Loop calculates but no pump action → IOB decays naturally → No CoreData save
+        //
+        // With this commented: Watch only updates on enacted determinations (~every 5 min)
+        // Without this: Watch also updates on suggested determinations (IOB decay between loops)
+        //
+        // To revert: Uncomment lines 240-269
+        /*
         iobService.iobPublisher
             .receive(on: DispatchQueue.global(qos: .background))
             .sink { [weak self] _ in
@@ -267,6 +280,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 }
             }
             .store(in: &subscriptions)
+        */
 
         registerHandlers()
     }
