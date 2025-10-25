@@ -283,6 +283,14 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         settingsManager.settings.garminWatchface
     }
 
+    /// Check if current watchface needs historical glucose data (23 additional readings)
+    /// Only SwissAlpine watchface uses historical data, Trio only needs current reading
+    private var needsHistoricalGlucoseData: Bool {
+        // SwissAlpine watchface uses elements 1-23 for historical graph
+        // Trio watchface only uses element 0 (current reading)
+        currentWatchface == .swissalpine
+    }
+
     /// Safely gets the current Garmin data type setting
     private var currentDataType1: GarminDataType1 {
         // Direct access since it's not optional
@@ -479,8 +487,19 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         }
 
         do {
-            // Get Glucose IDs - fetch up to 24 entries for historical data
-            let glucoseIds = try await fetchGlucose(limit: 24)
+            // Optimize glucose fetch based on watchface needs
+            // SwissAlpine: Fetch 24 entries for historical graph (elements 0-23)
+            // Trio: Fetch 2 entries minimum (to calculate delta), but only send 1 to watchface
+            // We need at least 2 readings to calculate delta (current - previous)
+            let glucoseLimit = needsHistoricalGlucoseData ? 24 : 2
+            let glucoseIds = try await fetchGlucose(limit: glucoseLimit)
+
+            if debugWatchState {
+                debug(
+                    .watchManager,
+                    "⌚️ Fetching \(glucoseLimit) glucose reading(s) for \(currentWatchface.displayName) watchface (need 2+ for delta)"
+                )
+            }
 
             // Fetch the latest OrefDetermination object if available
             let determinationIds = try await determinationStorage.fetchLastDeterminationObjectID(
@@ -624,8 +643,19 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 let displayDataType1 = self.settingsManager.settings.garminDataType1.rawValue
                 let displayDataType2 = self.settingsManager.settings.garminDataType2.rawValue
 
-                // Process each glucose reading (up to 24)
+                // Process glucose readings
+                // For Trio: Process 2 readings (to calculate delta) but only send 1 entry
+                // For SwissAlpine: Process and send all 24 entries
+                // All watchfaces expect array structure, but only SwissAlpine uses elements 1-23
+                let entriesToSend = self.needsHistoricalGlucoseData ? glucoseObjects.count : 1
+
                 for (index, glucose) in glucoseObjects.enumerated() {
+                    // For Trio, we process 2 readings but only add the first to watchStates
+                    // This allows delta calculation while sending only 1 entry
+                    if index >= entriesToSend {
+                        break
+                    }
+
                     var watchState = GarminWatchState()
 
                     // Set timestamp for this glucose reading (in milliseconds)
@@ -677,8 +707,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                             }
                         }
                     } else {
-                        // Last entry has no delta
-                        watchState.delta = nil
+                        // No previous reading available - set delta to 0 instead of nil
+                        // This ensures delta is always present in the JSON output
+                        watchState.delta = 0
+                        if self.debugWatchState {
+                            debug(.watchManager, "⌚️ Unified: Only 1 glucose reading available, setting delta to 0")
+                        }
                     }
 
                     // Only include extended data for the most recent reading (index 0)
