@@ -112,6 +112,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// How long to trust cached app status (in seconds)
     private let appStatusCacheTimeout: TimeInterval = 60 // 1 minute
 
+    /// Throttle duration for non-critical updates (settings changes, status requests)
+    private let throttleDuration: TimeInterval = 30 // 30 seconds
+
     /// Deduplication: Track last prepared data hash to prevent duplicate expensive work
     private var lastPreparedDataHash: Int?
     private var lastPreparedWatchState: [GarminWatchState]?
@@ -396,7 +399,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         }
     }
 
-    /// 30-second throttle for Status/Settings updates
+    /// Throttle for Status/Settings updates
+    /// Duration is configurable via `throttleDuration` constant (currently 30 seconds)
     private func sendWatchStateDataWith30sThrottle(_ data: Data) {
         // Store the latest data (always keep the newest)
         pendingThrottledData30s = data
@@ -418,11 +422,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 return
             }
 
-            // Check if immediate send (determination) happened while we were waiting
+            // Check if immediate send happened while we were waiting
+            // Use throttle duration window to prevent duplicates
             if let lastImmediate = self.lastImmediateSendTime,
-               Date().timeIntervalSince(lastImmediate) < 5
+               Date().timeIntervalSince(lastImmediate) < self.throttleDuration
             {
-                debugGarmin("[\(self.formatTimeForLog())] Garmin: 30s timer cancelled - recent determination send")
+                debugGarmin("[\(self.formatTimeForLog())] Garmin: 30s timer cancelled - recent immediate send")
                 self.throttleWorkItem30s = nil
                 self.pendingThrottledData30s = nil
                 self.throttledUpdatePending = false
@@ -448,7 +453,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         }
 
         throttleWorkItem30s = workItem
-        timerQueue.asyncAfter(deadline: .now() + 30.0, execute: workItem)
+        timerQueue.asyncAfter(deadline: .now() + throttleDuration, execute: workItem)
         throttledUpdatePending = true
         debugGarmin("[\(formatTimeForLog())] Garmin: 30s throttle timer started on dedicated queue")
     }
@@ -1102,7 +1107,13 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     self.cachedDeterminationData = data
                 }
 
-                self.lastImmediateSendTime = Date() // Mark for any 30s timers (status requests, settings)
+                self.lastImmediateSendTime = Date() // Mark for any pending throttled timers (status requests, settings)
+
+                // Cancel any pending 30s throttled send since determination is sending immediately
+                self.throttleWorkItem30s?.cancel()
+                self.throttleWorkItem30s = nil
+                self.pendingThrottledData30s = nil
+                self.throttledUpdatePending = false
 
                 // Convert data to JSON object for sending
                 guard let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []) else {
@@ -1582,6 +1593,13 @@ extension BaseGarminManager: SettingsObserver {
                     // Try to use cached determination data first to avoid CoreData staleness
                     if let cachedData = self.cachedDeterminationData {
                         self.currentSendTrigger = "Settings-Units/Re-enable"
+
+                        // Cancel any pending throttled send since we're sending immediately
+                        self.throttleWorkItem30s?.cancel()
+                        self.throttleWorkItem30s = nil
+                        self.pendingThrottledData30s = nil
+                        self.throttledUpdatePending = false
+
                         debugGarmin("Garmin: Using cached determination data for immediate settings update")
                         self.sendWatchStateDataImmediately(cachedData)
                         self.lastImmediateSendTime = Date()
@@ -1591,6 +1609,13 @@ extension BaseGarminManager: SettingsObserver {
                         let watchState = try await self.setupGarminWatchState(triggeredBy: "Settings-Units/Re-enable")
                         let watchStateData = try JSONEncoder().encode(watchState)
                         self.currentSendTrigger = "Settings-Units/Re-enable"
+
+                        // Cancel any pending throttled send since we're sending immediately
+                        self.throttleWorkItem30s?.cancel()
+                        self.throttleWorkItem30s = nil
+                        self.pendingThrottledData30s = nil
+                        self.throttledUpdatePending = false
+
                         self.sendWatchStateDataImmediately(watchStateData)
                         self.lastImmediateSendTime = Date()
                         debugGarmin("Garmin: Immediate update sent for units/re-enable change (fresh query)")
