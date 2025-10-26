@@ -115,6 +115,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Throttle duration for non-critical updates (settings changes, status requests)
     private let throttleDuration: TimeInterval = 30 // 30 seconds
 
+    /// Status request filter duration - ignore requests if we sent data this recently
+    /// Safety net since watchface handles this with 320s timer reset (agreed Oct 15)
+    private let statusRequestFilterDuration: TimeInterval = 120 // 2 minutes
+
     /// Deduplication: Track last prepared data hash to prevent duplicate expensive work
     private var lastPreparedDataHash: Int?
     private var lastPreparedWatchState: [GarminWatchState]?
@@ -1438,8 +1442,17 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
     func receivedMessage(_ message: Any, from app: IQApp) {
         debugGarmin("[\(formatTimeForLog())] Garmin: Received message \(message) from app \(app.uuid!)")
 
-        // Check if this message is from the watchface (not datafield)
+        // CRITICAL: Filter out messages from apps that aren't part of current watchface config
+        // This prevents processing status requests from datafields/watchfaces that aren't active
         let watchface = currentWatchface
+        let validUUIDs = Set([watchface.watchfaceUUID, watchface.datafieldUUID].compactMap { $0 })
+
+        guard validUUIDs.contains(app.uuid!) else {
+            debugGarmin("[\(formatTimeForLog())] ⏭️ Ignoring message from unregistered app: \(app.uuid!)")
+            return
+        }
+
+        // Check if this message is from the watchface (not datafield)
         let isFromWatchface = app.uuid == watchface.watchfaceUUID
 
         // If data is disabled AND the message is from the watchface, ignore it
@@ -1457,13 +1470,14 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
                 return
             }
 
-            // Check if we sent an update very recently (within last 10 seconds)
+            // Check if we sent an update recently (as safety net)
+            // Primary filtering happens on watchface (320s timer reset)
+            // This is just additional protection against redundant requests
             if let lastImmediate = self.lastImmediateSendTime,
-               Date().timeIntervalSince(lastImmediate) < 10
+               Date().timeIntervalSince(lastImmediate) < self.statusRequestFilterDuration
             {
-                debug(
-                    .watchManager,
-                    "[\(self.formatTimeForLog())] Garmin: Status request ignored - just sent update \(Int(Date().timeIntervalSince(lastImmediate)))s ago"
+                debugGarmin(
+                    "[\(self.formatTimeForLog())] Garmin: Status request ignored - sent update \(Int(Date().timeIntervalSince(lastImmediate)))s ago"
                 )
                 return
             }
