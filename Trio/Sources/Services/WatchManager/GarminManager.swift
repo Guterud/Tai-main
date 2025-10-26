@@ -468,9 +468,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         }
     }
 
-    // MARK: - Unified Watch State Setup
+    // MARK: - Watch State Setup
 
-    /// Builds a unified GarminWatchState array for both Trio and SwissAlpine watchfaces.
+    /// Builds a GarminWatchState array for both Trio and SwissAlpine watchfaces.
     /// Uses the SwissAlpine numeric format for all data, sent as an array.
     /// Both watchfaces receive the same data structure with display configuration fields.
     func setupGarminWatchState() async throws -> [GarminWatchState] {
@@ -543,7 +543,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     } else {
                         cobValue = nil
                         if self.debugWatchState {
-                            debug(.watchManager, "⌚️ Unified: COB is NaN or infinite, excluding from data")
+                            debug(.watchManager, "⌚️ COB is NaN or infinite, excluding from data")
                         }
                     }
 
@@ -557,7 +557,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                             // Invalid ratio - default to 1.0 (no adjustment)
                             sensRatioValue = 1.0
                             if self.debugWatchState {
-                                debug(.watchManager, "⌚️ Unified: SensRatio is NaN or infinite, using default 1.0")
+                                debug(.watchManager, "⌚️ SensRatio is NaN or infinite, using default 1.0")
                             }
                         }
                     } else {
@@ -576,7 +576,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                             if self.debugWatchState {
                                 debug(
                                     .watchManager,
-                                    "⌚️ Unified: ISF out of range (\(insulinSensitivity)), excluding from data"
+                                    "⌚️ ISF out of range (\(insulinSensitivity)), excluding from data"
                                 )
                             }
                         }
@@ -592,7 +592,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                             if self.debugWatchState {
                                 debug(
                                     .watchManager,
-                                    "⌚️ Unified: EventualBG out of range (\(eventualBG)), excluding from data"
+                                    "⌚️ EventualBG out of range (\(eventualBG)), excluding from data"
                                 )
                             }
                         }
@@ -686,7 +686,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     } else {
                         watchState.sgv = nil
                         if self.debugWatchState {
-                            debug(.watchManager, "⌚️ Unified: Invalid glucose value (\(glucoseValue)), excluding from data")
+                            debug(.watchManager, "⌚️ Invalid glucose value (\(glucoseValue)), excluding from data")
                         }
                         continue // Skip this invalid glucose entry
                     }
@@ -703,7 +703,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         } else {
                             watchState.delta = nil
                             if self.debugWatchState {
-                                debug(.watchManager, "⌚️ Unified: Delta out of range (\(deltaValue)), excluding from data")
+                                debug(.watchManager, "⌚️ Delta out of range (\(deltaValue)), excluding from data")
                             }
                         }
                     } else {
@@ -711,7 +711,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         // This ensures delta is always present in the JSON output
                         watchState.delta = 0
                         if self.debugWatchState {
-                            debug(.watchManager, "⌚️ Unified: Only 1 glucose reading available, setting delta to 0")
+                            debug(.watchManager, "⌚️ Only 1 glucose reading available, setting delta to 0")
                         }
                     }
 
@@ -748,7 +748,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         }
     }
 
-    // MARK: - Debug Logging Method for Unified Watch State
+    // MARK: - Debug Logging Method for Watch State
 
     private func logWatchState(_ watchState: [GarminWatchState]) {
         guard debugWatchState else { return }
@@ -773,11 +773,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
                 debug(
                     .watchManager,
-                    "📱 Unified (\(watchface.displayName)): Sending \(watchState.count) entries to \(destinations): \(compactJson)"
+                    "📱 (\(watchface.displayName)): Prepared \(watchState.count) entries for \(destinations): \(compactJson)"
                 )
             }
         } catch {
-            debug(.watchManager, "📱 Unified: Sending \(watchState.count) entries (failed to encode for logging)")
+            debug(.watchManager, "📱 Prepared \(watchState.count) entries (failed to encode for logging)")
         }
     }
 
@@ -921,20 +921,21 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             .store(in: &cancellables)
     }
 
-    /// Subscribes to determination updates with 20s throttle (first goes through, rest discarded)
+    /// Subscribes to determination updates with 5s debounce (waits for quiet period, then sends latest)
     /// Also handles IOB updates since they fire simultaneously with determinations
+    /// Debounce prevents double-sends when multiple OrefDetermination records are saved in quick succession
     private func subscribeToDeterminationThrottle() {
         determinationSubject
-            .throttle(for: .seconds(20), scheduler: DispatchQueue.main, latest: false)
+            .debounce(for: .seconds(5), scheduler: DispatchQueue.main)
             .sink { [weak self] data in
                 guard let self = self else { return }
 
-                // Only cache if no recent watchface change (within last 25 seconds)
-                // This prevents caching stale format data that was in the throttle pipeline
+                // Only cache if no recent watchface change (within last 10 seconds)
+                // This prevents caching stale format data that was in the debounce pipeline
                 let shouldCache: Bool
                 if let lastChange = self.lastWatchfaceChangeTime {
                     let timeSinceChange = Date().timeIntervalSince(lastChange)
-                    shouldCache = timeSinceChange > 25 // Throttle is 20s, add 5s buffer
+                    shouldCache = timeSinceChange > 10 // Debounce is 5s, add 5s buffer
                     if !shouldCache {
                         debugGarmin(
                             "[\(self.formatTimeForLog())] Garmin: Not caching - data may be from before watchface change (\(Int(timeSinceChange))s ago)"
@@ -956,7 +957,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     return
                 }
 
-                debugGarmin("[\(self.formatTimeForLog())] Garmin: Sending determination/IOB (20s throttle passed)")
+                debugGarmin("[\(self.formatTimeForLog())] Garmin: Sending determination/IOB (5s debounce passed)")
                 self.broadcastStateToWatchApps(jsonObject as Any)
             }
             .store(in: &cancellables)
