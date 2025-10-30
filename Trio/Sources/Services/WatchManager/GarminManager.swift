@@ -549,7 +549,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     }
 
                     // Hash sensRatio with 2 decimal precision
-                    if let sensRatio = determination.sensitivityRatio {
+                    if let sensRatio = determination.autoISFratio {
                         let sensRatioDouble = Double(truncating: sensRatio as NSNumber)
                         if sensRatioDouble.isFinite, !sensRatioDouble.isNaN, sensRatioDouble > 0 {
                             let sensRounded = sensRatioDouble.roundedDouble(toPlaces: 2)
@@ -703,7 +703,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
                     // Always calculate sensRatio (watchface decides whether to display it)
                     // Format to 2 decimal places
-                    if let sensRatio = latestDetermination.sensitivityRatio {
+                    if let sensRatio = latestDetermination.autoISFratio {
                         let sensRatioDouble = Double(truncating: sensRatio as NSNumber)
                         if sensRatioDouble.isFinite, !sensRatioDouble.isNaN, sensRatioDouble > 0 {
                             sensRatioValue = sensRatioDouble.roundedDouble(toPlaces: 2)

@@ -53,7 +53,8 @@
   "displayCalendarEmojis": false,
   "timeInRangeType": "timeInTightRange",
   "garminWatchface": "trio",
-  "garminDataType1": "cob",
-  "garminDataType2": "tbr",
-  "garminDisableWatchfaceData": true
+  "garminDatafield": "none",
+  "primaryAttributeChoice": "cob",
+  "secondaryAttributeChoice": "tbr",
+  "isWatchfaceDataEnabled": true
 }
