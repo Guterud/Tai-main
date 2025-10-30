@@ -145,13 +145,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
     /// Current glucose units, either mg/dL or mmol/L, read from user settings.
     private var units: GlucoseUnits = .mgdL
-
     /// Track previous watchface settings
     private var previousWatchface: GarminWatchface = .trio
-    private var previousDatafield: GarminDatafield = .trio
+    private var previousDatafield: GarminDatafield = .none
     private var previousDataType1: GarminDataType1 = .cob
     private var previousDataType2: GarminDataType2 = .tbr
-    private var previousDisableWatchfaceData: Bool = false
+    private var previousDisableWatchfaceData: Bool = true
 
     /// Queue for handling Core Data change notifications
     private let queue = DispatchQueue(label: "BaseGarminManager.queue", qos: .utility)

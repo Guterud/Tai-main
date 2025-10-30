@@ -170,7 +170,7 @@ struct WatchConfigGarminView: View {
                             showDeviceList = false
                         }) {
                             HStack {
-                                Text("Configure Watch Apps")
+                                Text("Configure Device Apps")
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
