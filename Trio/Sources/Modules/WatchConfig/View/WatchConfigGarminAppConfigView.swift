@@ -147,7 +147,7 @@ struct WatchConfigGarminAppConfigView: View {
                     VStack {
                         Picker(
                             selection: $state.garminDataType1,
-                            label: Text("Data Field 1").multilineTextAlignment(.leading)
+                            label: Text("DataChoice 1").multilineTextAlignment(.leading)
                         ) {
                             ForEach(GarminDataType1.allCases) { selection in
                                 Text(selection.displayName).tag(selection)
@@ -183,7 +183,7 @@ struct WatchConfigGarminAppConfigView: View {
                     VStack {
                         Picker(
                             selection: $state.garminDataType2,
-                            label: Text("Data Field 2").multilineTextAlignment(.leading)
+                            label: Text("DataChoice 2").multilineTextAlignment(.leading)
                         ) {
                             ForEach(GarminDataType2.allCases) { selection in
                                 Text(selection.displayName).tag(selection)
@@ -238,7 +238,7 @@ struct WatchConfigGarminAppConfigView: View {
                 hintLabel: "Choose Garmin Datafield",
                 hintText: Text(
                     "Choose which datafield on your Garmin device you wish to provide data for. The datafield can be used independently from the watchface selection.\n\n" +
-                        "Select 'None' if you don't want to use a datafield, or if you're using a watchface that includes the data display."
+                        "Select 'None' if you don't want to use a datafield,or want to preserve battery while not exercising."
                 ),
                 sheetTitle: String(localized: "Help", comment: "Help sheet title")
             )

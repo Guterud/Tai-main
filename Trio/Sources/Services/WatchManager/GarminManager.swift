@@ -121,7 +121,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     private let appStatusCacheTimeout: TimeInterval = 60 // 1 minute
 
     /// Throttle duration for non-critical updates (settings changes, status requests)
-    private let throttleDuration: TimeInterval = 30 // 30 seconds
+    private let throttleDuration: TimeInterval = 10 // 10 seconds
 
     /// Status request filter duration - ignore requests if we sent data this recently
     /// Safety net since watchface handles this with 320s timer reset (agreed Oct 15)
@@ -194,7 +194,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
         subscribeToOpenFromGarminConnect()
         subscribeToDeterminationThrottle()
-        // Note: Old subscribeToWatchState() removed - using manual timer management for 30s
 
         units = settingsManager.settings.units
 
@@ -420,16 +419,15 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     }
 
     /// Throttle for Status/Settings updates
-    /// Duration is configurable via `throttleDuration` constant (currently 30 seconds)
-    private func sendWatchStateDataWith30sThrottle(_ data: Data) {
+    private func sendWatchStateDataWithThrottle(_ data: Data) {
         // Store the latest data (always keep the newest)
-        pendingThrottledData30s = data
+        pendingThrottledData = data
 
         // If work item is already scheduled, just update data - DON'T reschedule
-        if throttleWorkItem30s != nil {
+        if throttleWorkItem != nil {
             debug(
                 .watchManager,
-                "[\(formatTimeForLog())] Garmin: 30s throttle timer running, data updated [Trigger: \(currentSendTrigger)]"
+                "[\(formatTimeForLog())] Garmin: throttle timer running, data updated [Trigger: \(currentSendTrigger)]"
             )
             return
         }
@@ -437,7 +435,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         // Create and schedule new work item on dedicated timer queue
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self,
-                  let dataToSend = self.pendingThrottledData30s
+                  let dataToSend = self.pendingThrottledData
             else {
                 return
             }
@@ -447,35 +445,35 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             if let lastImmediate = self.lastImmediateSendTime,
                Date().timeIntervalSince(lastImmediate) < self.throttleDuration
             {
-                debugGarmin("[\(self.formatTimeForLog())] Garmin: 30s timer cancelled - recent immediate send")
-                self.throttleWorkItem30s = nil
-                self.pendingThrottledData30s = nil
+                debugGarmin("[\(self.formatTimeForLog())] Garmin: timer cancelled - recent immediate send")
+                self.throttleWorkItem = nil
+                self.pendingThrottledData = nil
                 self.throttledUpdatePending = false
                 return
             }
 
             // Convert data to JSON object for sending
             guard let jsonObject = try? JSONSerialization.jsonObject(with: dataToSend, options: []) else {
-                debugGarmin("[\(self.formatTimeForLog())] Garmin: Invalid JSON in 30s throttled data")
-                self.throttleWorkItem30s = nil
-                self.pendingThrottledData30s = nil
+                debugGarmin("[\(self.formatTimeForLog())] Garmin: Invalid JSON in throttled data")
+                self.throttleWorkItem = nil
+                self.pendingThrottledData = nil
                 self.throttledUpdatePending = false
                 return
             }
 
-            debugGarmin("[\(self.formatTimeForLog())] Garmin: 30s timer fired - sending collected updates")
+            debugGarmin("[\(self.formatTimeForLog())] Garmin: timer fired - sending collected updates")
             self.broadcastStateToWatchApps(jsonObject as Any)
 
             // Clean up
-            self.throttleWorkItem30s = nil
-            self.pendingThrottledData30s = nil
+            self.throttleWorkItem = nil
+            self.pendingThrottledData = nil
             self.throttledUpdatePending = false
         }
 
-        throttleWorkItem30s = workItem
+        throttleWorkItem = workItem
         timerQueue.asyncAfter(deadline: .now() + throttleDuration, execute: workItem)
         throttledUpdatePending = true
-        debugGarmin("[\(formatTimeForLog())] Garmin: 30s throttle timer started on dedicated queue")
+        debugGarmin("[\(formatTimeForLog())] Garmin: throttle timer started (\(Int(throttleDuration))s) on dedicated queue")
     }
 
     /// Fetches recent glucose readings from CoreData, up to specified limit.
@@ -1150,10 +1148,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
                 self.lastImmediateSendTime = Date() // Mark for any pending throttled timers (status requests, settings)
 
-                // Cancel any pending 30s throttled send since determination is sending immediately
-                self.throttleWorkItem30s?.cancel()
-                self.throttleWorkItem30s = nil
-                self.pendingThrottledData30s = nil
+                // Cancel any pending throttled send since determination is sending immediately
+                self.throttleWorkItem?.cancel()
+                self.throttleWorkItem = nil
+                self.pendingThrottledData = nil
                 self.throttledUpdatePending = false
 
                 // Convert data to JSON object for sending
@@ -1187,6 +1185,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Always sends to datafield (if exists), only checks status for watchface
     /// - Parameter state: The dictionary representing the watch state to be broadcast.
     private func broadcastStateToWatchApps(_ state: Any) {
+        // Update display types in the state before sending (handles cached/throttled data)
+        let updatedState = updateDisplayTypesInState(state)
+
         // Log connection health status if we have failures
         if failedSendCount > 0 {
             let timeString: String
@@ -1213,7 +1214,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             // 1. If it's a datafield, ALWAYS send (no status check)
             if isDatafieldApp {
                 debug(.watchManager, "[\(formatTimeForLog())] Garmin: Sending to datafield \(app.uuid!) (no status check)")
-                sendMessage(state, to: app)
+                sendMessage(updatedState, to: app)
                 return
             }
 
@@ -1239,9 +1240,37 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 }
 
                 debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Sending to watchface \(app.uuid!)")
-                self.sendMessage(state, to: app)
+                self.sendMessage(updatedState, to: app)
             }
         }
+    }
+
+    /// Updates display type fields in the state array/object with current settings
+    /// - Parameter state: The state object (either array or dict) to update
+    /// - Returns: Updated state with current displayDataType1 and displayDataType2
+    private func updateDisplayTypesInState(_ state: Any) -> Any {
+        let displayType1 = currentDataType1.rawValue
+        let displayType2 = currentDataType2.rawValue
+
+        // Handle array of states (normal case)
+        if var stateArray = state as? [[String: Any]] {
+            // Only update the first element (index 0) which contains extended data
+            if !stateArray.isEmpty {
+                stateArray[0]["displayDataType1"] = displayType1
+                stateArray[0]["displayDataType2"] = displayType2
+            }
+            return stateArray
+        }
+
+        // Handle single state dict (shouldn't happen but be safe)
+        if var stateDict = state as? [String: Any] {
+            stateDict["displayDataType1"] = displayType1
+            stateDict["displayDataType2"] = displayType2
+            return stateDict
+        }
+
+        // Return unchanged if unexpected type
+        return state
     }
 
     // MARK: - App Status Cache Management
@@ -1316,7 +1345,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Only used for throttled updates (IOB, DataType changes)
     /// - Parameter data: JSON-encoded data representing the latest watch state.
     func sendWatchStateData(_ data: Data) {
-        sendWatchStateDataWith30sThrottle(data)
+        sendWatchStateDataWithThrottle(data)
     }
 
     /// Sends watch state data immediately, bypassing the 30-second throttling
@@ -1353,9 +1382,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     private var failedSendCount = 0
     private var connectionAlertShown = false
 
-    // Manual throttle for 30s updates - using DispatchWorkItem instead of Timer
-    private var throttleWorkItem30s: DispatchWorkItem?
-    private var pendingThrottledData30s: Data?
+    // Manual throttle for updates - using DispatchWorkItem instead of Timer
+    private var throttleWorkItem: DispatchWorkItem?
+    private var pendingThrottledData: Data?
 
     // Combine subject for 10s throttled Determinations
     private let determinationSubject = PassthroughSubject<Data, Never>()
@@ -1526,7 +1555,7 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
                 let watchState = try await self.setupGarminWatchState(triggeredBy: "Status-Request")
                 let watchStateData = try JSONEncoder().encode(watchState)
                 self.currentSendTrigger = "Status-Request"
-                self.sendWatchStateDataWith30sThrottle(watchStateData)
+                self.sendWatchStateDataWithThrottle(watchStateData)
                 debugGarmin("[\(self.formatTimeForLog())] Garmin: Status request queued")
             } catch {
                 debugGarmin("[\(self.formatTimeForLog())] Garmin: Error: \(error)")
@@ -1650,9 +1679,9 @@ extension BaseGarminManager: SettingsObserver {
                         self.currentSendTrigger = "Settings-Units/Re-enable"
 
                         // Cancel any pending throttled send since we're sending immediately
-                        self.throttleWorkItem30s?.cancel()
-                        self.throttleWorkItem30s = nil
-                        self.pendingThrottledData30s = nil
+                        self.throttleWorkItem?.cancel()
+                        self.throttleWorkItem = nil
+                        self.pendingThrottledData = nil
                         self.throttledUpdatePending = false
 
                         debugGarmin("Garmin: Using cached determination data for immediate settings update")
@@ -1666,9 +1695,9 @@ extension BaseGarminManager: SettingsObserver {
                         self.currentSendTrigger = "Settings-Units/Re-enable"
 
                         // Cancel any pending throttled send since we're sending immediately
-                        self.throttleWorkItem30s?.cancel()
-                        self.throttleWorkItem30s = nil
-                        self.pendingThrottledData30s = nil
+                        self.throttleWorkItem?.cancel()
+                        self.throttleWorkItem = nil
+                        self.pendingThrottledData = nil
                         self.throttledUpdatePending = false
 
                         self.sendWatchStateDataImmediately(watchStateData)
@@ -1692,18 +1721,25 @@ extension BaseGarminManager: SettingsObserver {
                     return
                 }
 
-                do {
-                    let watchState = try await self.setupGarminWatchState(triggeredBy: "Settings-DataType")
-                    let watchStateData = try JSONEncoder().encode(watchState)
+                // Use cached data if available (display types will be updated at send time)
+                if let cachedData = self.cachedDeterminationData {
                     self.currentSendTrigger = "Settings-DataType"
-                    // DataType changes use 30s throttling
-                    self.sendWatchStateDataWith30sThrottle(watchStateData)
-                    debugGarmin("Garmin: Throttled update queued for data type change")
-                } catch {
-                    debug(
-                        .watchManager,
-                        "\(DebuggingIdentifiers.failed) Failed to send throttled update after settings change: \(error)"
-                    )
+                    self.sendWatchStateDataWithThrottle(cachedData)
+                    debugGarmin("Garmin: Throttled update queued for data type change (10s) - using cached data")
+                } else {
+                    // No cached data - prepare fresh (shouldn't happen often)
+                    do {
+                        let watchState = try await self.setupGarminWatchState(triggeredBy: "Settings-DataType")
+                        let watchStateData = try JSONEncoder().encode(watchState)
+                        self.currentSendTrigger = "Settings-DataType"
+                        self.sendWatchStateDataWithThrottle(watchStateData)
+                        debugGarmin("Garmin: Throttled update queued for data type change (10s) - fresh data")
+                    } catch {
+                        debug(
+                            .watchManager,
+                            "\(DebuggingIdentifiers.failed) Failed to send throttled update after settings change: \(error)"
+                        )
+                    }
                 }
             }
         }
