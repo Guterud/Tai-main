@@ -148,6 +148,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
     /// Track previous watchface settings
     private var previousWatchface: GarminWatchface = .trio
+    private var previousDatafield: GarminDatafield = .trio
     private var previousDataType1: GarminDataType1 = .cob
     private var previousDataType2: GarminDataType2 = .tbr
     private var previousDisableWatchfaceData: Bool = false
@@ -256,10 +257,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                                     .watchManager,
                                     "[\(self.formatTimeForLog())] Garmin: Glucose skipped - no loop data available (infinite loop age)"
                                 )
-                            } else {
+                            } else if loopAge.isFinite {
+                                let loopAgeMinutes = Int(loopAge / 60)
                                 debug(
                                     .watchManager,
-                                    "[\(self.formatTimeForLog())] Garmin: Glucose skipped - loop age \(Int(loopAge / 60))m < 8m"
+                                    "[\(self.formatTimeForLog())] Garmin: Glucose skipped - loop age \(loopAgeMinutes)m < 8m"
                                 )
                             }
                         }
@@ -334,6 +336,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     private var currentDataType2: GarminDataType2 {
         // Direct access since it's not optional
         settingsManager.settings.garminDataType2
+    }
+
+    /// Safely gets the current Garmin datafield setting
+    private var currentDatafield: GarminDatafield {
+        // Direct access since it's not optional
+        settingsManager.settings.garminDatafield
     }
 
     /// Check if watchface data is disabled
@@ -535,8 +543,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
             // Hash IOB (changes frequently with insulin activity)
             if let iob = iobService.currentIOB {
-                let iobRounded = Double(iob).roundedDouble(toPlaces: 1)
-                hasher.combine(iobRounded)
+                let iobDouble = Double(iob)
+                if iobDouble.isFinite, !iobDouble.isNaN {
+                    let iobRounded = iobDouble.roundedDouble(toPlaces: 1)
+                    hasher.combine(iobRounded)
+                }
             }
 
             // Hash latest determination data (includes COB, ISF, eventualBG, sensRatio)
@@ -550,7 +561,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 await backgroundContext.perform {
                     // Hash COB (rounded to integer)
                     let cobDouble = Double(determination.cob)
-                    if cobDouble.isFinite, !cobDouble.isNaN {
+                    if cobDouble.isFinite, !cobDouble.isNaN, cobDouble >= -32768, cobDouble <= 32767 {
                         let cobInt = Int16(cobDouble)
                         hasher.combine(cobInt)
                     }
@@ -590,8 +601,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     if let tempBasalData = latestTempBasal.tempBasal,
                        let rate = tempBasalData.rate
                     {
-                        let rateRounded = Double(truncating: rate).roundedDouble(toPlaces: 1)
-                        hasher.combine(rateRounded)
+                        let rateDouble = Double(truncating: rate)
+                        if rateDouble.isFinite, !rateDouble.isNaN {
+                            let rateRounded = rateDouble.roundedDouble(toPlaces: 1)
+                            hasher.combine(rateRounded)
+                        }
                     }
                 }
             }
@@ -683,7 +697,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
                 // Calculate IOB with 1 decimal precision using helper function
                 let iobDecimal = self.iobService.currentIOB ?? 0
-                let iobValue = Double(iobDecimal).roundedDouble(toPlaces: 1)
+                let iobDouble = Double(iobDecimal)
+                let iobValue = iobDouble.isFinite && !iobDouble.isNaN ? iobDouble.roundedDouble(toPlaces: 1) : 0.0
 
                 // Calculate COB, sensRatio, ISF, eventualBG, TBR from determination
                 var cobValue: Double?
@@ -761,11 +776,18 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                    let tempBasalData = firstTempBasal.tempBasal,
                    let tempRate = tempBasalData.rate
                 {
-                    // Send raw value without rounding
-                    tbrValue = Double(truncating: tempRate)
-
-                    if self.debugWatchState {
-                        debug(.watchManager, "⌚️ Current basal rate: \(tbrValue ?? 0) U/hr from temp basal")
+                    // Send raw value without rounding, with NaN/Infinity guard
+                    let tbrDouble = Double(truncating: tempRate)
+                    if tbrDouble.isFinite, !tbrDouble.isNaN {
+                        tbrValue = tbrDouble
+                        if self.debugWatchState {
+                            debug(.watchManager, "⌚️ Current basal rate: \(tbrValue!) U/hr from temp basal")
+                        }
+                    } else {
+                        tbrValue = nil
+                        if self.debugWatchState {
+                            debug(.watchManager, "⌚️ TBR is NaN or infinite, excluding from data")
+                        }
                     }
                 } else {
                     // If no temp basal, get scheduled basal from profile
@@ -780,7 +802,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         var currentBasalRate: Double = 0
                         for entry in basalProfile.reversed() {
                             if entry.minutes <= currentTimeMinutes {
-                                currentBasalRate = Double(entry.rate)
+                                let rateDouble = Double(entry.rate)
+                                if rateDouble.isFinite, !rateDouble.isNaN {
+                                    currentBasalRate = rateDouble
+                                }
                                 break
                             }
                         }
@@ -790,7 +815,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                             tbrValue = currentBasalRate
 
                             if self.debugWatchState {
-                                debug(.watchManager, "⌚️ Current scheduled basal rate: \(tbrValue ?? 0) U/hr from profile")
+                                debug(.watchManager, "⌚️ Current scheduled basal rate: \(tbrValue!) U/hr from profile")
                             }
                         }
                     }
@@ -917,8 +942,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         guard debugWatchState else { return }
 
         let watchface = currentWatchface
+        let datafield = currentDatafield
         let watchfaceUUID = watchface.watchfaceUUID?.uuidString ?? "Unknown"
-        let datafieldUUID = watchface.datafieldUUID?.uuidString ?? "Unknown"
+        let datafieldUUID = datafield.datafieldUUID?.uuidString ?? "Unknown"
 
         do {
             let jsonData = try JSONEncoder().encode(watchState)
@@ -1021,6 +1047,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             // Get current watchface setting
             let watchface = currentWatchface
 
+            // Get current datafield setting
+            let datafield = currentDatafield
+
             // Create a watchface app using the UUID from the enum
             // Only register watchface if data is NOT disabled
             if !isWatchfaceDataDisabled {
@@ -1048,12 +1077,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             }
 
             // ALWAYS create and register data field app (not affected by disable setting)
-            if let datafieldUUID = watchface.datafieldUUID,
+            if let datafieldUUID = datafield.datafieldUUID,
                let watchDataFieldApp = IQApp(uuid: datafieldUUID, store: UUID(), device: device)
             {
                 debug(
                     .watchManager,
-                    "Garmin: Registering data field (UUID: \(datafieldUUID)) for device \(device.friendlyName ?? "Unknown")"
+                    "Garmin: Registering \(datafield.displayName) datafield (UUID: \(datafieldUUID)) for device \(device.friendlyName ?? "Unknown")"
                 )
 
                 // Track datafield app
@@ -1160,18 +1189,25 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     private func broadcastStateToWatchApps(_ state: Any) {
         // Log connection health status if we have failures
         if failedSendCount > 0 {
-            let timeSinceLastSuccess = lastSuccessfulSendTime.map { Date().timeIntervalSince($0) } ?? .infinity
+            let timeString: String
+            if let lastSuccess = lastSuccessfulSendTime {
+                let timeSince = Date().timeIntervalSince(lastSuccess)
+                timeString = "\(Int(timeSince))s"
+            } else {
+                timeString = "never"
+            }
             debug(
                 .watchManager,
-                "[\(formatTimeForLog())] Garmin: Broadcasting with \(failedSendCount) recent failures. Last success: \(Int(timeSinceLastSuccess))s ago"
+                "[\(formatTimeForLog())] Garmin: Broadcasting with \(failedSendCount) recent failures. Last success: \(timeString) ago"
             )
         }
 
         let watchface = currentWatchface
+        let datafield = currentDatafield
 
         watchApps.forEach { app in
             let isWatchfaceApp = app.uuid == watchface.watchfaceUUID
-            let isDatafieldApp = app.uuid == watchface.datafieldUUID
+            let isDatafieldApp = app.uuid == datafield.datafieldUUID
 
             // SIMPLIFIED LOGIC:
             // 1. If it's a datafield, ALWAYS send (no status check)
@@ -1225,9 +1261,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// False only if: no apps at all OR (only watchface AND data disabled)
     private func areAppsLikelyInstalled() -> Bool {
         let watchface = currentWatchface
+        let datafield = currentDatafield
 
         // If datafield UUID exists, ALWAYS return true
-        if watchface.datafieldUUID != nil {
+        if datafield.datafieldUUID != nil {
             return true // Datafield exists, always send data
         }
 
@@ -1443,7 +1480,8 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
         debugGarmin("[\(formatTimeForLog())] Garmin: Received message \(message) from app \(app.uuid!)")
 
         let watchface = currentWatchface
-        let validUUIDs = Set([watchface.watchfaceUUID, watchface.datafieldUUID].compactMap { $0 })
+        let datafield = currentDatafield
+        let validUUIDs = Set([watchface.watchfaceUUID, datafield.datafieldUUID].compactMap { $0 })
 
         // Must be from a configured app
         guard validUUIDs.contains(app.uuid!) else {
@@ -1452,7 +1490,7 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
         }
 
         let isFromWatchface = app.uuid == watchface.watchfaceUUID
-        let isFromDatafield = app.uuid == watchface.datafieldUUID
+        let isFromDatafield = app.uuid == datafield.datafieldUUID
 
         // SIMPLIFIED LOGIC:
         // Skip watchface messages only if data is disabled
@@ -1505,6 +1543,7 @@ extension BaseGarminManager: SettingsObserver {
 
         // Check what changed by comparing with stored previous values
         let watchfaceChanged = previousWatchface != settings.garminWatchface
+        let datafieldChanged = previousDatafield != settings.garminDatafield
         let dataType1Changed = previousDataType1 != settings.garminDataType1
         let dataType2Changed = previousDataType2 != settings.garminDataType2
         let unitsChanged = units != settings.units
@@ -1515,6 +1554,13 @@ extension BaseGarminManager: SettingsObserver {
             debug(
                 .watchManager,
                 "Garmin: Watchface changed from \(previousWatchface.displayName) to \(settings.garminWatchface.displayName). Re-registering devices only, no data update"
+            )
+        }
+
+        if datafieldChanged {
+            debug(
+                .watchManager,
+                "Garmin: Datafield changed from \(previousDatafield.displayName) to \(settings.garminDatafield.displayName). Re-registering devices only, no data update"
             )
         }
 
@@ -1555,13 +1601,14 @@ extension BaseGarminManager: SettingsObserver {
         // NOW update stored values AFTER logging the changes
         units = settings.units
         previousWatchface = settings.garminWatchface
+        previousDatafield = settings.garminDatafield
         previousDataType1 = settings.garminDataType1
         previousDataType2 = settings.garminDataType2
         previousDisableWatchfaceData = settings.garminDisableWatchfaceData
 
-        // Handle watchface change - ONLY re-register, NO data send
-        if watchfaceChanged {
-            // Clear cached determination data after watchface change
+        // Handle watchface or datafield change - ONLY re-register, NO data send
+        if watchfaceChanged || datafieldChanged {
+            // Clear cached determination data after watchface/datafield change
             cachedDeterminationData = nil
             lastWatchfaceChangeTime = Date()
 
@@ -1583,10 +1630,10 @@ extension BaseGarminManager: SettingsObserver {
             unitsChanged ||
                 (disabledChanged && !settings.garminDisableWatchfaceData)
         ) &&
-            !watchfaceChanged // Don't send if only watchface changed
+            !watchfaceChanged && !datafieldChanged // Don't send if only watchface or datafield changed
 
         let needsThrottledUpdate = (dataType1Changed || dataType2Changed) &&
-            !watchfaceChanged // Don't send if only watchface changed
+            !watchfaceChanged && !datafieldChanged // Don't send if only watchface or datafield changed
 
         // Send immediate update for critical changes
         if needsImmediateUpdate {

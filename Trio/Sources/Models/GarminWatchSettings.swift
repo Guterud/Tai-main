@@ -45,8 +45,6 @@ enum GarminDataType2: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
 // MARK: - Garmin Watchface Setting
 
 /// Defines the available Garmin watchfaces with their associated UUIDs.
-/// Each watchface has both a watchface app UUID and a datafield app UUID.
-/// Both watchfaces now use the same data structure and settings (dataType1 and dataType2).
 enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
 
@@ -58,7 +56,7 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
         case .trio:
             return String(localized: "Trio original", comment: "")
         case .swissalpine:
-            return String(localized: "Swissalpine xDrip+", comment: "")
+            return String(localized: "Trio Swissalpine", comment: "")
         }
     }
 
@@ -72,14 +70,38 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
             return UUID(uuidString: "5A643C13-D5A7-40D4-B809-84789FDF4A1F")
         }
     }
+}
+
+// MARK: - Garmin Datafield Setting
+
+/// Defines the available Garmin datafields with their associated UUIDs.
+enum GarminDatafield: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
+    var id: String { rawValue }
+
+    case trio
+    case swissalpine
+    case none
+
+    var displayName: String {
+        switch self {
+        case .trio:
+            return String(localized: "Trio original", comment: "")
+        case .swissalpine:
+            return String(localized: "Trio Swissalpine", comment: "")
+        case .none:
+            return String(localized: "None", comment: "")
+        }
+    }
 
     /// The UUID for the datafield application in Garmin Connect IQ
     var datafieldUUID: UUID? {
         switch self {
         case .trio:
-            return UUID(uuidString: "7A2268F6-3381-4474-81BD-0A3E7F458CB7")
+            return UUID(uuidString: "71cf0982-ca41-42a5-8441-ea81d36056c3")
         case .swissalpine:
             return UUID(uuidString: "7A2268F6-3381-4474-81BD-0A3E7F458CB7")
+        case .none:
+            return nil
         }
     }
 }
@@ -90,6 +112,7 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
 /// Both watchfaces use the same settings: dataType1 and dataType2.
 struct GarminWatchSettings: Codable, Hashable {
     var watchface: GarminWatchface = .trio
+    var datafield: GarminDatafield = .trio
     var dataType1: GarminDataType1 = .cob
     var dataType2: GarminDataType2 = .tbr
     var garminDisableWatchfaceData: Bool = true

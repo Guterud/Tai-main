@@ -77,6 +77,7 @@ struct TrioSettings: JSON, Equatable, Encodable {
 
     /// Selected Garmin watchface (Trio or SwissAlpine)
     var garminWatchface: GarminWatchface = .trio
+    var garminDatafield: GarminDatafield = .swissalpine
 
     /// Primary data type for Garmin display (COB or Sensitivity Ratio)
     var garminDataType1: GarminDataType1 = .cob
@@ -334,6 +335,10 @@ extension TrioSettings: Decodable {
 
         if let garminWatchface = try? container.decode(GarminWatchface.self, forKey: .garminWatchface) {
             settings.garminWatchface = garminWatchface
+        }
+
+        if let garminDatafield = try? container.decode(GarminDatafield.self, forKey: .garminDatafield) {
+            settings.garminDatafield = garminDatafield
         }
 
         if let garminDataType1 = try? container.decode(GarminDataType1.self, forKey: .garminDataType1) {

@@ -7,6 +7,7 @@ struct WatchConfigGarminAppConfigView: View {
     @State private var shouldDisplayHint2: Bool = false
     @State private var shouldDisplayHint3: Bool = false
     @State private var shouldDisplayHint4: Bool = false
+    @State private var shouldDisplayHint5: Bool = false
     @State var hintDetent = PresentationDetent.large
 
     @Environment(\.colorScheme) var colorScheme
@@ -21,7 +22,7 @@ struct WatchConfigGarminAppConfigView: View {
                     VStack {
                         Picker(
                             selection: $state.garminWatchface,
-                            label: Text("Watch App selection").multilineTextAlignment(.leading)
+                            label: Text("Watchface Selection").multilineTextAlignment(.leading)
                         ) {
                             ForEach(GarminWatchface.allCases) { selection in
                                 Text(selection.displayName).tag(selection)
@@ -34,7 +35,7 @@ struct WatchConfigGarminAppConfigView: View {
 
                         HStack(alignment: .center) {
                             Text(
-                                "Choose which watchface/datafield to support."
+                                "Choose which watchface to support."
                             )
                             .font(.footnote)
                             .foregroundColor(.secondary)
@@ -89,6 +90,44 @@ struct WatchConfigGarminAppConfigView: View {
                             Button(
                                 action: {
                                     shouldDisplayHint2.toggle()
+                                },
+                                label: {
+                                    HStack {
+                                        Image(systemName: "questionmark.circle")
+                                    }
+                                }
+                            ).buttonStyle(BorderlessButtonStyle())
+                        }.padding(.top)
+                    }.padding(.vertical)
+                }
+            ).listRowBackground(Color.chart)
+
+            // MARK: - Datafield Selection Section
+
+            Section(
+                content: {
+                    VStack {
+                        Picker(
+                            selection: $state.garminDatafield,
+                            label: Text("Datafield Selection").multilineTextAlignment(.leading)
+                        ) {
+                            ForEach(GarminDatafield.allCases) { selection in
+                                Text(selection.displayName).tag(selection)
+                            }
+                        }
+                        .padding(.top)
+
+                        HStack(alignment: .center) {
+                            Text(
+                                "Choose which datafield to support. Can be used independently of watchface selection."
+                            )
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .lineLimit(nil)
+                            Spacer()
+                            Button(
+                                action: {
+                                    shouldDisplayHint5.toggle()
                                 },
                                 label: {
                                     HStack {
@@ -183,11 +222,23 @@ struct WatchConfigGarminAppConfigView: View {
             SettingInputHintView(
                 hintDetent: $hintDetent,
                 shouldDisplayHint: $shouldDisplayHint1,
-                hintLabel: "Choose Garmin App support.",
+                hintLabel: "Choose Garmin Watchface",
                 hintText: Text(
-                    "Choose which watchface and datafield combination on your Garmin device you wish to provide data for. Both watchfaces now use the same data structure and configuration options.\n\n" +
+                    "Choose which watchface on your Garmin device you wish to provide data for. You can independently select which datafield to use in the next section.\n\n" +
                         "You must use this configuration setting here BEFORE you switch the watchface on your Garmin device to another watchface.\n\n" +
                         "⚠️ Changing the watchface will automatically disable data transmission and lock that setting for 20 seconds to allow time for you to switch the watchface on your Garmin device."
+                ),
+                sheetTitle: String(localized: "Help", comment: "Help sheet title")
+            )
+        }
+        .sheet(isPresented: $shouldDisplayHint5) {
+            SettingInputHintView(
+                hintDetent: $hintDetent,
+                shouldDisplayHint: $shouldDisplayHint5,
+                hintLabel: "Choose Garmin Datafield",
+                hintText: Text(
+                    "Choose which datafield on your Garmin device you wish to provide data for. The datafield can be used independently from the watchface selection.\n\n" +
+                        "Select 'None' if you don't want to use a datafield, or if you're using a watchface that includes the data display."
                 ),
                 sheetTitle: String(localized: "Help", comment: "Help sheet title")
             )
