@@ -79,14 +79,34 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var garminWatchface: GarminWatchface = .trio
     var garminDatafield: GarminDatafield = .none
 
-    /// Primary data type for Garmin display (COB or Sensitivity Ratio)
-    var garminDataType1: GarminDataType1 = .cob
+    /// Primary attribute choice for Garmin display (COB, ISF, or Sensitivity Ratio)
+    var primaryAttributeChoice: GarminPrimaryAttributeChoice = .cob
 
-    /// Secondary data type for SwissAlpine watchface (TBR or Eventual BG)
-    var garminDataType2: GarminDataType2 = .tbr
+    /// Secondary attribute choice for Garmin display (TBR or Eventual BG)
+    var secondaryAttributeChoice: GarminSecondaryAttributeChoice = .tbr
 
-    /// Controls whether watchface data transmission is disabled
-    var garminDisableWatchfaceData: Bool = true
+    /// Controls whether watchface data transmission is enabled
+    var isWatchfaceDataEnabled: Bool = false
+
+    /// Computed property that groups all Garmin settings into a single struct
+    var garminSettings: GarminWatchSettings {
+        get {
+            GarminWatchSettings(
+                watchface: garminWatchface,
+                datafield: garminDatafield,
+                primaryAttributeChoice: primaryAttributeChoice,
+                secondaryAttributeChoice: secondaryAttributeChoice,
+                isWatchfaceDataEnabled: isWatchfaceDataEnabled
+            )
+        }
+        set {
+            garminWatchface = newValue.watchface
+            garminDatafield = newValue.datafield
+            primaryAttributeChoice = newValue.primaryAttributeChoice
+            secondaryAttributeChoice = newValue.secondaryAttributeChoice
+            isWatchfaceDataEnabled = newValue.isWatchfaceDataEnabled
+        }
+    }
 }
 
 extension TrioSettings: Decodable {
@@ -341,16 +361,21 @@ extension TrioSettings: Decodable {
             settings.garminDatafield = garminDatafield
         }
 
-        if let garminDataType1 = try? container.decode(GarminDataType1.self, forKey: .garminDataType1) {
-            settings.garminDataType1 = garminDataType1
+        if let primaryAttributeChoice = try? container
+            .decode(GarminPrimaryAttributeChoice.self, forKey: .primaryAttributeChoice)
+        {
+            settings.primaryAttributeChoice = primaryAttributeChoice
         }
 
-        if let garminDataType2 = try? container.decode(GarminDataType2.self, forKey: .garminDataType2) {
-            settings.garminDataType2 = garminDataType2
+        if let secondaryAttributeChoice = try? container.decode(
+            GarminSecondaryAttributeChoice.self,
+            forKey: .secondaryAttributeChoice
+        ) {
+            settings.secondaryAttributeChoice = secondaryAttributeChoice
         }
 
-        if let garminDisableWatchfaceData = try? container.decode(Bool.self, forKey: .garminDisableWatchfaceData) {
-            settings.garminDisableWatchfaceData = garminDisableWatchfaceData
+        if let isWatchfaceDataEnabled = try? container.decode(Bool.self, forKey: .isWatchfaceDataEnabled) {
+            settings.isWatchfaceDataEnabled = isWatchfaceDataEnabled
         }
 
         self = settings

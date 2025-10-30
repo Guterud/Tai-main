@@ -150,7 +150,7 @@ struct WatchConfigGarminView: View {
 
             if !state.devices.isEmpty {
                 Section(
-                    header: Text("Connected Watches"),
+                    header: Text("Connected Devices"),
                     content: {
                         List {
                             ForEach(state.devices, id: \.uuid) { device in
@@ -164,7 +164,7 @@ struct WatchConfigGarminView: View {
                 // MARK: - App Settings Navigation Section
 
                 Section(
-                    header: Text("Watch App Settings"),
+                    header: Text("Device App Settings"),
                     content: {
                         Button(action: {
                             showDeviceList = false

@@ -2,10 +2,10 @@ import Foundation
 
 // MARK: - Garmin Data Type Settings
 
-/// Primary data type selection for Garmin watchface and datafield.
-/// Determines whether to display COB or Sensitivity Ratio alongside glucose data.
+/// Primary attribute selection for Garmin watchface and datafield.
+/// Determines whether to display COB, ISF, or Sensitivity Ratio alongside glucose data.
 /// Used by both Trio and SwissAlpine watchfaces.
-enum GarminDataType1: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
+enum GarminPrimaryAttributeChoice: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
 
     case cob
@@ -24,9 +24,9 @@ enum GarminDataType1: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
     }
 }
 
-/// Secondary data type selection for both Trio and SwissAlpine watchfaces.
+/// Secondary attribute selection for both Trio and SwissAlpine watchfaces.
 /// Determines whether to display Temp Basal Rate or Eventual BG.
-enum GarminDataType2: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
+enum GarminSecondaryAttributeChoice: String, JSON, CaseIterable, Identifiable, Codable, Hashable {
     var id: String { rawValue }
 
     case tbr
@@ -109,11 +109,11 @@ enum GarminDatafield: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
 // MARK: - Garmin Watch Settings Group
 
 /// Groups related Garmin watch settings together for easier management.
-/// Both watchfaces use the same settings: dataType1 and dataType2.
+/// Both watchfaces use the same settings: primaryAttributeChoice and secondaryAttributeChoice.
 struct GarminWatchSettings: Codable, Hashable {
     var watchface: GarminWatchface = .trio
     var datafield: GarminDatafield = .trio
-    var dataType1: GarminDataType1 = .cob
-    var dataType2: GarminDataType2 = .tbr
-    var garminDisableWatchfaceData: Bool = true
+    var primaryAttributeChoice: GarminPrimaryAttributeChoice = .cob
+    var secondaryAttributeChoice: GarminSecondaryAttributeChoice = .tbr
+    var isWatchfaceDataEnabled: Bool = false
 }
