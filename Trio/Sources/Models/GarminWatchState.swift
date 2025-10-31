@@ -45,13 +45,13 @@ struct GarminWatchState: Hashable, Equatable, Sendable, Encodable {
 
     // MARK: - Display Configuration Fields
 
-    /// Specifies which data field to display as primary (dataType1)
-    /// Options: "cob" or "sensRatio"
-    var displayDataType1: String?
+    /// Specifies which primary attribute to display
+    /// Options: "cob", "isf", or "sensRatio"
+    var displayPrimaryAttributeChoice: String?
 
-    /// Specifies which data field to display as secondary (dataType2)
+    /// Specifies which secondary attribute to display
     /// Options: "tbr" or "eventualBG"
-    var displayDataType2: String?
+    var displaySecondaryAttributeChoice: String?
 
     static func == (lhs: GarminWatchState, rhs: GarminWatchState) -> Bool {
         lhs.date == rhs.date &&
@@ -66,8 +66,8 @@ struct GarminWatchState: Hashable, Equatable, Sendable, Encodable {
             lhs.eventualBG == rhs.eventualBG &&
             lhs.isf == rhs.isf &&
             lhs.sensRatio == rhs.sensRatio &&
-            lhs.displayDataType1 == rhs.displayDataType1 &&
-            lhs.displayDataType2 == rhs.displayDataType2
+            lhs.displayPrimaryAttributeChoice == rhs.displayPrimaryAttributeChoice &&
+            lhs.displaySecondaryAttributeChoice == rhs.displaySecondaryAttributeChoice
     }
 
     func hash(into hasher: inout Hasher) {
@@ -83,8 +83,8 @@ struct GarminWatchState: Hashable, Equatable, Sendable, Encodable {
         hasher.combine(eventualBG)
         hasher.combine(isf)
         hasher.combine(sensRatio)
-        hasher.combine(displayDataType1)
-        hasher.combine(displayDataType2)
+        hasher.combine(displayPrimaryAttributeChoice)
+        hasher.combine(displaySecondaryAttributeChoice)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -100,8 +100,8 @@ struct GarminWatchState: Hashable, Equatable, Sendable, Encodable {
         case eventualBG
         case isf
         case sensRatio
-        case displayDataType1
-        case displayDataType2
+        case displayPrimaryAttributeChoice
+        case displaySecondaryAttributeChoice
     }
 
     /// Custom encoding that excludes nil values from the JSON output
@@ -119,7 +119,7 @@ struct GarminWatchState: Hashable, Equatable, Sendable, Encodable {
         try container.encodeIfPresent(eventualBG, forKey: .eventualBG)
         try container.encodeIfPresent(isf, forKey: .isf)
         try container.encodeIfPresent(sensRatio, forKey: .sensRatio)
-        try container.encodeIfPresent(displayDataType1, forKey: .displayDataType1)
-        try container.encodeIfPresent(displayDataType2, forKey: .displayDataType2)
+        try container.encodeIfPresent(displayPrimaryAttributeChoice, forKey: .displayPrimaryAttributeChoice)
+        try container.encodeIfPresent(displaySecondaryAttributeChoice, forKey: .displaySecondaryAttributeChoice)
     }
 }
