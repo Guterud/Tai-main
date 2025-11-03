@@ -1128,15 +1128,15 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
         lastSentHashLock.lock()
         let isDuplicate = (lastSentDataHash == currentHash)
-        if !isDuplicate {
-            lastSentDataHash = currentHash
-        }
         lastSentHashLock.unlock()
 
         if isDuplicate {
             debugGarmin("[\(formatTimeForLog())] Garmin: Skipping duplicate broadcast (hash: \(currentHash))")
             return
         }
+
+        // Store hash - will be marked as "sent" only after successful transmission
+        let hashToSend = currentHash
 
         // Update display types in the state before sending (handles cached/throttled data)
         let updatedState = updateDisplayTypesInState(state)
@@ -1167,6 +1167,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             // 1. If it's a datafield, ALWAYS send (no status check)
             if isDatafieldApp {
                 debug(.watchManager, "[\(formatTimeForLog())] Garmin: Sending to datafield \(app.uuid!) (no status check)")
+                // Store hash to mark as sent on successful send
+                currentSendHash = hashToSend
                 sendMessage(updatedState, to: app)
                 return
             }
@@ -1193,6 +1195,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 }
 
                 debug(.watchManager, "[\(self.formatTimeForLog())] Garmin: Sending to watchface \(app.uuid!)")
+                // Store hash to mark as sent on successful send
+                self.currentSendHash = hashToSend
                 self.sendMessage(updatedState, to: app)
             }
         }
@@ -1330,6 +1334,15 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         set { triggerLock.withLock { _currentSendTrigger = newValue } }
     }
 
+    // Track hash of data currently being sent (thread-safe)
+    private let sendHashLock = OSAllocatedUnfairLock()
+    private var _currentSendHash: Int?
+
+    private var currentSendHash: Int? {
+        get { sendHashLock.withLock { _currentSendHash } }
+        set { sendHashLock.withLock { _currentSendHash = newValue } }
+    }
+
     // Track connection health
     private var lastSuccessfulSendTime: Date?
     private var failedSendCount = 0
@@ -1372,6 +1385,14 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     self.failedSendCount = 0
                     self.lastSuccessfulSendTime = Date()
                     self.connectionAlertShown = false // Reset alert flag on success
+
+                    // Mark hash as sent only after successful transmission
+                    if let sentHash = self.currentSendHash {
+                        self.lastSentHashLock.lock()
+                        self.lastSentDataHash = sentHash
+                        self.lastSentHashLock.unlock()
+                    }
+
                     debug(
                         .watchManager,
                         "[\(self.formatTimeForLog())] Garmin: Successfully sent message to \(app.uuid!) [Trigger: \(self.currentSendTrigger)]"
