@@ -128,13 +128,55 @@ extension BasalProfileEditor {
             }
         }
 
+        var fullScheduleWarning: some View {
+            VStack {
+                Text(
+                    "Basal profile covers 24 hours. You cannot add more rates. Please remove or adjust existing rates to make space."
+                ).bold()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(Color.tabBar)
+            .clipShape(
+                .rect(
+                    topLeadingRadius: 10,
+                    bottomLeadingRadius: 10,
+                    bottomTrailingRadius: 10,
+                    topTrailingRadius: 10
+                )
+            )
+        }
+
+        var totalBasalRow: some View {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("Total")
+                        .bold()
+
+                    Spacer()
+
+                    HStack {
+                        Text(rateFormatter.string(from: state.total as NSNumber) ?? "0")
+                        Text("U/day")
+                            .foregroundStyle(Color.secondary)
+                    }
+                    .id(refreshUI)
+                }
+            }
+            .padding()
+            .background(Color.chart.opacity(0.65))
+            .cornerRadius(10)
+            .padding(.horizontal)
+            .id(bottomID)
+        }
+
         var body: some View {
             ScrollViewReader { proxy in
                 VStack(spacing: 0) {
                     ScrollView {
                         LazyVStack {
                             VStack(alignment: .leading, spacing: 0) {
-                                if state.concentration != 1 {
+                                if state.concentration != 1 || state.roundingHint {
                                     VStack(alignment: .leading, spacing: 12) {
                                         HStack {
                                             Image(systemName: "info.circle.fill")
@@ -181,14 +223,12 @@ extension BasalProfileEditor {
 
                                                 VStack(alignment: .leading, spacing: 4) {
                                                     Text("Rates Adjusted")
-                                                        .font(.caption)
                                                         .bold()
                                                         .foregroundStyle(.orange)
 
                                                     Text(
-                                                        "Some basal rates have been rounded to match available pump increments for U\(Int(state.concentration * 100)) insulin. Highlighted entries show adjusted values."
+                                                        "Some basal rates have been rounded to match available pump increments for U\(Int(state.concentration * 100)) insulin. Highlighted entries show adjusted values. Please REVIEW and Save."
                                                     )
-                                                    .font(.caption2)
                                                     .foregroundStyle(.secondary)
                                                     .fixedSize(horizontal: false, vertical: true)
                                                 }
@@ -210,32 +250,45 @@ extension BasalProfileEditor {
                                     .padding(.top)
                                 }
 
+                                if !state.canAdd {
+                                    VStack {
+                                        Text(
+                                            "Basal profile covers 24 hours. You cannot add more rates. Please remove or adjust existing rates to make space."
+                                        ).bold()
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding()
+                                    .background(Color.tabBar)
+                                    .clipShape(
+                                        .rect(
+                                            topLeadingRadius: 10,
+                                            bottomLeadingRadius: 10,
+                                            bottomTrailingRadius: 10,
+                                            topTrailingRadius: 10
+                                        )
+                                    )
+                                    .padding(.horizontal)
+                                    .padding(.top)
+                                }
+
                                 // Chart visualization
+                                basalProfileChart
+                                    .frame(height: 180)
+                                    .padding()
+                                    .background(Color.chart.opacity(0.65))
+                                    .clipShape(
+                                        .rect(
+                                            topLeadingRadius: 10,
+                                            bottomLeadingRadius: 0,
+                                            bottomTrailingRadius: 0,
+                                            topTrailingRadius: 10
+                                        )
+                                    )
+                                    .padding(.horizontal)
+                                    .padding(.top)
+
                                 if !state.items.isEmpty {
                                     VStack(alignment: .leading, spacing: 12) {
-                                        VStack(alignment: .leading, spacing: 8) {
-                                            HStack {
-                                                Image(systemName: "chart.xyaxis.line")
-                                                    .font(.title2)
-                                                    .foregroundStyle(.purple)
-                                                Text("Basal Rates")
-                                                    .font(.headline)
-                                                Spacer()
-                                            }
-
-                                            Text(
-                                                "Your basal profile represents the amount of background insulin you need throughout the day. This helps Trio calculate your insulin needs."
-                                            )
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        }
-                                        .padding(.horizontal)
-                                        .padding(.top)
-
-                                        basalProfileChart
-                                            .frame(height: 180)
-                                            .padding(.horizontal)
-
                                         // Chart legend for rounded rates
                                         if state.roundingHint && !state.roundedRateIndices.isEmpty {
                                             HStack(spacing: 16) {
@@ -259,22 +312,9 @@ extension BasalProfileEditor {
                                             }
                                             .padding(.horizontal)
                                         }
-
-                                        Spacer(minLength: 0)
-                                            .frame(height: 12)
-                                            .padding(.bottom)
                                     }
-                                    .background(Color.chart.opacity(0.65))
-                                    .clipShape(
-                                        .rect(
-                                            topLeadingRadius: 10,
-                                            bottomLeadingRadius: 0,
-                                            bottomTrailingRadius: 0,
-                                            topTrailingRadius: 10
-                                        )
-                                    )
                                     .padding(.horizontal)
-                                    .padding(.top)
+                                    .padding(.bottom)
                                 }
 
                                 // Basal profile list
@@ -291,47 +331,24 @@ extension BasalProfileEditor {
                                             }
                                         }
                                     )
-
-                                    // Legend for rounded rates
-                                    if state.roundingHint && !state.roundedRateIndices.isEmpty {
-                                        HStack(spacing: 8) {
-                                            Image(systemName: "circle.fill")
-                                                .foregroundStyle(.orange)
-                                                .font(.caption2)
-                                            Text("Orange indicator shows rates adjusted for concentration")
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        .padding(.top, 8)
-                                    }
                                 }
                                 .padding(.horizontal)
 
-                                // Total daily basal calculation
                                 if !state.items.isEmpty {
-                                    Spacer(minLength: 20)
-
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        HStack {
-                                            Text("Total")
-                                                .bold()
-
-                                            Spacer()
-
-                                            HStack {
-                                                Text(rateFormatter.string(from: state.total as NSNumber) ?? "0")
-                                                Text("U/day")
-                                                    .foregroundStyle(Color.secondary)
-                                            }
-                                            .id(refreshUI)
-                                        }
-                                    }
-                                    .padding()
-                                    .background(Color.chart.opacity(0.65))
-                                    .cornerRadius(10)
-                                    .padding(.horizontal)
-                                    .id(bottomID)
+                                    totalBasalRow
                                 }
+
+                                HStack {
+                                    Image(systemName: "hand.draw.fill")
+                                        .padding(.leading)
+
+                                    Text("Swipe to delete a single entry. Tap on it, to edit its time or value.")
+                                        .padding(.trailing)
+                                }
+                                .font(.subheadline)
+                                .fontWeight(.light)
+                                .foregroundStyle(.secondary)
+                                .padding()
                             }
                         }
                     }

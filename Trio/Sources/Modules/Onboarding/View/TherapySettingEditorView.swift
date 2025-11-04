@@ -16,6 +16,8 @@ struct TherapySettingEditorView: View {
             ScrollView {
                 HStack {
                     Text("Entries").bold()
+                        .padding([.top, .bottom], 10)
+                        .padding(.leading, 20)
                     Spacer()
                     Button {
                         // Prepare and add new entry
@@ -41,12 +43,14 @@ struct TherapySettingEditorView: View {
                         HStack {
                             Image(systemName: "plus.circle.fill")
                             Text("Add")
-                        }.foregroundColor(.accentColor)
+                        }.foregroundColor(cannotAddMoreEntries ? .secondary : .accentColor)
+                            .padding([.top, .bottom], 10)
+                            .padding(.trailing, 20)
                     }
-                    .disabled(items.count >= 48)
+                    .disabled(cannotAddMoreEntries)
                 }
-                .listRowBackground(Color.chart.opacity(0.65))
-                .padding(.vertical, 10)
+                .background(Color.chart.opacity(0.65))
+                .padding(.bottom, -10)
 
                 List {
                     ForEach($items) { $item in
@@ -106,6 +110,19 @@ struct TherapySettingEditorView: View {
                         }
                     }
                     .listRowBackground(Color.chart.opacity(0.65))
+
+                    Rectangle().fill(Color.chart.opacity(0.65)).frame(height: 10)
+                        .clipShape(
+                            .rect(
+                                topLeadingRadius: 0,
+                                bottomLeadingRadius: 10,
+                                bottomTrailingRadius: 10,
+                                topTrailingRadius: 0
+                            )
+                        )
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: -22, leading: 0, bottom: 0, trailing: 0))
+                        .listRowSeparator(.hidden)
                 }
                 .id(bottomID)
                 .listStyle(.plain)
@@ -188,6 +205,21 @@ struct TherapySettingEditorView: View {
         .padding(.vertical, 8)
     }
 
+    /// Check if we can add more entries
+    /// Disabled when: 48 entries OR last entry is at 23:30 (84600 seconds)
+    private var cannotAddMoreEntries: Bool {
+        if items.count >= 48 {
+            return true
+        }
+
+        // Check if last entry is at 23:30 (23.5 hours * 3600 seconds = 84600)
+        if let lastTime = items.last?.time, lastTime >= 84600 {
+            return true
+        }
+
+        return false
+    }
+
     private func sortTherapyItems() {
         Task { @MainActor in
             withAnimation {
@@ -197,6 +229,11 @@ struct TherapySettingEditorView: View {
     }
 
     private func validateTherapySettingItems() {
+        // Store the time value of the currently selected item (if any)
+        let selectedTime = selectedItemID.flatMap { id in
+            items.first(where: { $0.id == id })?.time
+        }
+
         // validates therapy items (i.e. parsed therapy settings into wrapper class)
         var newItems = Array(Set(items)).sorted { $0.time < $1.time }
         if !newItems.isEmpty {
@@ -209,6 +246,11 @@ struct TherapySettingEditorView: View {
 
         // force ALL items to have new UUIDs (to enforce binding update)
         items = newItems.map { TherapySettingItem(copying: $0, newID: true) }
+
+        // Restore selection by finding the item with the same time value
+        if let selectedTime = selectedTime {
+            selectedItemID = items.first(where: { $0.time == selectedTime })?.id
+        }
 
         // validates underlying "raw" therapy setting (i.e. item of type basal, target, isf, carb ratio)
         validateOnDelete?()
