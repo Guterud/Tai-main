@@ -95,6 +95,11 @@ extension Decimal {
             }
         }
     }
+
+    func roundedDouble(toPlaces places: Int) -> Double {
+        let divisor = pow(10.0, Double(places))
+        return (Double(self) * divisor).rounded() / divisor
+    }
 }
 
 // MARK: - Double Initializer for Decimal
