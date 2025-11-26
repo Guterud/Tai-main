@@ -2,6 +2,7 @@ import CGMBLEKitUI
 import Combine
 import CoreData
 import Foundation
+import LoopKit
 import LoopKitUI
 import MockKit
 import Observation
@@ -115,6 +116,7 @@ extension Home {
         var cgmAvailable: Bool = false
         var listOfCGM: [CGMModel] = []
         var cgmCurrent = cgmDefaultModel
+        var pumpInitialSettings = PumpConfig.PumpInitialSettings.default
         var shouldRunDeleteOnSettingsChange = true
 
         var showCarbsRequiredBadge: Bool = true
@@ -570,9 +572,11 @@ extension Home {
         }
 
         private func setupPumpSettings() async {
-            let maxBasal = await provider.pumpSettings().maxBasal
+            let settings = await provider.pumpSettings()
             await MainActor.run {
-                self.maxBasal = maxBasal
+                self.maxBasal = settings.maxBasal
+                self.pumpInitialSettings.maxBasalRateUnitsPerHour = Double(settings.maxBasal)
+                self.pumpInitialSettings.maxBolusUnits = Double(settings.maxBolus)
             }
         }
 
@@ -580,6 +584,13 @@ extension Home {
             let basalProfile = await provider.getBasalProfile()
             await MainActor.run {
                 self.basalProfile = basalProfile
+
+                if let schedule = BasalRateSchedule(
+                    dailyItems: basalProfile
+                        .map { RepeatingScheduleValue(startTime: TimeInterval($0.minutes * 60), value: Double($0.rate)) }
+                ) {
+                    self.pumpInitialSettings.basalSchedule = schedule
+                }
             }
         }
 
