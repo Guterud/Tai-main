@@ -1,2 +1,2 @@
-Trio dev 0.6.0.8
-caching connectedStatus
+Trio dev 0.6.0.21
+pump suspended

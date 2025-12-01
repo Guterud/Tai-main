@@ -5,6 +5,8 @@ struct TherapySettingEditorView: View {
     var unit: TherapySettingUnit
     var timeOptions: [TimeInterval]
     var valueOptions: [Decimal]
+    var roundedIndices: Set<Int> = []
+    var originalRates: [Int: Decimal] = [:]
     var validateOnDelete: (() -> Void)?
     var onItemAdded: (() -> Void)?
 
@@ -16,6 +18,8 @@ struct TherapySettingEditorView: View {
             ScrollView {
                 HStack {
                     Text("Entries").bold()
+                        .padding([.top, .bottom], 10)
+                        .padding(.leading, 20)
                     Spacer()
                     Button {
                         // Prepare and add new entry
@@ -41,15 +45,19 @@ struct TherapySettingEditorView: View {
                         HStack {
                             Image(systemName: "plus.circle.fill")
                             Text("Add")
-                        }.foregroundColor(.accentColor)
+                        }.foregroundColor(cannotAddMoreEntries ? .secondary : .accentColor)
+                            .padding([.top, .bottom], 10)
+                            .padding(.trailing, 20)
                     }
-                    .disabled(items.count >= 48)
+                    .disabled(cannotAddMoreEntries)
                 }
-                .listRowBackground(Color.chart.opacity(0.65))
-                .padding(.vertical, 10)
+                .background(Color.chart.opacity(0.65))
+                .padding(.bottom, -10)
 
                 List {
-                    ForEach($items) { $item in
+                    ForEach(Array($items.enumerated()), id: \.element.id) { index, $item in
+                        let isRounded = roundedIndices.contains(index)
+
                         VStack(spacing: 0) {
                             Button {
                                 selectedItemID = selectedItemID == item.id ? nil : item.id
@@ -57,10 +65,15 @@ struct TherapySettingEditorView: View {
                             } label: {
                                 HStack {
                                     HStack {
+                                        if isRounded, let originalRate = originalRates[index] {
+                                            Text("\(displayText(for: unit, decimalValue: originalRate)) →")
+                                                .foregroundStyle(Color.secondary)
+                                        }
                                         Text(displayText(for: unit, decimalValue: item.value))
                                             .foregroundStyle(
-                                                selectedItemID == item.id ? Color.accentColor : Color
-                                                    .primary
+                                                selectedItemID == item.id ?
+                                                    (isRounded ? Color.orange : Color.accentColor) :
+                                                    (isRounded ? Color.orange : Color.primary)
                                             )
                                         Text(unit.displayName)
                                             .foregroundStyle(Color.secondary)
@@ -87,15 +100,17 @@ struct TherapySettingEditorView: View {
                                     item: $item,
                                     timeOptions: timeOptions,
                                     valueOptions: valueOptions,
-                                    unit: unit
+                                    unit: unit,
+                                    isRounded: isRounded,
+                                    originalRate: originalRates[index]
                                 )
                                 .transition(.slide)
                             }
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            if let index = items.firstIndex(where: { $0.id == item.id }), items.count > 1 {
+                            if let itemIndex = items.firstIndex(where: { $0.id == item.id }), items.count > 1 {
                                 Button(role: .destructive) {
-                                    items.remove(at: index)
+                                    items.remove(at: itemIndex)
                                     selectedItemID = nil
                                     validateTherapySettingItems()
                                 } label: {
@@ -106,6 +121,19 @@ struct TherapySettingEditorView: View {
                         }
                     }
                     .listRowBackground(Color.chart.opacity(0.65))
+
+                    Rectangle().fill(Color.chart.opacity(0.65)).frame(height: 10)
+                        .clipShape(
+                            .rect(
+                                topLeadingRadius: 0,
+                                bottomLeadingRadius: 10,
+                                bottomTrailingRadius: 10,
+                                topTrailingRadius: 0
+                            )
+                        )
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: -22, leading: 0, bottom: 0, trailing: 0))
+                        .listRowSeparator(.hidden)
                 }
                 .id(bottomID)
                 .listStyle(.plain)
@@ -135,11 +163,13 @@ struct TherapySettingEditorView: View {
         item: Binding<TherapySettingItem>,
         timeOptions: [TimeInterval],
         valueOptions: [Decimal],
-        unit: TherapySettingUnit
+        unit: TherapySettingUnit,
+        isRounded: Bool,
+        originalRate: Decimal? = nil
     ) -> some View {
         // Compute unavailable times (already taken by other entries)
         let takenTimes = Set(items.filter { $0.id != item.wrappedValue.id }.map(\.time))
-        // Allow current selection even if it’s in the set of taken times.
+        // Allow current selection even if it's in the set of taken times.
         let availableTimes = timeOptions.filter { $0 == item.wrappedValue.time || !takenTimes.contains($0) }
         // Determine if this is first item in list (which is locked to 00:00)
         var isFirstItem: Bool {
@@ -155,7 +185,17 @@ struct TherapySettingEditorView: View {
                     }
                 )) {
                     ForEach(valueOptions, id: \.self) { value in
-                        Text("\(displayText(for: unit, decimalValue: value)) \(unit.displayName)").tag(Double(value))
+                        if let originalRate = originalRate, isRounded && value == item.wrappedValue.value {
+                            Text(
+                                "\(displayText(for: unit, decimalValue: originalRate)) → \(displayText(for: unit, decimalValue: value)) \(unit.displayName)"
+                            )
+                            .tag(Double(value))
+                            .foregroundStyle(Color.orange)
+                        } else {
+                            Text("\(displayText(for: unit, decimalValue: value)) \(unit.displayName)")
+                                .tag(Double(value))
+                                .foregroundStyle(isRounded && value == item.wrappedValue.value ? Color.orange : Color.primary)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -188,6 +228,21 @@ struct TherapySettingEditorView: View {
         .padding(.vertical, 8)
     }
 
+    /// Check if we can add more entries
+    /// Disabled when: 48 entries OR last entry is at 23:30 (84600 seconds)
+    private var cannotAddMoreEntries: Bool {
+        if items.count >= 48 {
+            return true
+        }
+
+        // Check if last entry is at 23:30 (23.5 hours * 3600 seconds = 84600)
+        if let lastTime = items.last?.time, lastTime >= 84600 {
+            return true
+        }
+
+        return false
+    }
+
     private func sortTherapyItems() {
         Task { @MainActor in
             withAnimation {
@@ -197,6 +252,11 @@ struct TherapySettingEditorView: View {
     }
 
     private func validateTherapySettingItems() {
+        // Store the time value of the currently selected item (if any)
+        let selectedTime = selectedItemID.flatMap { id in
+            items.first(where: { $0.id == id })?.time
+        }
+
         // validates therapy items (i.e. parsed therapy settings into wrapper class)
         var newItems = Array(Set(items)).sorted { $0.time < $1.time }
         if !newItems.isEmpty {
@@ -209,6 +269,11 @@ struct TherapySettingEditorView: View {
 
         // force ALL items to have new UUIDs (to enforce binding update)
         items = newItems.map { TherapySettingItem(copying: $0, newID: true) }
+
+        // Restore selection by finding the item with the same time value
+        if let selectedTime = selectedTime {
+            selectedItemID = items.first(where: { $0.time == selectedTime })?.id
+        }
 
         // validates underlying "raw" therapy setting (i.e. item of type basal, target, isf, carb ratio)
         validateOnDelete?()
@@ -303,6 +368,8 @@ enum TherapySettingUnit: String, CaseIterable {
         unit: .unitPerHour,
         timeOptions: stride(from: 0.0, to: 1.days.timeInterval, by: 30.minutes.timeInterval).map { $0 },
         valueOptions: stride(from: 0.0, through: 10.0, by: 0.05).map { Decimal(round(100 * $0) / 100) },
+        roundedIndices: [0],
+        originalRates: [0: 0.775],
         onItemAdded: nil
     )
 }
