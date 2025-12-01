@@ -1,3 +1,2 @@
-Trio dev 0.6.0.15
-basal editor & concentrations
-glucose backfils and deletes complete
+Trio dev 0.6.0.21
+pump suspended
