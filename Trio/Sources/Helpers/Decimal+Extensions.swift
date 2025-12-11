@@ -40,7 +40,7 @@ extension Decimal {
         )
     }
 
-    /// Rounds to bolus increment with precise Decimal operations
+    /// Rounds to bolus increment using pure Decimal arithmetic to avoid floating-point precision issues
     /// - Parameters:
     ///   - increment: Increment to round to
     ///   - maxBolus: Optional maximum bolus value
@@ -52,17 +52,20 @@ extension Decimal {
         roundingMode: NSDecimalNumber.RoundingMode = .down
     ) -> Decimal {
         guard increment > 0 else { return self }
-        let doubleValue = (self as NSDecimalNumber).doubleValue
-        let doubleIncrement = (increment as NSDecimalNumber).doubleValue
-        let adjustedDouble: Double
-        if roundingMode == .down {
-            adjustedDouble = floor(doubleValue / doubleIncrement) * doubleIncrement // Always round down
-        } else {
-            adjustedDouble = (doubleValue / doubleIncrement).rounded() * doubleIncrement // Round to nearest
-        }
-        var adjustedDecimal = Decimal(adjustedDouble)
-        var result = Decimal()
-        NSDecimalRound(&result, &adjustedDecimal, 3, roundingMode)
+
+        // Use pure Decimal arithmetic to avoid floating-point precision issues
+        // Calculate how many increments fit into the value
+        let divided = self / increment
+
+        // Round the quotient to get a whole number of increments
+        var roundedQuotient = Decimal()
+        var dividedCopy = divided
+        // Scale 0 rounds to integer
+        NSDecimalRound(&roundedQuotient, &dividedCopy, 0, roundingMode)
+
+        // Multiply back by increment to get the final value
+        let result = roundedQuotient * increment
+
         if let maxBolus = maxBolus {
             return min(result, maxBolus)
         }

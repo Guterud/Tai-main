@@ -1,6 +1,8 @@
-oref0 branch: autoISF3.01 - git version: b86a1ab
+oref0 branch: autoISF3.01 - git version: 4282130
 
 Last commits:
+4282130 logging concentraion, webpack-cp fix
+3a9fadc show lowest increment
 b86a1ab loop wanted log
 6a0e4a8 remove shouldProtectFromHigh
 bda74d0 typos
@@ -29,5 +31,3 @@ a1e5f0c resistanceMode active multiply with autoISF
 53e8fbb fix B30 suppress SMB condition
 b21e9b3 Fixes an incorrect undefined check
 c31d48c insert enable SMB with high BG option
-8d2a995 adjust rounding to match AAPS(Kotlin)
-7986c4d expand rT.variables for autoISF glucose stats
