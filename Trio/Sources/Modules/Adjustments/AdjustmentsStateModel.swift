@@ -49,8 +49,6 @@ extension Adjustments {
         var units: GlucoseUnits = .mgdL
 
         // Temp Target Properties
-        let normalTarget: Decimal = 100
-        let minimalInsulinPercentage: Double = 15.0 // minimal allowed Insulin% for highTTs
         var tempTargetDuration: Decimal = 0
         var tempTargetName: String = ""
         var tempTargetTarget: Decimal = 100

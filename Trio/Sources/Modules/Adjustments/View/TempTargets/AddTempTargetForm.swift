@@ -61,7 +61,7 @@ struct AddTempTargetForm: View {
             }
             .onAppear {
                 targetStep = state.units == .mgdL ? 5 : 9
-                state.tempTargetTarget = state.normalTarget
+                state.tempTargetTarget = TempTargetCalculations.normalTarget
             }
             .sheet(isPresented: $state.isHelpSheetPresented) {
                 TempTargetHelpView(state: state, helpSheetDetent: $state.helpSheetDetent)
@@ -101,12 +101,18 @@ struct AddTempTargetForm: View {
                     toggleScrollWheel: toggleScrollWheel
                 )
                 .onChange(of: state.tempTargetTarget) {
-                    state.percentage = state.computeAdjustedPercentage()
+                    // when first setting a custom sensitivity the settings HBT is used and therefore we calculate the sensitivity
+                    if state.halfBasalTarget == state.settingHalfBasalTarget {
+                        state.percentage = state.computeAdjustedPercentage()
+                    } else {
+                        // else when changing target value and the already adjusted HBT is used, keep the sensitivity and adjust the HBT instead
+                        state.halfBasalTarget = Decimal(state.computeHalfBasalTarget())
+                    }
                 }
             }
             .listRowBackground(Color.chart)
 
-            if state.tempTargetTarget != state.normalTarget {
+            if state.tempTargetTarget != TempTargetCalculations.normalTarget {
                 if state.isAdjustSensEnabled() {
                     Section(
                         footer: state.percentageDescription(state.percentage),

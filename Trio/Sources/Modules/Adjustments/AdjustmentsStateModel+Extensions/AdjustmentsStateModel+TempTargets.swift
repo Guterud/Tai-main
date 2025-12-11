@@ -389,39 +389,28 @@ extension Adjustments.StateModel {
         usingTarget initialTarget: Decimal? = nil,
         usingPercentage initialPercentage: Double? = nil
     ) -> Double {
-        let adjustmentPercentage = initialPercentage ?? percentage
-        let adjustmentRatio = Decimal(adjustmentPercentage / 100)
         let tempTargetValue: Decimal = initialTarget ?? tempTargetTarget
-        var halfBasalTargetValue = halfBasalTarget
-        if adjustmentRatio != 1 {
-            halfBasalTargetValue = ((2 * adjustmentRatio * normalTarget) - normalTarget - (adjustmentRatio * tempTargetValue)) /
-                (adjustmentRatio - 1)
-        }
-        return round(Double(halfBasalTargetValue))
+        let adjustmentPercentage = initialPercentage ?? percentage
+        return TempTargetCalculations.computeHalfBasalTarget(
+            target: tempTargetValue,
+            percentage: adjustmentPercentage
+        )
     }
 
     /// Determines if sensitivity adjustment is enabled based on target.
     func isAdjustSensEnabled(usingTarget initialTarget: Decimal? = nil) -> Bool {
         let target = initialTarget ?? tempTargetTarget
-        if target < normalTarget, lowTTlowersSens && autosensMax > 1 { return true }
-        if target > normalTarget, highTTraisesSens || isExerciseModeActive { return true }
+        if target < TempTargetCalculations.normalTarget, lowTTlowersSens && autosensMax > 1 { return true }
+        if target > TempTargetCalculations.normalTarget, highTTraisesSens || isExerciseModeActive { return true }
         return false
     }
 
     /// Computes the low value for the slider based on the target.
     func computeSliderLow(usingTarget initialTarget: Decimal? = nil) -> Double {
         let calcTarget = initialTarget ?? tempTargetTarget
-        guard calcTarget != 0 else { return minimalInsulinPercentage }
-
-        if calcTarget < normalTarget {
-            return 105 // For low temp targets
-        } else {
-            // For high temp targets, calculate the minimum achievable percentage
-            let minPercentage = calculateMinimumAchievablePercentage(for: calcTarget)
-
-            // Round up to nearest multiple of 5 to align with stepper increments
-            return ceil(minPercentage / 5) * 5
-        }
+        guard calcTarget != 0 else { return TempTargetCalculations.minSensitivityRatioTT } // oref defined maximum sensitivity
+        let minSens = calcTarget < TempTargetCalculations.normalTarget ? 105 : TempTargetCalculations.minSensitivityRatioTT
+        return Double(max(0, minSens))
     }
 
     /// Computes the high value for the slider based on the target.
@@ -429,8 +418,21 @@ extension Adjustments.StateModel {
         let calcTarget = initialTarget ?? tempTargetTarget
         guard calcTarget != 0
         else { return Double(autosensMax * 100) } // oref defined limit for increased insulin delivery
-        let maxSens = calcTarget > normalTarget ? 95 : Double(autosensMax * 100)
+        let maxSens = calcTarget > TempTargetCalculations.normalTarget ? 95 : Double(autosensMax * 100)
         return maxSens
+    }
+
+    /// Computes the raw (unclamped) adjusted percentage for a given HBT and target.
+    /// This is used to check if the percentage would be below minSensitivityRatioTT.
+    func computeRawAdjustedPercentage(
+        usingHBT halfBasalTargetValue: Decimal,
+        usingTarget calcTarget: Decimal
+    ) -> Double {
+        TempTargetCalculations.computeRawAdjustedPercentage(
+            halfBasalTarget: halfBasalTargetValue,
+            target: calcTarget,
+            autosensMax: autosensMax
+        )
     }
 
     /// Computes the adjusted percentage for the slider.
@@ -440,43 +442,62 @@ extension Adjustments.StateModel {
     ) -> Double {
         let halfBasalTargetValue = initialHalfBasalTarget ?? halfBasalTarget
         let calcTarget = initialTarget ?? tempTargetTarget
-
-        let calculatedPercentage = calculatePercentageFromHBT(
+        return TempTargetCalculations.computeAdjustedPercentage(
             halfBasalTarget: halfBasalTargetValue,
-            target: calcTarget
-        ).rounded()
-
-        let finalPercentage: Double
-
-        // Guard against going below the actual minimum for high temp targets only
-        if calcTarget > normalTarget {
-            let actualMinimum = calculateMinimumAchievablePercentage(for: calcTarget)
-            finalPercentage = max(actualMinimum, calculatedPercentage)
-        } else {
-            // For low temp targets and normal target, return calculated percentage as-is
-            finalPercentage = calculatedPercentage
-        }
-
-        // Round up to nearest multiple of 5
-        return ceil(finalPercentage / 5) * 5
+            target: calcTarget,
+            autosensMax: autosensMax
+        )
     }
 
-    /// Helper function to calculate percentage from HBT without dependencies
-    private func calculatePercentageFromHBT(halfBasalTarget: Decimal, target: Decimal) -> Double {
-        let deviationFromNormal = halfBasalTarget - normalTarget
-        let adjustmentFactor = deviationFromNormal + (target - normalTarget)
-        let adjustmentRatio: Decimal = (deviationFromNormal * adjustmentFactor <= 0) ? autosensMax : deviationFromNormal /
-            adjustmentFactor
+    /// Computes the standard percentage and adjusted HBT for a given target.
+    /// If the raw percentage (using settingHalfBasalTarget) would be at or below minSensitivityRatioTT (15%),
+    /// returns an adjusted HBT that yields the minimum percentage instead.
+    /// - Parameter target: The target glucose value
+    /// - Returns: A tuple containing (percentage, halfBasalTarget) where halfBasalTarget is nil if standard HBT can be used
+    func computeStandardPercentageAndHBT(usingTarget target: Decimal) -> (percentage: Double, halfBasalTarget: Decimal?) {
+        let result = TempTargetCalculations.computeStandardPercentageAndHBT(
+            settingHalfBasalTarget: settingHalfBasalTarget,
+            target: target,
+            autosensMax: autosensMax
+        )
 
-        return Double(min(adjustmentRatio, autosensMax) * 100)
+        // Use raw percentage for debug logging
+        let rawPercentage = TempTargetCalculations.computeRawAdjustedPercentage(
+            halfBasalTarget: settingHalfBasalTarget,
+            target: target,
+            autosensMax: autosensMax
+        )
+
+        debug(
+            .default,
+            "checkStandardTT: target=\(target), settingHBT=\(settingHalfBasalTarget), rawPercentage=\(rawPercentage), percentage=\(result.percentage), minSensitivityRatioTT=\(TempTargetCalculations.minSensitivityRatioTT)"
+        )
+
+        if let adjustedHBT = result.halfBasalTarget {
+            debug(
+                .default,
+                "checkStandardTT: rawPercentage <= minSensitivityRatioTT, returning adjustedHBT=\(adjustedHBT), percentage=\(result.percentage)"
+            )
+        } else {
+            debug(
+                .default,
+                "checkStandardTT: rawPercentage > minSensitivityRatioTT, returning nil HBT, percentage=\(result.percentage)"
+            )
+        }
+
+        return result
     }
 
     /// Helper function to calculate the minimum achievable percentage for a target
     private func calculateMinimumAchievablePercentage(for target: Decimal, minimalInsulinPercentage: Double? = nil) -> Double {
         // The minimum practical half-basal target is 101
         let minHalfBasalTarget = Decimal(101.0)
-        let calculatedMinimum = calculatePercentageFromHBT(halfBasalTarget: minHalfBasalTarget, target: target)
-        let minimumPercentage = minimalInsulinPercentage ?? self.minimalInsulinPercentage
+        let calculatedMinimum = TempTargetCalculations.computeRawAdjustedPercentage(
+            halfBasalTarget: minHalfBasalTarget,
+            target: target,
+            autosensMax: autosensMax
+        )
+        let minimumPercentage = minimalInsulinPercentage ?? TempTargetCalculations.minSensitivityRatioTT
 
         // Use the higher of the minimal insulin percentage or the calculated minimum
         return max(minimumPercentage, calculatedMinimum)
