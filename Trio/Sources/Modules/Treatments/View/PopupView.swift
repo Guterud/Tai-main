@@ -944,14 +944,14 @@ struct PopupView: View {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 3
+        formatter.maximumFractionDigits = Decimal.maxFractionDigits(for: state.bolusIncrement)
         formatter.locale = Locale.current
 
         // Create a decimal handler with the specified rounding behavior.
         // Always rounds to 2 decimal places (0.01 U precision).
         let handler = NSDecimalNumberHandler(
             roundingMode: roundingMode,
-            scale: 2,
+            scale: Int16(Decimal.maxFractionDigits(for: state.bolusIncrement)),
             raiseOnExactness: false,
             raiseOnOverflow: false,
             raiseOnUnderflow: false,

@@ -46,6 +46,7 @@ extension Treatments {
         var lastLoopDate: Date?
         var isAwaitingDeterminationResult: Bool = false
         var carbRatio: Decimal = 0
+        var bolusIncrement: Decimal = 0.1
 
         var addButtonPressed: Bool = false
 
@@ -127,7 +128,6 @@ extension Treatments {
 
         var isActive: Bool = false
 
-        var bolusIncrement: Decimal = 0.1
         var showDeterminationFailureAlert = false
         var determinationFailureMessage = ""
         // Queue for handling Core Data change notifications
