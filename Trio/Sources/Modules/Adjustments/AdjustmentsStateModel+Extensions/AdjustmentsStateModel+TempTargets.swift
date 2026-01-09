@@ -442,61 +442,13 @@ extension Adjustments.StateModel {
     ) -> Double {
         let halfBasalTargetValue = initialHalfBasalTarget ?? halfBasalTarget
         let calcTarget = initialTarget ?? tempTargetTarget
-        return TempTargetCalculations.computeAdjustedPercentage(
-            halfBasalTarget: halfBasalTargetValue,
-            target: calcTarget,
-            autosensMax: autosensMax
-        )
-    }
+        let deviationFromNormal = halfBasalTargetValue - normalTarget
 
-    /// Computes the standard percentage and adjusted HBT for a given target.
-    /// If the raw percentage (using settingHalfBasalTarget) would be at or below minSensitivityRatioTT (15%),
-    /// returns an adjusted HBT that yields the minimum percentage instead.
-    /// - Parameter target: The target glucose value
-    /// - Returns: A tuple containing (percentage, halfBasalTarget) where halfBasalTarget is nil if standard HBT can be used
-    func computeStandardPercentageAndHBT(usingTarget target: Decimal) -> (percentage: Double, halfBasalTarget: Decimal?) {
-        let result = TempTargetCalculations.computeStandardPercentageAndHBT(
-            settingHalfBasalTarget: settingHalfBasalTarget,
-            target: target,
-            autosensMax: autosensMax
-        )
+        let adjustmentFactor = deviationFromNormal + (calcTarget - normalTarget)
+        let adjustmentRatio: Decimal = (deviationFromNormal * adjustmentFactor <= 0) ? autosensMax : deviationFromNormal /
+            adjustmentFactor
 
-        // Use raw percentage for debug logging
-        let rawPercentage = TempTargetCalculations.computeRawAdjustedPercentage(
-            halfBasalTarget: settingHalfBasalTarget,
-            target: target,
-            autosensMax: autosensMax
-        )
-
-        debug(
-            .default,
-            "checkStandardTT: target=\(target), settingHBT=\(settingHalfBasalTarget), rawPercentage=\(rawPercentage), percentage=\(result.percentage), minSensitivityRatioTT=\(TempTargetCalculations.minSensitivityRatioTT)"
-        )
-
-        if let adjustedHBT = result.halfBasalTarget {
-            debug(
-                .default,
-                "checkStandardTT: rawPercentage <= minSensitivityRatioTT, returning adjustedHBT=\(adjustedHBT), percentage=\(result.percentage)"
-            )
-        } else {
-            debug(
-                .default,
-                "checkStandardTT: rawPercentage > minSensitivityRatioTT, returning nil HBT, percentage=\(result.percentage)"
-            )
-        }
-
-        return result
-    }
-
-    /// Helper function to calculate the minimum achievable percentage for a target
-    private func calculateMinimumAchievablePercentage(for target: Decimal, minimalInsulinPercentage: Double? = nil) -> Double {
-        // The minimum practical half-basal target is 101
-        let minHalfBasalTarget = Decimal(101.0)
-        let calculatedMinimum = calculatePercentageFromHBT(halfBasalTarget: minHalfBasalTarget, target: target)
-        let minimumPercentage = minimalInsulinPercentage ?? self.minimalInsulinPercentage
-
-        // Use the higher of the minimal insulin percentage or the calculated minimum
-        return max(minimumPercentage, calculatedMinimum)
+        return Double(min(adjustmentRatio, autosensMax) * 100).rounded()
     }
 }
 
