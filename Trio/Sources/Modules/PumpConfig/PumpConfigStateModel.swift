@@ -13,13 +13,13 @@ extension PumpConfig {
         private(set) var setupPumpType: PumpType = .minimed
         @Published var pumpState: PumpDisplayState?
         private(set) var initialSettings: PumpInitialSettings = .default
-        @Published var alertNotAck: Bool = false
         @Published var useCustomPeakTime: Bool = false
         @Published var insulinPeakTime: Decimal = 75
         @Published var insulinActionCurve: Decimal = 10
         @Published var insulinConcentration: Decimal = 1
         @Published var allowDilution: Bool = false
         @Published var hideInsulinBadge: Bool = false
+        @Published var hasUnacknowledgedAlert: Bool = false
         @Injected() var bluetoothManager: BluetoothStateManager!
 
         var pumpSettings: PumpSettings {
@@ -43,13 +43,10 @@ extension PumpConfig {
                 .assign(to: \.pumpState, on: self)
                 .store(in: &lifetime)
 
-            // Check if pump simulator is selected and should be hidden
-            checkAndResetPumpSimulatorIfNeeded()
-
-            alertNotAck = provider.initialAlertNotAck()
-            provider.alertNotAck
+            hasUnacknowledgedAlert = provider.hasInitialUnacknowledgedAlerts()
+            provider.unacknowledgedAlertsPublisher
                 .receive(on: DispatchQueue.main)
-                .assign(to: \.alertNotAck, on: self)
+                .assign(to: \.hasUnacknowledgedAlert, on: self)
                 .store(in: &lifetime)
 
             Task {
@@ -110,7 +107,7 @@ extension PumpConfig {
         }
 
         func ack() {
-            provider.deviceManager.alertHistoryStorage.forceNotification()
+            provider.deviceManager.alertHistoryStorage.broadcastAlertUpdates()
         }
 
         /// Checks if the pump simulator is selected and resets it if Bundle.main.simulatorVisibility.isHidden is true
