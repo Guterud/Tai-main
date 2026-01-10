@@ -4,7 +4,7 @@ import HealthKit
 import Observation
 import SwiftUI
 
-extension DataTable {
+extension History {
     @Observable final class StateModel: BaseStateModel<Provider> {
         @ObservationIgnored @Injected() var broadcaster: Broadcaster!
         @ObservationIgnored @Injected() var apsManager: APSManager!
@@ -596,7 +596,7 @@ extension DataTable {
     }
 }
 
-extension DataTable.StateModel: DeterminationObserver, SettingsObserver {
+extension History.StateModel: DeterminationObserver, SettingsObserver {
     func determinationDidUpdate(_: Determination) {
         DispatchQueue.main.async {
             self.waitForSuggestion = false
