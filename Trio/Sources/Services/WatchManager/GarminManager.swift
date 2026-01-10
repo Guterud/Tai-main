@@ -1386,6 +1386,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     private var failedSendCount = 0
     private var connectionAlertShown = false
 
+    // Track last re-registration attempt to prevent too frequent retries
+    private var lastReregistrationAttempt: Date?
+    private let reregistrationCooldown: TimeInterval = 600 // 10 minutes
+
     // Manual throttle for updates - using DispatchWorkItem instead of Timer
     private var throttleWorkItem: DispatchWorkItem?
     private var pendingThrottledData: Data?
@@ -1442,10 +1446,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                         "[\(self.formatTimeForLog())] Garmin: FAILED to send to \(app.uuid!) [Trigger: \(self.currentSendTrigger)] (Failure #\(self.failedSendCount))"
                     )
 
-                    // After 3 consecutive failures, show alert (but only once)
-                    if self.failedSendCount >= 3, !self.connectionAlertShown {
-                        self.showConnectionLostAlert()
-                        self.connectionAlertShown = true
+                    // After 3 consecutive failures, attempt recovery via re-registration
+                    if self.failedSendCount >= 3 {
+                        self.attemptConnectionRecovery()
                     }
                 }
             }
@@ -1463,6 +1466,52 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         router.alertMessage.send(messageCont)
 
         debugGarmin("[\(formatTimeForLog())] Garmin: Connection lost alert shown to user")
+    }
+
+    /// Attempts to recover connection by re-registering devices
+    /// This clears the app cache and triggers the SDK to report current connection status
+    /// Rate-limited to max once per 10 minutes to avoid excessive re-registration
+    private func attemptConnectionRecovery() {
+        // Check cooldown - don't re-register more than once per 10 minutes
+        if let lastAttempt = lastReregistrationAttempt,
+           Date().timeIntervalSince(lastAttempt) < reregistrationCooldown
+        {
+            let remainingCooldown = Int(reregistrationCooldown - Date().timeIntervalSince(lastAttempt))
+            debugGarmin(
+                "[\(formatTimeForLog())] Garmin: Skipping re-registration - cooldown active (\(remainingCooldown)s remaining)"
+            )
+
+            // Show alert if not already shown (since we can't recover yet)
+            if !connectionAlertShown {
+                showConnectionLostAlert()
+                connectionAlertShown = true
+            }
+            return
+        }
+
+        // Attempt recovery
+        lastReregistrationAttempt = Date()
+
+        debug(
+            .watchManager,
+            "[\(formatTimeForLog())] Garmin: Attempting connection recovery via device re-registration (after \(failedSendCount) failures)"
+        )
+
+        // Re-register devices - this clears cache and triggers SDK to report connection status
+        registerDevices(devices)
+
+        // Send fresh data after re-registration
+        Task {
+            do {
+                let watchState = try await setupGarminWatchState(triggeredBy: "ConnectionRecovery")
+                let watchStateData = try JSONEncoder().encode(watchState)
+                currentSendTrigger = "ConnectionRecovery"
+                sendWatchStateDataImmediately(watchStateData)
+                debugGarmin("[\(formatTimeForLog())] Garmin: Sent fresh data after re-registration")
+            } catch {
+                debugGarmin("[\(formatTimeForLog())] Garmin: Failed to send data after re-registration: \(error)")
+            }
+        }
     }
 }
 

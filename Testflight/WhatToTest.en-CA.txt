@@ -1,2 +1,2 @@
 Trio dev 0.6.0.40
-garmin outages
+garmin outages, re-register
