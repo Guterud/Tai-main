@@ -167,8 +167,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Queue for handling Core Data change notifications
     private let queue = DispatchQueue(label: "BaseGarminManager.queue", qos: .utility)
 
-    /// Dedicated queue for throttle timers to avoid blocking main thread
-    private let timerQueue = DispatchQueue(label: "BaseGarminManager.timerQueue", qos: .utility)
+    /// Dedicated queue for settings throttle tasks to avoid blocking main thread
+    private let settingsThrottleQueue = DispatchQueue(label: "BaseGarminManager.settingsThrottleQueue", qos: .utility)
 
     /// Publishes any changed CoreData objects that match our filters (e.g., OrefDetermination, GlucoseStored).
     private var coreDataPublisher: AnyPublisher<Set<NSManagedObjectID>, Never>?
@@ -421,10 +421,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         pendingThrottledData = data
 
         // If work item is already scheduled, just update data - DON'T reschedule
-        if throttleWorkItem != nil {
+        if settingsThrottleTask != nil {
             debug(
                 .watchManager,
-                "[\(formatTimeForLog())] Garmin: throttle timer running, data updated [Trigger: \(currentSendTrigger)]"
+                "[\(formatTimeForLog())] Garmin: Settings update throttled, data queued [Trigger: \(currentSendTrigger)]"
             )
             return
         }
@@ -442,8 +442,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
             if let lastImmediate = self.lastImmediateSendTime,
                Date().timeIntervalSince(lastImmediate) < self.throttleDuration
             {
-                debugGarmin("[\(self.formatTimeForLog())] Garmin: timer cancelled - recent immediate send")
-                self.throttleWorkItem = nil
+                debugGarmin("[\(self.formatTimeForLog())] Garmin: Settings update skipped - recent immediate send")
+                self.settingsThrottleTask = nil
                 self.pendingThrottledData = nil
                 self.throttledUpdatePending = false
                 return
@@ -451,26 +451,26 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
 
             // Convert data to JSON object for sending
             guard let jsonObject = try? JSONSerialization.jsonObject(with: dataToSend, options: []) else {
-                debugGarmin("[\(self.formatTimeForLog())] Garmin: Invalid JSON in throttled data")
-                self.throttleWorkItem = nil
+                debugGarmin("[\(self.formatTimeForLog())] Garmin: Invalid JSON in settings data")
+                self.settingsThrottleTask = nil
                 self.pendingThrottledData = nil
                 self.throttledUpdatePending = false
                 return
             }
 
-            debugGarmin("[\(self.formatTimeForLog())] Garmin: timer fired - sending collected updates")
+            debugGarmin("[\(self.formatTimeForLog())] Garmin: Sending throttled settings update")
             self.broadcastStateToWatchApps(jsonObject as Any)
 
             // Clean up
-            self.throttleWorkItem = nil
+            self.settingsThrottleTask = nil
             self.pendingThrottledData = nil
             self.throttledUpdatePending = false
         }
 
-        throttleWorkItem = workItem
-        timerQueue.asyncAfter(deadline: .now() + throttleDuration, execute: workItem)
+        settingsThrottleTask = workItem
+        settingsThrottleQueue.asyncAfter(deadline: .now() + throttleDuration, execute: workItem)
         throttledUpdatePending = true
-        debugGarmin("[\(formatTimeForLog())] Garmin: throttle timer started (\(Int(throttleDuration))s) on dedicated queue")
+        debugGarmin("[\(formatTimeForLog())] Garmin: Settings update scheduled (\(Int(throttleDuration))s throttle)")
     }
 
     /// Fetches recent glucose readings from CoreData, up to specified limit.
@@ -1046,7 +1046,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// Total delay: ~4s from first CoreData save to Bluetooth transmission (faster than old 10s throttle)
     private func subscribeToDeterminationThrottle() {
         determinationSubject
-            .debounce(for: .seconds(2), scheduler: timerQueue)
+            .debounce(for: .seconds(2), scheduler: settingsThrottleQueue)
             .sink { [weak self] data in
                 guard let self = self else { return }
 
@@ -1072,8 +1072,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                 self.lastImmediateSendTime = Date() // Mark for any pending throttled timers (status requests, settings)
 
                 // Cancel any pending throttled send since determination is sending immediately
-                self.throttleWorkItem?.cancel()
-                self.throttleWorkItem = nil
+                self.settingsThrottleTask?.cancel()
+                self.settingsThrottleTask = nil
                 self.pendingThrottledData = nil
                 self.throttledUpdatePending = false
 
@@ -1387,15 +1387,15 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     private var connectionAlertShown = false
 
     // Track last re-registration attempt to prevent too frequent retries
-    private var lastReregistrationAttempt: Date?
-    private let reregistrationCooldown: TimeInterval = 600 // 10 minutes
+    private var lastReRegistrationAttempt: Date?
+    private let reRegistrationTimeout: TimeInterval = 600 // 10 minutes
 
-    // Delayed recovery work item - cancelled if device reconnects quickly
-    private var delayedRecoveryWorkItem: DispatchWorkItem?
-    private let disconnectRecoveryDelay: TimeInterval = 120 // 2 minutes
+    // Disconnect recovery - schedules re-registration after device disconnects
+    private var recoveryTask: DispatchWorkItem?
+    private let recoveryTimeout: TimeInterval = 120 // 2 minutes
 
-    // Manual throttle for updates - using DispatchWorkItem instead of Timer
-    private var throttleWorkItem: DispatchWorkItem?
+    // Settings update throttle - batches rapid settings changes
+    private var settingsThrottleTask: DispatchWorkItem?
     private var pendingThrottledData: Data?
 
     // Combine subject for 10s throttled Determinations
@@ -1451,9 +1451,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
                     )
 
                     // If delayed recovery is pending (device reported notConnected), trigger immediately on first failure
-                    if self.delayedRecoveryWorkItem != nil {
-                        self.delayedRecoveryWorkItem?.cancel()
-                        self.delayedRecoveryWorkItem = nil
+                    if self.recoveryTask != nil {
+                        self.recoveryTask?.cancel()
+                        self.recoveryTask = nil
                         debug(
                             .watchManager,
                             "[\(self.formatTimeForLog())] Garmin: Send failed while disconnected - triggering immediate recovery"
@@ -1485,30 +1485,30 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// If device reconnects within the delay period, recovery is cancelled
     private func scheduleDelayedRecovery() {
         // Cancel any existing scheduled recovery
-        delayedRecoveryWorkItem?.cancel()
+        recoveryTask?.cancel()
 
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
             debug(
                 .watchManager,
-                "[\(self.formatTimeForLog())] Garmin: Device still disconnected after \(Int(self.disconnectRecoveryDelay))s - attempting recovery"
+                "[\(self.formatTimeForLog())] Garmin: Device still disconnected after \(Int(self.recoveryTimeout))s - attempting recovery"
             )
             self.attemptConnectionRecovery()
         }
 
-        delayedRecoveryWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + disconnectRecoveryDelay, execute: workItem)
+        recoveryTask = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + recoveryTimeout, execute: workItem)
 
         debugGarmin(
-            "[\(formatTimeForLog())] Garmin: Scheduled recovery in \(Int(disconnectRecoveryDelay))s if device stays disconnected"
+            "[\(formatTimeForLog())] Garmin: Scheduled recovery in \(Int(recoveryTimeout))s if device stays disconnected"
         )
     }
 
     /// Cancels any pending delayed recovery (called when device reconnects)
     private func cancelDelayedRecovery() {
-        if delayedRecoveryWorkItem != nil {
-            delayedRecoveryWorkItem?.cancel()
-            delayedRecoveryWorkItem = nil
+        if recoveryTask != nil {
+            recoveryTask?.cancel()
+            recoveryTask = nil
             debugGarmin("[\(formatTimeForLog())] Garmin: Cancelled scheduled recovery - device reconnected")
 
             // Reset failure state since we reconnected
@@ -1521,13 +1521,13 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
     /// This clears the app cache and triggers the SDK to report current connection status
     /// Rate-limited to max once per 10 minutes to avoid excessive re-registration
     private func attemptConnectionRecovery() {
-        // Check cooldown - don't re-register more than once per 10 minutes
-        if let lastAttempt = lastReregistrationAttempt,
-           Date().timeIntervalSince(lastAttempt) < reregistrationCooldown
+        // Check timeout - don't re-register more than once per 10 minutes
+        if let lastAttempt = lastReRegistrationAttempt,
+           Date().timeIntervalSince(lastAttempt) < reRegistrationTimeout
         {
-            let remainingCooldown = Int(reregistrationCooldown - Date().timeIntervalSince(lastAttempt))
+            let remainingTimeout = Int(reRegistrationTimeout - Date().timeIntervalSince(lastAttempt))
             debugGarmin(
-                "[\(formatTimeForLog())] Garmin: Skipping re-registration - cooldown active (\(remainingCooldown)s remaining)"
+                "[\(formatTimeForLog())] Garmin: Skipping re-registration - timeout active (\(remainingTimeout)s remaining)"
             )
 
             // Show alert if not already shown (since we can't recover yet)
@@ -1539,7 +1539,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable, @unchecked S
         }
 
         // Attempt recovery
-        lastReregistrationAttempt = Date()
+        lastReRegistrationAttempt = Date()
 
         debug(
             .watchManager,
@@ -1761,8 +1761,8 @@ extension BaseGarminManager: SettingsObserver {
                         self.currentSendTrigger = "Settings-Units/Re-enable"
 
                         // Cancel any pending throttled send since we're sending immediately
-                        self.throttleWorkItem?.cancel()
-                        self.throttleWorkItem = nil
+                        self.settingsThrottleTask?.cancel()
+                        self.settingsThrottleTask = nil
                         self.pendingThrottledData = nil
                         self.throttledUpdatePending = false
 
@@ -1777,8 +1777,8 @@ extension BaseGarminManager: SettingsObserver {
                         self.currentSendTrigger = "Settings-Units/Re-enable"
 
                         // Cancel any pending throttled send since we're sending immediately
-                        self.throttleWorkItem?.cancel()
-                        self.throttleWorkItem = nil
+                        self.settingsThrottleTask?.cancel()
+                        self.settingsThrottleTask = nil
                         self.pendingThrottledData = nil
                         self.throttledUpdatePending = false
 
