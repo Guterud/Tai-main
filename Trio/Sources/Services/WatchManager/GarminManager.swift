@@ -1492,7 +1492,9 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
     ///   - status: The new status for the device.
     func deviceStatusChanged(_ device: IQDevice, status: IQDeviceStatus) {
         // Track the current status for connection-aware caching
-        if let deviceUUID = device.uuid {
+        // Don't store .bluetoothNotReady - it's a transient state meaning "BT is resetting"
+        // and we should keep the previous state until we get a real .connected or .notConnected
+        if let deviceUUID = device.uuid, status != .bluetoothNotReady {
             deviceConnectionStates[deviceUUID] = status
         }
 
@@ -1500,7 +1502,7 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
         case .invalidDevice:
             debugGarmin("[\(formatTimeForLog())] Garmin: invalidDevice (\(device.uuid!))")
         case .bluetoothNotReady:
-            debugGarmin("[\(formatTimeForLog())] Garmin: bluetoothNotReady (\(device.uuid!))")
+            debugGarmin("[\(formatTimeForLog())] Garmin: bluetoothNotReady (\(device.uuid!)) - not caching transient state")
         case .notFound:
             debugGarmin("[\(formatTimeForLog())] Garmin: notFound (\(device.uuid!))")
         case .notConnected:
