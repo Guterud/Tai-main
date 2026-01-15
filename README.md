@@ -1,4 +1,4 @@
-<img src="https://github.com/mountrcg/Trio/blob/Tai-dev/Trio/Resources/Assets.xcassets/app_icons/taiCircledNoBackground.imageset/taiCircledNoBackground.png" width="120">
+<img src="https://github.com/mountrcg/Tai/blob/Tai-dev/Trio/Resources/Assets.xcassets/app_icons/taiCircledNoBackground.imageset/taiCircledNoBackground.png" width="120">
 
 # **T**rio **a**uto**I**SF fork aka *Tai*
 
