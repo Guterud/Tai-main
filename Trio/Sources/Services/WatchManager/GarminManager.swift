@@ -371,37 +371,19 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             var determinationTimestamp: Date?
 
             if let latestDetermination = determinationObjects.first {
-                // Store determination timestamp for staleness calculation
                 determinationTimestamp = latestDetermination.timestamp
+                cobValue = Double(latestDetermination.cob)
 
-                // COB
-                let cob = latestDetermination.cob
-                if cob >= 0, cob <= 500 {
-                    cobValue = Double(cob)
-                }
-
-                // SensRatio with 2 decimal precision
                 if let ratio = latestDetermination.autoISFratio {
-                    let ratioDouble = Double(truncating: ratio)
-                    if ratioDouble.isFinite, !ratioDouble.isNaN, ratioDouble > 0, ratioDouble < 10 {
-                        sensRatioValue = (ratioDouble * 100).rounded() / 100
-                    }
+                    sensRatioValue = Double(truncating: ratio)
                 }
 
-                // ISF
                 if let isf = latestDetermination.insulinSensitivity {
-                    let isfInt = Int16(truncating: isf)
-                    if isfInt > 0, isfInt < 500 {
-                        isfValue = isfInt
-                    }
+                    isfValue = Int16(truncating: isf)
                 }
 
-                // EventualBG
                 if let eventualBG = latestDetermination.eventualBG {
-                    let bgInt = Int16(truncating: eventualBG)
-                    if bgInt > 0, bgInt < 500 {
-                        eventualBGValue = bgInt
-                    }
+                    eventualBGValue = Int16(truncating: eventualBG)
                 }
             }
 
@@ -411,10 +393,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                let tempBasalData = firstTempBasal.tempBasal,
                let tempRate = tempBasalData.rate
             {
-                let tbrDouble = Double(truncating: tempRate)
-                if tbrDouble.isFinite, !tbrDouble.isNaN {
-                    tbrValue = tbrDouble.roundedInsulinRate()
-                }
+                tbrValue = Double(truncating: tempRate)
             } else {
                 // Fall back to scheduled basal from profile
                 let basalProfile = self.settingsManager.preferences.basalProfile as? [BasalProfileEntry] ?? []
@@ -425,10 +404,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
                     for entry in basalProfile.reversed() {
                         if entry.minutes <= currentTimeMinutes {
-                            let rateDouble = Double(entry.rate)
-                            if rateDouble.isFinite, !rateDouble.isNaN, rateDouble > 0 {
-                                tbrValue = rateDouble.roundedInsulinRate()
-                            }
+                            tbrValue = Double(entry.rate)
                             break
                         }
                     }
@@ -446,7 +422,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 guard index < entriesToSend else { break }
 
                 let glucoseValue = glucose.glucose
-                guard glucoseValue >= 0, glucoseValue <= 500 else { continue }
 
                 var watchState = GarminWatchState()
 
@@ -468,8 +443,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
                     // Delta calculation
                     if glucoseObjects.count > 1 {
-                        let deltaValue = glucose.glucose - glucoseObjects[1].glucose
-                        watchState.delta = (deltaValue >= -100 && deltaValue <= 100) ? deltaValue : nil
+                        watchState.delta = glucose.glucose - glucoseObjects[1].glucose
                     } else {
                         watchState.delta = 0
                     }
