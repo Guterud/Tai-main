@@ -413,7 +413,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             {
                 let tbrDouble = Double(truncating: tempRate)
                 if tbrDouble.isFinite, !tbrDouble.isNaN {
-                    tbrValue = tbrDouble
+                    tbrValue = tbrDouble.roundedInsulinRate()
                 }
             } else {
                 // Fall back to scheduled basal from profile
@@ -427,7 +427,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                         if entry.minutes <= currentTimeMinutes {
                             let rateDouble = Double(entry.rate)
                             if rateDouble.isFinite, !rateDouble.isNaN, rateDouble > 0 {
-                                tbrValue = rateDouble
+                                tbrValue = rateDouble.roundedInsulinRate()
                             }
                             break
                         }

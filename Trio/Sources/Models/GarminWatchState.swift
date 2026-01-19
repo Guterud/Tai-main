@@ -89,6 +89,7 @@ struct GarminWatchState: Hashable, Equatable, Sendable, Encodable {
     }
 
     /// Custom encoding that excludes nil values from the JSON output
+    /// Double values are rounded to 2 decimal places to prevent floating point artifacts
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(date, forKey: .date)
@@ -97,12 +98,13 @@ struct GarminWatchState: Hashable, Equatable, Sendable, Encodable {
         try container.encodeIfPresent(direction, forKey: .direction)
         try container.encodeIfPresent(noise, forKey: .noise)
         try container.encodeIfPresent(units_hint, forKey: .units_hint)
-        try container.encodeIfPresent(iob, forKey: .iob)
-        try container.encodeIfPresent(tbr, forKey: .tbr)
+        // Round Double values to 2 decimal places to prevent floating point artifacts like "0.5600000000000001"
+        try container.encodeIfPresent(iob?.roundedDouble(toPlaces: 2), forKey: .iob)
+        try container.encodeIfPresent(tbr?.roundedDouble(toPlaces: 2), forKey: .tbr)
         try container.encodeIfPresent(cob, forKey: .cob)
         try container.encodeIfPresent(eventualBG, forKey: .eventualBG)
         try container.encodeIfPresent(isf, forKey: .isf)
-        try container.encodeIfPresent(sensRatio, forKey: .sensRatio)
+        try container.encodeIfPresent(sensRatio?.roundedDouble(toPlaces: 2), forKey: .sensRatio)
         try container.encodeIfPresent(displayPrimaryAttributeChoice, forKey: .displayPrimaryAttributeChoice)
         try container.encodeIfPresent(displaySecondaryAttributeChoice, forKey: .displaySecondaryAttributeChoice)
     }
