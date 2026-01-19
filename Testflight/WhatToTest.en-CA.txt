@@ -1,3 +1,2 @@
 Trio dev 0.6.0.42
-garmin fixes transient state
-sdk full reset
+reset Garmin completely to aiSR version
