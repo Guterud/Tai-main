@@ -236,15 +236,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             return []
         }
 
-        // Compute a quick hash of key data to check if preparation is needed
-        let currentHash = computeQuickDataHash()
-
-        // Check if data is unchanged - return cached state
-        if currentHash == lastPreparedDataHash, let cached = lastPreparedWatchState {
-            debug(.watchManager, "Garmin: Skipping preparation - data unchanged [Trigger: \(triggeredBy)]")
-            return cached
-        }
-
         debug(.watchManager, "Garmin: Preparing watch state [Trigger: \(triggeredBy)]")
 
         // Fetch glucose - SwissAlpine needs 24, Trio needs 2 (for delta calculation)
@@ -396,6 +387,13 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 watchStates.append(watchState)
             }
 
+            // Deduplicate: Check if data is unchanged from last preparation
+            let currentHash = watchStates.hashValue
+            if currentHash == self.lastPreparedDataHash {
+                debug(.watchManager, "Garmin: Skipping - data unchanged (hash: \(currentHash))")
+                return self.lastPreparedWatchState ?? watchStates
+            }
+
             debug(
                 .watchManager,
                 "Garmin: Prepared \(watchStates.count) entries - sgv: \(watchStates.first?.sgv ?? 0), iob: \(watchStates.first?.iob ?? 0), cob: \(watchStates.first?.cob ?? 0)"
@@ -407,16 +405,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
             return watchStates
         }
-    }
-
-    /// Computes a quick hash of key data points for deduplication
-    private func computeQuickDataHash() -> Int {
-        var hasher = Hasher()
-        hasher.combine(iobService.currentIOB ?? 0)
-        // Include watchface type to invalidate cache on settings change
-        hasher.combine(currentWatchface.rawValue)
-        hasher.combine(isWatchfaceDataEnabled)
-        return hasher.finalize()
     }
 
     /// Formats IOB with 1 decimal precision
@@ -496,8 +484,17 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
     /// Broadcasts watch state data to all registered apps
     private func broadcastWatchStateData(_ data: Data) {
-        // Deduplicate: Skip if we already sent identical data
-        let currentHash = data.hashValue
+        // Deduplicate: Use stable content-based hash (sorted JSON bytes)
+        let currentHash: Int
+        if let sortedData = try? JSONSerialization.data(
+            withJSONObject: JSONSerialization.jsonObject(with: data, options: []),
+            options: [.sortedKeys]
+        ) {
+            currentHash = sortedData.base64EncodedString().hashValue
+        } else {
+            currentHash = data.count // Fallback
+        }
+
         if currentHash == lastSentDataHash {
             debug(.watchManager, "Garmin: Skipping broadcast - data unchanged")
             return
