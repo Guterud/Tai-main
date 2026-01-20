@@ -87,7 +87,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// Enable/disable general Garmin debug logging (connections, sends, etc.)
     private let debugGarminEnabled = true
 
-    /// Helper method for conditional Garmin debug logging
+    /// Helper method for conditional Garmin debug logging.
+    /// Logs messages only if debugGarminEnabled is true.
+    /// - Parameter message: The debug message to log.
     private func debugGarmin(_ message: String) {
         guard debugGarminEnabled else { return }
         debug(.watchManager, message)
@@ -191,14 +193,17 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
     // MARK: - Settings Helpers
 
+    /// Returns the currently configured Garmin watchface from settings
     private var currentWatchface: GarminWatchface {
         settingsManager.settings.garminSettings.watchface
     }
 
+    /// Returns the currently configured Garmin datafield from settings
     private var currentDatafield: GarminDatafield {
         settingsManager.settings.garminSettings.datafield
     }
 
+    /// Returns whether watchface data transmission is enabled in settings
     private var isWatchfaceDataEnabled: Bool {
         settingsManager.settings.garminSettings.isWatchfaceDataEnabled
     }
@@ -319,6 +324,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         }
     }
 
+    /// Fetches the most recent temporary basal rate from CoreData pump history.
+    /// - Returns: An array containing the NSManagedObjectID of the latest temp basal event, if any.
     private func fetchTempBasals() async throws -> [NSManagedObjectID] {
         let tempBasalPredicate = NSPredicate(format: "tempBasal != nil")
         let compoundPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
@@ -345,16 +352,13 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
     // MARK: - Watch State Setup
 
-    /// Builds GarminWatchState array for watchfaces
+    /// Builds an array of GarminWatchState objects containing current glucose, trend, loop data, and historical readings.
+    /// Historical data is included for watchfaces that support it (e.g., SwissAlpine).
+    /// - Parameter triggeredBy: A string describing what triggered this update (for debugging/logging).
+    /// - Returns: An array of `GarminWatchState` objects with the latest watch data.
     func setupGarminWatchState(triggeredBy: String = #function) async throws -> [GarminWatchState] {
-        // Skip if no devices (unless in simulator with simulated device enabled)
-        #if targetEnvironment(simulator)
-            let skipDeviceCheck = enableSimulatedDevice
-        #else
-            let skipDeviceCheck = false
-        #endif
-
-        guard !devices.isEmpty || skipDeviceCheck else {
+        // Skip if no devices connected
+        guard !devices.isEmpty else {
             return []
         }
 
@@ -510,7 +514,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         }
     }
 
-    /// Formats IOB with 1 decimal precision
+    /// Formats IOB (Insulin On Board) value with 1 decimal precision for display.
+    /// Prevents small values from rounding to zero by enforcing a minimum magnitude of 0.1.
+    /// - Parameter value: The IOB value to format.
+    /// - Returns: The formatted IOB value as a Double with 1 decimal place.
     private func formatIOB(_ value: Decimal) -> Double {
         let doubleValue = NSDecimalNumber(decimal: value).doubleValue
         if doubleValue.magnitude < 0.1, doubleValue != 0 {
@@ -655,15 +662,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             debug(.watchManager, "Garmin: Invalid JSON for watch-state data")
             return
         }
-
-        // In simulator, just log what would be sent (no actual ConnectIQ)
-        #if targetEnvironment(simulator)
-            if enableSimulatedDevice {
-                debug(.watchManager, "Garmin: [SIMULATOR] Would send data: \(jsonObject)")
-                lastSentDataHash = currentHash
-                return
-            }
-        #endif
 
         watchApps.forEach { app in
             let appName = self.appDisplayName(for: app.uuid!)
