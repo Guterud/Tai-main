@@ -708,6 +708,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     private func registerDevices(_ devices: [IQDevice]) {
         watchApps.removeAll()
 
+        // Reset broadcast hash so newly registered apps receive data
+        // Without this, hash deduplication could skip sending to new apps if data unchanged
+        lastSentDataHash = nil
+
         for device in devices {
             connectIQ?.register(forDeviceEvents: device, delegate: self)
 
