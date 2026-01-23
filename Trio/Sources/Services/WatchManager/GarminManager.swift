@@ -252,6 +252,15 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 self?.triggerWatchStateUpdate(triggeredBy: "Determination")
             }
             .store(in: &subscriptions)
+
+        // GlucoseStored changes - catches single glucose inserts that updatePublisher misses
+        // (updatePublisher only fires for batch inserts, not single glucose readings)
+        coreDataPublisher?
+            .filteredByEntityName("GlucoseStored")
+            .sink { [weak self] _ in
+                self?.handleGlucoseUpdate()
+            }
+            .store(in: &subscriptions)
     }
 
     /// Handles glucose updates with delayed fallback
@@ -274,7 +283,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                             "Garmin: Glucose fallback timer fired (no determination in \(Int(self.glucoseFallbackDelay))s)"
                         )
 
-                    let watchState = try await self.setupGarminWatchState(triggeredBy: "Glucose (fallback)")
+                    let watchState = try await self.setupGarminWatchState(triggeredBy: "Glucose")
                     let watchStateData = try JSONEncoder().encode(watchState)
                     self.watchStateSubject.send(watchStateData)
                 } catch {
@@ -309,7 +318,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                             "Garmin: IOB fallback timer fired (no determination in \(Int(self.glucoseFallbackDelay))s)"
                         )
 
-                    let watchState = try await self.setupGarminWatchState(triggeredBy: "IOB (fallback)")
+                    let watchState = try await self.setupGarminWatchState(triggeredBy: "IOB")
                     let watchStateData = try JSONEncoder().encode(watchState)
                     self.watchStateSubject.send(watchStateData)
                 } catch {
