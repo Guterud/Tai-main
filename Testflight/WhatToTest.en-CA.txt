@@ -1,2 +1,2 @@
 Trio dev 0.6.0.43
-test GarminSDK 1.8
+test deduping sendRequest Garmin device
