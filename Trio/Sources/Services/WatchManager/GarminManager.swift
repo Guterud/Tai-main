@@ -770,7 +770,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             }
 
             /// Shared simulated device UUID for consistency across the app
-            static let simulatedUUID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+            static let simulatedUUID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")
+                ?? UUID()
 
             /// Creates the standard simulated Enduro 3 device
             static func createSimulated() -> MockIQDevice {
@@ -844,7 +845,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         }
 
         watchApps.forEach { app in
-            let appName = self.appDisplayName(for: app.uuid!)
+            guard let appUUID = app.uuid else {
+                debug(.watchManager, "Garmin: Skipping app with undefined UUID")
+                return
+            }
+            let appName = self.appDisplayName(for: appUUID)
 
             connectIQ?.getAppStatus(app) { [weak self] status in
                 guard status?.isInstalled == true else {
@@ -977,7 +982,11 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
     ///   - message: The message content from the watch app.
     ///   - app: The watch app sending the message.
     func receivedMessage(_ message: Any, from app: IQApp) {
-        let appName = appDisplayName(for: app.uuid!)
+        guard let appUUID = app.uuid else {
+            debug(.watchManager, "Garmin: Received message from app with undefined UUID - ignoring")
+            return
+        }
+        let appName = appDisplayName(for: appUUID)
         debugGarmin("Garmin: Received message '\(message)' from \(appName)")
 
         // If watch requests status update, send current data via unified path
