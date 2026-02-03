@@ -73,8 +73,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// Holds a promise used when the user is selecting devices (via `showDeviceSelection()`).
     private var deviceSelectionPromise: Future<[IQDevice], Never>.Promise?
 
-    /// Subject for debouncing watch state updates
-    private let watchStateSubject = PassthroughSubject<Data, Never>()
+    /// Subject for debouncing watch state updates. Carries data and an optional target app UUID
+    /// (nil = broadcast to all, non-nil = send only to that app).
+    private let watchStateSubject = PassthroughSubject<(Data, UUID?), Never>()
 
     /// Current glucose units, either mg/dL or mmol/L, read from user settings.
     private var units: GlucoseUnits = .mgdL
@@ -314,7 +315,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
                     let watchState = try await self.setupGarminWatchState(triggeredBy: "Glucose")
                     let watchStateData = try JSONEncoder().encode(watchState)
-                    self.watchStateSubject.send(watchStateData)
+                    self.watchStateSubject.send((watchStateData, nil))
                 } catch {
                     debug(.watchManager, "Garmin: Error in glucose fallback: \(error)")
                 }
@@ -353,7 +354,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
                     let watchState = try await self.setupGarminWatchState(triggeredBy: "IOB")
                     let watchStateData = try JSONEncoder().encode(watchState)
-                    self.watchStateSubject.send(watchStateData)
+                    self.watchStateSubject.send((watchStateData, nil))
                 } catch {
                     debug(.watchManager, "Garmin: Error in IOB fallback: \(error)")
                 }
@@ -368,9 +369,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         }
     }
 
-    /// Triggers watch state preparation and sends to debounce subject
-    /// If triggered by Determination, cancels pending glucose fallback timer
-    private func triggerWatchStateUpdate(triggeredBy trigger: String) {
+    /// Triggers watch state preparation and sends to debounce subject.
+    /// If triggered by Determination, cancels pending glucose fallback timer.
+    /// - Parameters:
+    ///   - trigger: Description of what triggered this update (for logging).
+    ///   - targetAppUUID: If provided, only send to this app. If nil, broadcast to all.
+    private func triggerWatchStateUpdate(triggeredBy trigger: String, targetAppUUID: UUID? = nil) {
         guard !devices.isEmpty else { return }
 
         // If determination arrived, cancel the glucose fallback timer
@@ -389,7 +393,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             do {
                 let watchState = try await setupGarminWatchState(triggeredBy: trigger)
                 let watchStateData = try JSONEncoder().encode(watchState)
-                watchStateSubject.send(watchStateData)
+                watchStateSubject.send((watchStateData, targetAppUUID))
             } catch {
                 debug(.watchManager, "Garmin: Error preparing watch state (\(trigger)): \(error)")
             }
@@ -422,7 +426,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 do {
                     let watchState = try await self.setupGarminWatchState(triggeredBy: "Settings")
                     let watchStateData = try JSONEncoder().encode(watchState)
-                    self.watchStateSubject.send(watchStateData)
+                    self.watchStateSubject.send((watchStateData, nil))
                 } catch {
                     debug(.watchManager, "Garmin: Error preparing settings watch state: \(error)")
                 }
@@ -802,8 +806,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     private func subscribeToWatchState() {
         watchStateSubject
             .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
-            .sink { [weak self] data in
-                self?.broadcastWatchStateData(data)
+            .sink { [weak self] data, targetAppUUID in
+                self?.broadcastWatchStateData(data, targetAppUUID: targetAppUUID)
             }
             .store(in: &cancellables)
     }
@@ -819,8 +823,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         deviceSelectionPromise = nil
     }
 
-    /// Broadcasts watch state data to all registered apps
-    private func broadcastWatchStateData(_ data: Data) {
+    /// Broadcasts watch state data to registered apps.
+    /// - Parameters:
+    ///   - data: JSON-encoded watch state data.
+    ///   - targetAppUUID: If provided, only send to this app. If nil, send to all.
+    private func broadcastWatchStateData(_ data: Data, targetAppUUID: UUID? = nil) {
         // Deduplicate: Use stable content-based hash (sorted JSON bytes)
         let currentHash: Int
         if let sortedData = try? JSONSerialization.data(
@@ -834,7 +841,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
         if currentHash == lastSentDataHash {
             if debugWatchState {
-                debug(.watchManager, "Garmin: Skipping broadcast - data unchanged")
+                if let targetAppUUID = targetAppUUID {
+                    debug(.watchManager, "Garmin: Skipping send to \(appDisplayName(for: targetAppUUID)) - data unchanged")
+                } else {
+                    debug(.watchManager, "Garmin: Skipping broadcast - data unchanged")
+                }
             }
             return
         }
@@ -844,7 +855,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             return
         }
 
-        watchApps.forEach { app in
+        let appsToSend = targetAppUUID != nil
+            ? watchApps.filter { $0.uuid == targetAppUUID }
+            : watchApps
+
+        appsToSend.forEach { app in
             guard let appUUID = app.uuid else {
                 debug(.watchManager, "Garmin: Skipping app with undefined UUID")
                 return
@@ -893,31 +908,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// Sends the given watch state data to the debounce subject for eventual broadcast.
     /// - Parameter data: JSON-encoded data representing the latest watch state.
     func sendWatchStateData(_ data: Data) {
-        watchStateSubject.send(data)
-    }
-
-    /// Prepares and sends watch state data to a single specific app, bypassing the broadcast pipeline.
-    private func sendToApp(_ app: IQApp, appName: String, triggeredBy trigger: String) {
-        Task {
-            do {
-                let watchState = try await setupGarminWatchState(triggeredBy: trigger)
-                let watchStateData = try JSONEncoder().encode(watchState)
-                guard let jsonObject = try? JSONSerialization.jsonObject(with: watchStateData, options: []) else {
-                    debug(.watchManager, "Garmin: Invalid JSON for targeted send to \(appName)")
-                    return
-                }
-                connectIQ?.getAppStatus(app) { [weak self] status in
-                    guard status?.isInstalled == true else {
-                        debug(.watchManager, "Garmin: App not installed: \(appName)")
-                        return
-                    }
-                    self?.debugGarmin("Garmin: Sending to \(appName)")
-                    self?.sendMessage(jsonObject as Any, to: app, appName: appName)
-                }
-            } catch {
-                debug(.watchManager, "Garmin: Error preparing watch state for \(appName): \(error)")
-            }
-        }
+        watchStateSubject.send((data, nil))
     }
 
     // MARK: - Helper: Sending Messages
@@ -1018,9 +1009,8 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
             return
         }
 
-        // Use triggerWatchStateUpdate for consistent deduplication and debouncing
-        // This prevents double sends when watchface request coincides with determination
-        triggerWatchStateUpdate(triggeredBy: "WatchRequest")
+        // Reply only to the requesting app through the full pipeline
+        triggerWatchStateUpdate(triggeredBy: "WatchRequest", targetAppUUID: appUUID)
     }
 }
 
@@ -1064,14 +1054,12 @@ extension BaseGarminManager: SettingsObserver {
             let targetUUID = datafieldJustEnabled
                 ? currentGarminSettings.datafield.datafieldUUID
                 : currentGarminSettings.watchface.watchfaceUUID
-            if let targetUUID = targetUUID,
-               let targetApp = watchApps.first(where: { $0.uuid == targetUUID })
-            {
+            if let targetUUID = targetUUID {
                 let appName = appDisplayName(for: targetUUID)
                 if debugWatchState {
                     debug(.watchManager, "Garmin: \(appName) enabled - sending update immediately")
                 }
-                sendToApp(targetApp, appName: appName, triggeredBy: "Settings")
+                triggerWatchStateUpdate(triggeredBy: "Settings", targetAppUUID: targetUUID)
             }
         } else if unitsChanged || displayAttributesChanged {
             // Throttle other settings changes in case user makes multiple changes
