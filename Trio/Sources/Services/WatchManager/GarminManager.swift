@@ -139,6 +139,16 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// How long to wait for additional settings changes before sending (seconds)
     private let settingsThrottleDuration: TimeInterval = 10
 
+    // MARK: - Watchface Activity Tracking
+
+    /// Tracks when the watchface last sent a "status" request (keep-alive).
+    /// Used to detect if watch background service is active and receiving messages.
+    private var lastWatchfaceRequestTime: Date?
+
+    /// How long since last watchface request before we consider the watch inactive (seconds).
+    /// If no request in this period, we skip sending to avoid queue buildup.
+    private let watchfaceActiveTimeout: TimeInterval = 5 * 60 // 5 minutes
+
     // MARK: - CoreData & Subscriptions
 
     /// Queue for handling Core Data change notifications
@@ -548,86 +558,55 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         let tempBasalObjects: [PumpEventStored] = try await CoreDataStack.shared
             .getNSManagedObject(with: tempBasalIds, context: backgroundContext)
 
-        // Extract all needed values from Core Data objects before the @Sendable closure
-        // This prevents capturing non-Sendable Core Data objects in the perform block
+        return await backgroundContext.perform {
+            var watchStates: [GarminWatchState] = []
 
-        // Process determinations
-        let enactedTimestamp: Date = await backgroundContext.perform {
+            let unitsHint = self.units == .mgdL ? "mgdl" : "mmol"
+
+            // IOB with 1 decimal precision
+            let iobValue = self.formatIOB(self.iobService.currentIOB ?? Decimal(0))
+
+            // Find enacted determination for timestamp (when loop actually ran)
+            // If no enacted determination exists in last 30 min, use a synthetic timestamp
+            // of "31 minutes ago" so watchface can distinguish between:
+            //   - nil = no data received yet (watch startup)
+            //   - 31+ min old = loop is stale
             let enactedDetermination = allDeterminationObjects.first(where: { $0.enacted })
-            return enactedDetermination?.timestamp ?? Date().addingTimeInterval(-31 * 60)
-        }
+            let enactedTimestamp: Date = enactedDetermination?.timestamp ?? Date().addingTimeInterval(-31 * 60)
 
-        let determinationValues: (cob: Double?, sensRatio: Double?, isf: Int16?, eventualBG: Int16?) = await backgroundContext
-            .perform {
-                guard let latestDetermination = allDeterminationObjects.first else {
-                    return (nil, nil, nil, nil)
+            // Extract data values from most recent determination (enacted or suggested)
+            // Suggested sets provide latest calculations even if loop hasn't run yet
+            var cobValue: Double?
+            var sensRatioValue: Double?
+            var isfValue: Int16?
+            var eventualBGValue: Int16?
+
+            if let latestDetermination = allDeterminationObjects.first {
+                cobValue = Double(latestDetermination.cob)
+
+                if let ratio = latestDetermination.autoISFratio {
+                    sensRatioValue = Double(truncating: ratio)
                 }
 
-                let cobValue = Double(latestDetermination.cob)
-                let sensRatioValue = latestDetermination.autoISFratio.map { Double(truncating: $0) }
-                let isfValue = latestDetermination.insulinSensitivity.map { Int16(truncating: $0) }
-                let eventualBGValue = latestDetermination.eventualBG.map { Int16(truncating: $0) }
+                if let isf = latestDetermination.insulinSensitivity {
+                    isfValue = Int16(truncating: isf)
+                }
 
-                return (cobValue, sensRatioValue, isfValue, eventualBGValue)
+                if let eventualBG = latestDetermination.eventualBG {
+                    eventualBGValue = Int16(truncating: eventualBG)
+                }
             }
 
-        // Process temp basal
-        let tempBasalRate: Double? = await backgroundContext.perform {
+            // TBR from temp basal or profile
+            var tbrValue: Double?
             if let firstTempBasal = tempBasalObjects.first,
                let tempBasalData = firstTempBasal.tempBasal,
                let tempRate = tempBasalData.rate
             {
-                return Double(truncating: tempRate)
-            }
-            return nil
-        }
-
-        // Process glucose data
-        struct GlucoseData {
-            let value: Int16
-            let date: Date?
-            let direction: String?
-        }
-
-        let glucoseData: [GlucoseData] = await backgroundContext.perform {
-            glucoseObjects.map { glucose in
-                GlucoseData(
-                    value: glucose.glucose,
-                    date: glucose.date,
-                    direction: glucose.direction
-                )
-            }
-        }
-
-        // Capture needed values before the @Sendable closure
-        let units = self.units
-        let currentIOB = iobService.currentIOB ?? Decimal(0)
-        let iobValue = formatIOB(currentIOB)
-        let basalProfile = settingsManager.preferences.basalProfile as? [BasalProfileEntry] ?? []
-        let displayPrimaryChoice = settingsManager.settings.garminSettings.primaryAttributeChoice.rawValue
-        let displaySecondaryChoice = settingsManager.settings.garminSettings.secondaryAttributeChoice.rawValue
-        let needsHistoricalData = needsHistoricalGlucoseData
-        let debugEnabled = debugWatchState
-        let lastPreparedHash = lastPreparedDataHash
-        let lastPreparedState = lastPreparedWatchState
-
-        let watchStates = await backgroundContext.perform {
-            var watchStates: [GarminWatchState] = []
-
-            let unitsHint = units == .mgdL ? "mgdl" : "mmol"
-
-            // Use pre-extracted determination values
-            let cobValue = determinationValues.cob
-            let sensRatioValue = determinationValues.sensRatio
-            let isfValue = determinationValues.isf
-            let eventualBGValue = determinationValues.eventualBG
-
-            // Calculate TBR - use temp basal rate if available, otherwise fall back to scheduled basal
-            var tbrValue: Double?
-            if let tempRate = tempBasalRate {
-                tbrValue = tempRate
+                tbrValue = Double(truncating: tempRate)
             } else {
                 // Fall back to scheduled basal from profile
+                let basalProfile = self.settingsManager.preferences.basalProfile as? [BasalProfileEntry] ?? []
                 if !basalProfile.isEmpty {
                     let now = Date()
                     let calendar = Calendar.current
@@ -642,13 +621,17 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 }
             }
 
-            // Process glucose readings using pre-extracted data
-            let entriesToSend = needsHistoricalData ? glucoseData.count : 1
+            // Display configuration from settings
+            let displayPrimaryChoice = self.settingsManager.settings.garminSettings.primaryAttributeChoice.rawValue
+            let displaySecondaryChoice = self.settingsManager.settings.garminSettings.secondaryAttributeChoice.rawValue
 
-            for (index, glucose) in glucoseData.enumerated() {
+            // Process glucose readings
+            let entriesToSend = self.needsHistoricalGlucoseData ? glucoseObjects.count : 1
+
+            for (index, glucose) in glucoseObjects.enumerated() {
                 guard index < entriesToSend else { break }
 
-                let glucoseValue = glucose.value
+                let glucoseValue = glucose.glucose
 
                 var watchState = GarminWatchState()
 
@@ -667,8 +650,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                     watchState.direction = glucose.direction ?? "--"
 
                     // Delta calculation
-                    if glucoseData.count > 1 {
-                        watchState.delta = glucose.value - glucoseData[1].value
+                    if glucoseObjects.count > 1 {
+                        watchState.delta = glucose.glucose - glucoseObjects[1].glucose
                     } else {
                         watchState.delta = 0
                     }
@@ -691,34 +674,32 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 watchStates.append(watchState)
             }
 
+            // Deduplicate: Check if data is unchanged from last preparation
+            let currentHash = watchStates.hashValue
+            if currentHash == self.lastPreparedDataHash {
+                if self.debugWatchState {
+                    debug(.watchManager, "Garmin: Skipping - data unchanged")
+                }
+                return self.lastPreparedWatchState ?? watchStates
+            }
+
+            if self.debugWatchState {
+                let iobFormatted = String(format: "%.1f", watchStates.first?.iob ?? 0)
+                let cobFormatted = String(format: "%.0f", watchStates.first?.cob ?? 0)
+                let tbrFormatted = String(format: "%.2f", watchStates.first?.tbr ?? 0)
+                let sensRatioFormatted = String(format: "%.2f", watchStates.first?.sensRatio ?? 0)
+                debug(
+                    .watchManager,
+                    "Garmin: Prepared \(watchStates.count) entries - sgv: \(watchStates.first?.sgv ?? 0), iob: \(iobFormatted), cob: \(cobFormatted), tbr: \(tbrFormatted), eventualBG: \(watchStates.first?.eventualBG ?? 0), sensRatio: \(sensRatioFormatted)"
+                )
+            }
+
+            // Cache for deduplication
+            self.lastPreparedDataHash = currentHash
+            self.lastPreparedWatchState = watchStates
+
             return watchStates
         }
-
-        // Deduplicate: Check if data is unchanged from last preparation
-        let currentHash = watchStates.hashValue
-        if currentHash == lastPreparedHash {
-            if debugEnabled {
-                debug(.watchManager, "Garmin: Skipping - data unchanged")
-            }
-            return lastPreparedState ?? watchStates
-        }
-
-        if debugEnabled {
-            let iobFormatted = String(format: "%.1f", watchStates.first?.iob ?? 0)
-            let cobFormatted = String(format: "%.0f", watchStates.first?.cob ?? 0)
-            let tbrFormatted = String(format: "%.2f", watchStates.first?.tbr ?? 0)
-            let sensRatioFormatted = String(format: "%.2f", watchStates.first?.sensRatio ?? 0)
-            debug(
-                .watchManager,
-                "Garmin: Prepared \(watchStates.count) entries - sgv: \(watchStates.first?.sgv ?? 0), iob: \(iobFormatted), cob: \(cobFormatted), tbr: \(tbrFormatted), eventualBG: \(watchStates.first?.eventualBG ?? 0), sensRatio: \(sensRatioFormatted)"
-            )
-        }
-
-        // Cache for deduplication
-        lastPreparedDataHash = currentHash
-        lastPreparedWatchState = watchStates
-
-        return watchStates
     }
 
     /// Formats IOB (Insulin On Board) value with 1 decimal precision for display.
@@ -895,6 +876,14 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             }
             let appName = self.appDisplayName(for: appUUID)
 
+            // Gate watchface sends based on activity (skip if inactive to prevent queue buildup)
+            // Datafield always receives sends - it handles its own lifecycle
+            let isWatchface = appUUID == currentWatchface.watchfaceUUID
+            if isWatchface && isWatchfaceInactive() {
+                debug(.watchManager, "Garmin: Skipping watchface send - inactive (no status request in \(Int(watchfaceActiveTimeout / 60)) min)")
+                return
+            }
+
             connectIQ?.getAppStatus(app) { [weak self] status in
                 guard status?.isInstalled == true else {
                     debug(.watchManager, "Garmin: App not installed: \(appName)")
@@ -1038,8 +1027,30 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
             return
         }
 
+        // Track watchface activity for queue prevention (only for watchface, not datafield)
+        let isWatchface = appUUID == currentWatchface.watchfaceUUID
+        if isWatchface {
+            let wasInactive = isWatchfaceInactive()
+            lastWatchfaceRequestTime = Date()
+
+            if wasInactive {
+                // Watchface just woke up after being inactive - log this event
+                debug(.watchManager, "Garmin: Watchface resumed after inactivity - sending fresh data")
+            }
+        }
+
         // Reply only to the requesting app through the full pipeline
         triggerWatchStateUpdate(triggeredBy: "WatchRequest", targetAppUUID: appUUID)
+    }
+
+    /// Checks if the watchface has been inactive (no status requests) for longer than the timeout.
+    /// - Returns: true if watchface is considered inactive, false if recently active or never seen.
+    private func isWatchfaceInactive() -> Bool {
+        guard let lastRequest = lastWatchfaceRequestTime else {
+            // Never received a request - consider active (don't block initial sends)
+            return false
+        }
+        return Date().timeIntervalSince(lastRequest) > watchfaceActiveTimeout
     }
 }
 
@@ -1088,6 +1099,14 @@ extension BaseGarminManager: SettingsObserver {
                 if debugWatchState {
                     debug(.watchManager, "Garmin: \(appName) enabled - sending update immediately")
                 }
+
+                // Reset watchface activity tracking when watchface data is toggled
+                // This allows the send to bypass the inactivity check (manual remedy for queue issues)
+                if watchfaceDataEnabledChanged {
+                    lastWatchfaceRequestTime = Date()
+                    debug(.watchManager, "Garmin: Watchface data toggled - resetting activity tracking")
+                }
+
                 triggerWatchStateUpdate(triggeredBy: "Settings", targetAppUUID: targetUUID)
             }
         } else if unitsChanged || displayAttributesChanged {
