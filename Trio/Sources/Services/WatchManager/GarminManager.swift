@@ -1127,6 +1127,13 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
             let wasInactive = isWatchfaceInactive()
             lastWatchfaceRequestTime = Date()
 
+            // Watchface request = activity not running (Garmin OS suspends watchface during activities)
+            // Clear datafield timestamp to immediately mark it inactive - no need to wait 15 min
+            if lastDatafieldRequestTime != nil {
+                debug(.watchManager, "Garmin: Watchface active - clearing datafield activity (activity ended)")
+                lastDatafieldRequestTime = nil
+            }
+
             if wasInactive {
                 // Watchface just woke up after being inactive - send fresh data immediately
                 // This handles both normal inactivity and resuming after an activity ends
@@ -1161,11 +1168,16 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
 
     /// Checks if the datafield has been inactive (no status requests) for longer than the timeout.
     /// Datafield only sends requests during an activity, so inactive means no activity running.
-    /// Uses 15-minute timeout to handle BLE blips without prematurely stopping sends.
-    /// - Returns: true if datafield is inactive, false if recently active or never seen.
+    ///
+    /// Activity detection:
+    /// - Primary: Watchface request clears `lastDatafieldRequestTime` → immediate inactive
+    ///   (Garmin OS suspends watchface during activities, so watchface request = no activity)
+    /// - Fallback: 15-minute timeout handles edge cases (e.g., watchface requests not received)
+    ///
+    /// - Returns: true if datafield is inactive, false if recently active.
     private func isDatafieldInactive() -> Bool {
         guard let lastRequest = lastDatafieldRequestTime else {
-            // Never received a request - consider inactive (datafield needs activity to be useful)
+            // No recent request (cleared by watchface, or never received) - consider inactive
             return true
         }
         return Date().timeIntervalSince(lastRequest) > datafieldInactiveTimeout
