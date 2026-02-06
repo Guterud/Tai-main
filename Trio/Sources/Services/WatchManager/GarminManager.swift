@@ -156,31 +156,15 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// Used to detect if an activity is running (datafield only sends requests during activities).
     private var lastDatafieldRequestTime: Date?
 
-    /// Tracks when the current datafield activity started (first request after inactivity).
-    /// Used to determine if activity has been running long enough to suppress watchface.
-    private var datafieldActivityStartTime: Date?
-
-    /// How long since last watchface/datafield request before we consider it inactive (seconds).
+    /// How long since last watchface request before we consider it inactive (seconds).
     /// If no request in this period, we skip sending to avoid queue buildup.
+    /// Note: Watch OS naturally suspends watchface background during activities,
+    /// so this timeout handles both normal inactivity and activity-based suppression.
     private let watchfaceActiveTimeout: TimeInterval = 5 * 60 // 5 minutes
-
-    /// How long datafield must be active before we suppress watchface sends (seconds).
-    /// Longer than watchfaceActiveTimeout to ensure activity is sustained before suppressing.
-    private let datafieldSuppressionTimeout: TimeInterval = 10 * 60 // 10 minutes
 
     /// How long since last datafield request before we consider it inactive (seconds).
     /// Longer timeout (15 min) to handle BLE connection blips without prematurely stopping sends.
     private let datafieldInactiveTimeout: TimeInterval = 15 * 60 // 15 minutes
-
-    /// How long since last datafield request before we consider the activity ended (seconds).
-    /// If no request in ~6 min (slightly more than 5-min temporal event interval), activity likely ended.
-    /// Used for watchface suppression - shorter than datafieldInactiveTimeout.
-    private let activityEndedTimeout: TimeInterval = 6 * 60 // 6 minutes
-
-    /// Tracks if watchface was suppressed because datafield was active (user in activity).
-    /// When activity ends, this allows watchface to resume receiving data immediately
-    /// without waiting for its next status request.
-    private var watchfaceSuppressedDuringActivity: Bool = false
 
     // MARK: - CoreData & Subscriptions
 
@@ -954,40 +938,15 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             let isWatchface = appUUID == currentWatchface.watchfaceUUID
             let isDatafield = appUUID == currentDatafield.datafieldUUID
 
-            // Skip watchface if inactive OR if datafield is active (user is exercising, looking at datafield)
-            if isWatchface {
-                if isDatafieldActive() {
-                    // User is in activity - suppress watchface and remember we suppressed it
-                    self.watchfaceSuppressedDuringActivity = true
-                    debug(
-                        .watchManager,
-                        "Garmin: Skipping watchface send - datafield is active (user in activity)"
-                    )
-                    return
-                }
-
-                // Datafield is inactive - check if watchface should resume
-                if isWatchfaceInactive() {
-                    // Watchface was suppressed during activity - allow it to resume now that activity ended
-                    if self.watchfaceSuppressedDuringActivity {
-                        debug(
-                            .watchManager,
-                            "Garmin: Watchface resuming after activity - datafield now inactive"
-                        )
-                        self.watchfaceSuppressedDuringActivity = false
-                        // Continue to send (don't return)
-                    } else {
-                        // Watchface genuinely inactive (not due to activity suppression)
-                        debug(
-                            .watchManager,
-                            "Garmin: Skipping watchface send - inactive (no status request in \(Int(watchfaceActiveTimeout / 60)) min)"
-                        )
-                        return
-                    }
-                } else {
-                    // Watchface is active - clear suppression flag if it was set
-                    self.watchfaceSuppressedDuringActivity = false
-                }
+            // Skip watchface if inactive (no status request in 5 min)
+            // Note: Watch OS naturally suspends watchface background during activities,
+            // so this single check handles both normal inactivity and activity-based suppression.
+            if isWatchface, isWatchfaceInactive() {
+                debug(
+                    .watchManager,
+                    "Garmin: Skipping watchface send - inactive (no status request in \(Int(watchfaceActiveTimeout / 60)) min)"
+                )
+                return
             }
 
             // Skip datafield if inactive (no activity running - datafield won't process messages)
@@ -1166,21 +1125,11 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
 
         if isWatchface {
             let wasInactive = isWatchfaceInactive()
-            let hadActiveDatafieldSession = datafieldActivityStartTime != nil
-
             lastWatchfaceRequestTime = Date()
 
-            // Watchface explicitly requested data - if datafield session was active, end it
-            // Watchface takes priority on explicit request (user switched from activity screen to watchface)
-            if hadActiveDatafieldSession {
-                debug(.watchManager, "Garmin: Watchface request - ending datafield session, watchface takes priority")
-                datafieldActivityStartTime = nil
-                watchfaceSuppressedDuringActivity = false
-                lastPreparedDataHash = nil // Force data preparation
-                lastSentDataHash = nil // Force data send
-            } else if wasInactive {
-                // Watchface just woke up after being inactive - log this event
-                // Clear hashes to force data delivery to the resumed app
+            if wasInactive {
+                // Watchface just woke up after being inactive - send fresh data immediately
+                // This handles both normal inactivity and resuming after an activity ends
                 debug(.watchManager, "Garmin: Watchface resumed after inactivity - sending fresh data")
                 lastPreparedDataHash = nil // Force data preparation
                 lastSentDataHash = nil // Force data send
@@ -1190,9 +1139,7 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
             lastDatafieldRequestTime = Date()
 
             if wasInactive {
-                // Datafield just started (activity began) - record start time
-                // Clear send hash to force data delivery to the resumed app
-                datafieldActivityStartTime = Date()
+                // Datafield just started (activity began) - send fresh data
                 debug(.watchManager, "Garmin: Datafield activity started - sending fresh data")
                 lastSentDataHash = nil
             }
@@ -1222,23 +1169,6 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
             return true
         }
         return Date().timeIntervalSince(lastRequest) > datafieldInactiveTimeout
-    }
-
-    /// Checks if the datafield activity has been running long enough to suppress watchface.
-    /// Only returns true if activity started 10+ minutes ago AND is still active (recent request).
-    /// This prevents immediate watchface suppression when activity just started.
-    /// - Returns: true if activity has been running for 10+ minutes, false otherwise.
-    private func isDatafieldActive() -> Bool {
-        guard let activityStart = datafieldActivityStartTime,
-              let lastRequest = lastDatafieldRequestTime
-        else {
-            return false
-        }
-        // Activity must have been running for at least 10 minutes
-        let activityDuration = Date().timeIntervalSince(activityStart)
-        // And must still be active (recent request within 6 min - slightly more than 5-min interval)
-        let isStillActive = Date().timeIntervalSince(lastRequest) <= activityEndedTimeout
-        return activityDuration >= datafieldSuppressionTimeout && isStillActive
     }
 }
 
