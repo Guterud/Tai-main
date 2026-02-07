@@ -13,364 +13,327 @@ struct GlucosePoint {
     let glucose: Int
 }
 
-/// Detects meaningful turning points (peaks and valleys) in a CGM glucose time series.
+/// Detects meaningful turning points (peaks and valleys) in a CGM glucose time series
+/// using least-squares parabola fitting.
 ///
-/// Ported from iAPS (PR #1674 by @yurique), adapted for Trio's data model.
+/// Ported concept from oref's `glucose-get-last.js` parabola fitting, adapted for
+/// retrospective peak/valley detection in Trio's Swift Charts.
+///
+/// **Algorithm:**
+///
+/// For each data point in the glucose series, a quadratic curve `y = a₂·x² + a₁·x + a₀`
+/// is fitted to the surrounding data within a sliding window using least-squares regression.
+///
+/// - `a₁` (slope at the point): when near zero, indicates a turning point
+/// - `a₂` (curvature / acceleration): negative = peak (concave down), positive = valley (concave up)
+/// - `r²` (correlation): quality of fit — only well-fitted turning points are accepted
+///
+/// This naturally rejects false peaks on monotonic slopes because `a₁` remains significantly
+/// non-zero when glucose is steadily rising or falling.
+///
+/// After identifying candidate turning points, a minimum time gap is enforced between
+/// same-type extrema to avoid clustering.
 enum PeakPicker {
-    /// Detects meaningful extrema in a CGM time series using a multi-stage
-    /// sliding-window algorithm with gap-based refinement.
-    ///
-    /// The function operates in **three phases**:
-    ///
-    /// **Phase 1 — Primary extrema**
-    /// A sliding window of width *W* (derived from `windowHours`) is swept across the
-    /// entire dataset. A point is marked as a primary maximum or minimum if it is the
-    /// most extreme value (and the most recent among equals) within its ±W window.
-    /// This yields a stable set of major turning points.
-    ///
-    /// **Phase 2 — Gap refinement (secondary extrema)**
-    /// Each gap between consecutive primary extrema is re-examined using a smaller
-    /// sliding window of size `secondaryWindowFactor * W`.
-    /// Local extrema inside that gap are detected, and depending on the types of the
-    /// endpoints:
-    ///   • a min–min gap may admit one secondary maximum,
-    ///   • a max–max gap may admit one secondary minimum,
-    ///   • a mixed (min–max or max–min) gap may admit one of each, but only if the
-    ///     gap is wider than `oppositeGapFactor * W`.
-    ///
-    /// When selecting a secondary extremum for a gap:
-    ///   1. **Value priority** — choose the strongest candidate
-    ///      (highest for maxima, lowest for minima).
-    ///   2. **Same-type spacing rule** — the chosen extremum must be sufficiently far
-    ///      from all other extrema of the same type, at least
-    ///      `minSameTypeGapFactor * W` apart.
-    ///      This prevents unnatural clustering of same-type peaks.
-    ///
-    /// **Phase 3 — Neutral extrema (`.none`) in wide opposite-type gaps**
-    /// After merging primary and secondary extrema, the function scans all min–max
-    /// and max–min neighbours. If their separation exceeds `oppositeGapFactor * W`,
-    /// it inserts exactly one "neutral" extremum (`.none`) at the interior data point
-    /// whose timestamp is closest to the midpoint of the gap.
-    /// These neutral markers can be used for annotations or segmentation.
-    ///
-    /// **Phase 4 — Derivative sign-change filter**
-    /// Each max/min extremum is validated by checking the first derivative (slope)
-    /// on both sides. A true maximum must have glucose rising before it and falling
-    /// after it; a true minimum must have glucose falling before and rising after.
-    /// Candidates on monotonic slopes (no actual direction change) are removed.
-    /// This prevents spurious labels on long steady rises or declines.
-    ///
-    /// The function returns **all extrema of all four phases**, each annotated with
-    /// its `ExtremumType` ( `.max`, `.min`, or `.none` ), sorted in ascending
-    /// chronological order.
+    // MARK: - Configuration
+
+    /// Minimum |a₁| below which the slope is considered "near zero" (turning point).
+    /// Units: mg/dL per 5 minutes. At a real turning point the fitted slope should be
+    /// close to zero, but CGM noise and 5-min discretisation can push it to 2-4.
+    private static let slopeThreshold: Double = 4.0
+
+    /// Minimum |a₂| (curvature) to confirm the parabola has meaningful bend.
+    private static let curvatureThreshold: Double = 0.0005
+
+    /// Minimum r² for accepting a parabola fit.
+    private static let minRSquared: Double = 0.50
+
+    /// Minimum duration (seconds) of data required for a valid parabola fit.
+    private static let minFitDuration: TimeInterval = 10 * 60 // 10 minutes
+
+    /// Maximum duration (seconds) of data to include in the fit window (each side).
+    private static let maxFitWindow: TimeInterval = 45 * 60 // 45 minutes each side
+
+    /// Minimum time gap (seconds) between same-type extrema to avoid clustering.
+    private static let minSameTypeGap: TimeInterval = 45 * 60 // 45 minutes
+
+    /// Minimum glucose difference (mg/dL) between a peak and its nearest valley
+    /// (or vice versa) for the turning point to be considered significant.
+    private static let minAmplitude: Double = 25
+
+    // MARK: - Public API
+
+    /// Detects peaks and valleys in a glucose time series using parabola fitting.
     ///
     /// - Parameters:
-    ///   - data: The time-ordered glucose measurements.
-    ///   - windowHours: The primary window width *W*, in hours.
-    ///   - secondaryWindowFactor: Fraction of *W* used for secondary extrema.
-    ///   - oppositeGapFactor: Gap-width multiplier controlling when opposite-type
-    ///     gaps may receive two secondary extrema, and when neutral extrema are added.
-    ///   - minSameTypeGapFactor: Minimum spacing between same-type extrema,
-    ///     expressed as a multiple of *W*.
+    ///   - data: Time-ordered glucose measurements.
+    ///   - windowHours: Not used directly but kept for API compatibility.
+    ///   - secondaryWindowFactor: Not used — kept for API compatibility.
+    ///   - oppositeGapFactor: Not used — kept for API compatibility.
+    ///   - minSameTypeGapFactor: Not used — kept for API compatibility.
     ///
     /// - Returns: An array of `(point: GlucosePoint, type: ExtremumType)`
     ///            sorted by timestamp ascending.
     static func pick(
         data: [GlucosePoint],
-        windowHours: Double = 1,
-        secondaryWindowFactor: Double = 1.0 / 3.0,
-        oppositeGapFactor: Double = 1.9,
-        minSameTypeGapFactor: Double = 0.8
+        windowHours _: Double = 1,
+        secondaryWindowFactor _: Double = 1.0 / 3.0,
+        oppositeGapFactor _: Double = 1.9,
+        minSameTypeGapFactor _: Double = 0.8
     ) -> [(point: GlucosePoint, type: ExtremumType)] {
-        let W: TimeInterval = windowHours * 3600
-        let secondaryW: TimeInterval = W * secondaryWindowFactor
-        let oppositeMinGap: TimeInterval = oppositeGapFactor * W
-        let minSameTypeGap: TimeInterval = minSameTypeGapFactor * W
-
         // Filter valid points, sorted oldest → latest
         let asc = data.filter { $0.glucose > 0 }
-
         let n = asc.count
-        guard n > 0 else { return [] }
+        guard n >= 4 else { return [] } // need at least 4 points for a meaningful fit
 
         let times = asc.map(\.date)
         let vals = asc.map { Double($0.glucose) }
 
-        // MARK: - Phase 1: primary peaks with window W over full series
+        // MARK: - Fit parabola at each point and identify turning-point candidates
 
-        let primary = slidingWindowExtrema(
-            vals: vals,
-            times: times,
-            window: W,
-            range: 0 ..< n
-        )
-
-        let primaryMaxIdx = primary.maxIdx
-        let primaryMinIdx = primary.minIdx
-
-        struct Peak {
+        struct Candidate {
             let idx: Int
             let type: ExtremumType
+            let slopeAbs: Double // |a₁| — lower is better (closer to zero)
+            let rSquared: Double // fit quality — higher is better
         }
 
-        var primaryPeaks: [Peak] = []
-        primaryPeaks += primaryMaxIdx.map { Peak(idx: $0, type: .max) }
-        primaryPeaks += primaryMinIdx.map { Peak(idx: $0, type: .min) }
-        primaryPeaks.sort { times[$0.idx] < times[$1.idx] }
+        var candidates: [Candidate] = []
 
-        // Not enough primary peaks to define gaps → return the single peak (or none)
-        if primaryPeaks.count <= 1 {
-            let sortedIdx = (primaryMaxIdx + primaryMinIdx).sorted { times[$0] < times[$1] }
+        let scaleTime: Double = 300.0 // normalise time to 5-minute units
 
-            let result: [(point: GlucosePoint, type: ExtremumType)] =
-                sortedIdx.map { i in
-                    let type: ExtremumType = primaryMaxIdx.contains(i) ? .max : .min
-                    return (point: asc[i], type: type)
-                }
+        for i in 0 ..< n {
+            let t0 = times[i]
 
-            return result
-        }
+            // Gather all points within ±maxFitWindow around point i
+            var sx: Double = 0
+            var sx2: Double = 0
+            var sx3: Double = 0
+            var sx4: Double = 0
+            var sy: Double = 0
+            var sxy: Double = 0
+            var sx2y: Double = 0
+            var nFit = 0
+            var fitPoints: [(ti: Double, bg: Double)] = []
 
-        // Same-type sets used to enforce minimal spacing for added peaks
-        var maxSameType = primaryMaxIdx
-        var minSameType = primaryMinIdx
+            for j in 0 ..< n {
+                let dt = times[j].timeIntervalSince(t0)
+                if dt < -maxFitWindow { continue }
+                if dt > maxFitWindow { break }
 
-        // MARK: - Phase 2: refine each gap using smaller window (secondaryW)
-
-        var secondaryPeaks: [Peak] = []
-
-        for k in 0 ..< (primaryPeaks.count - 1) {
-            let left = primaryPeaks[k]
-            let right = primaryPeaks[k + 1]
-
-            let gapStart = left.idx + 1
-            let gapEnd = right.idx // half-open [gapStart, gapEnd)
-
-            if gapStart >= gapEnd {
-                continue // no interior points
+                let ti = dt / scaleTime
+                let bg = vals[j]
+                sx += ti
+                sx2 += ti * ti
+                sx3 += ti * ti * ti
+                sx4 += ti * ti * ti * ti
+                sy += bg
+                sxy += ti * bg
+                sx2y += ti * ti * bg
+                nFit += 1
+                fitPoints.append((ti: ti, bg: bg))
             }
 
-            let gapRange = gapStart ..< gapEnd
+            guard nFit >= 4 else { continue }
 
-            let gapExtrema = slidingWindowExtrema(
-                vals: vals,
-                times: times,
-                window: secondaryW,
-                range: gapRange
-            )
-            let gapMaxIdx = gapExtrema.maxIdx
-            let gapMinIdx = gapExtrema.minIdx
+            // Check we have data on both sides of the center point
+            guard let firstTi = fitPoints.first?.ti, let lastTi = fitPoints.last?.ti,
+                  firstTi < -0.1, lastTi > 0.1 else { continue }
 
-            if gapMaxIdx.isEmpty, gapMinIdx.isEmpty {
-                continue
+            let totalSpan = (lastTi - firstTi) * scaleTime
+            guard totalSpan >= minFitDuration else { continue }
+
+            let nf = Double(nFit)
+
+            // Solve y = a₂·t² + a₁·t + a₀ using Cramer's rule
+            let detH = sx4 * (sx2 * nf - sx * sx)
+                - sx3 * (sx3 * nf - sx * sx2)
+                + sx2 * (sx3 * sx - sx2 * sx2)
+
+            guard abs(detH) > 1E-10 else { continue }
+
+            let detA = sx2y * (sx2 * nf - sx * sx)
+                - sxy * (sx3 * nf - sx * sx2)
+                + sy * (sx3 * sx - sx2 * sx2)
+
+            let detB = sx4 * (sxy * nf - sy * sx)
+                - sx3 * (sx2y * nf - sy * sx2)
+                + sx2 * (sx2y * sx - sxy * sx2)
+
+            let detC = sx4 * (sx2 * sy - sx * sxy)
+                - sx3 * (sx3 * sy - sx * sx2y)
+                + sx2 * (sx3 * sxy - sx2 * sx2y)
+
+            let a2 = detA / detH // curvature
+            let a1 = detB / detH // slope at t=0
+            let a0 = detC / detH // fitted value at t=0
+
+            // Compute r²
+            let yMean = sy / nf
+            var ssTotal: Double = 0
+            var ssResidual: Double = 0
+            for pt in fitPoints {
+                ssTotal += (pt.bg - yMean) * (pt.bg - yMean)
+                let fitted = a2 * pt.ti * pt.ti + a1 * pt.ti + a0
+                ssResidual += (pt.bg - fitted) * (pt.bg - fitted)
             }
 
-            let tLeft = times[left.idx]
-            let tRight = times[right.idx]
-            let gapDuration = tRight.timeIntervalSince(tLeft)
+            let rSquared: Double = ssTotal > 0 ? max(0, 1.0 - ssResidual / ssTotal) : 0
 
-            switch (left.type, right.type) {
-            case (.min, .min):
-                // min–min gap: add one max (best-by-value) if far enough from other maxima
-                if let idx = pickBestCandidateByValueRespectingSameTypeDistance(
-                    candidates: gapMaxIdx,
-                    type: .max,
-                    vals: vals,
-                    times: times,
-                    minSameTypeGap: minSameTypeGap,
-                    existingSameType: maxSameType
-                ) {
-                    secondaryPeaks.append(Peak(idx: idx, type: .max))
-                    maxSameType.append(idx)
-                }
+            // Turning point criteria
+            guard rSquared >= minRSquared else { continue }
+            guard abs(a1) <= slopeThreshold else { continue }
+            guard abs(a2) >= curvatureThreshold else { continue }
 
-            case (.max, .max):
-                // max–max gap: add one min (best-by-value) if far enough from other minima
-                if let idx = pickBestCandidateByValueRespectingSameTypeDistance(
-                    candidates: gapMinIdx,
-                    type: .min,
-                    vals: vals,
-                    times: times,
-                    minSameTypeGap: minSameTypeGap,
-                    existingSameType: minSameType
-                ) {
-                    secondaryPeaks.append(Peak(idx: idx, type: .min))
-                    minSameType.append(idx)
-                }
-
-            case (.max, .min),
-                 (.min, .max):
-                // Opposite extrema: only if the gap is wide enough
-                if gapDuration > oppositeMinGap {
-                    if let idxMax = pickBestCandidateByValueRespectingSameTypeDistance(
-                        candidates: gapMaxIdx,
-                        type: .max,
-                        vals: vals,
-                        times: times,
-                        minSameTypeGap: minSameTypeGap,
-                        existingSameType: maxSameType
-                    ) {
-                        secondaryPeaks.append(Peak(idx: idxMax, type: .max))
-                        maxSameType.append(idxMax)
-                    }
-
-                    if let idxMin = pickBestCandidateByValueRespectingSameTypeDistance(
-                        candidates: gapMinIdx,
-                        type: .min,
-                        vals: vals,
-                        times: times,
-                        minSameTypeGap: minSameTypeGap,
-                        existingSameType: minSameType
-                    ) {
-                        secondaryPeaks.append(Peak(idx: idxMin, type: .min))
-                        minSameType.append(idxMin)
-                    }
-                }
-
-            case (_, .none),
-                 (.none, _):
-                break
-            }
+            let type: ExtremumType = a2 < 0 ? .max : .min
+            candidates.append(Candidate(idx: i, type: type, slopeAbs: abs(a1), rSquared: rSquared))
         }
 
-        // MARK: - Merge primary + secondary
+        guard !candidates.isEmpty else { return [] }
 
-        var allPeaks = primaryPeaks
-        let primaryIdxSet = Set(allPeaks.map(\.idx))
+        // MARK: - Select best turning points, enforcing minimum gap
 
-        for p in secondaryPeaks where !primaryIdxSet.contains(p.idx) {
-            allPeaks.append(p)
-        }
+        // Sort candidates by extremeness: for MAX, highest glucose first;
+        // for MIN, lowest glucose first. This ensures the most prominent
+        // turning points are selected before less significant ones.
+        // We process MAX and MIN separately then merge.
+        let maxCandidates = candidates.filter { $0.type == .max }
+            .sorted { vals[$0.idx] > vals[$1.idx] } // highest glucose first
+        let minCandidates = candidates.filter { $0.type == .min }
+            .sorted { vals[$0.idx] < vals[$1.idx] } // lowest glucose first
 
-        allPeaks.sort { times[$0.idx] < times[$1.idx] }
+        var selected: [(idx: Int, type: ExtremumType)] = []
 
-        // MARK: - Phase 3: neutral (.none) extrema in wide opposite-type gaps
+        /// Check whether an opposite-type candidate exists between two same-type
+        /// points in time. Uses the full candidate list (not just selected) so
+        /// that the check works regardless of selection order.
+        /// If an opposite-type turn lies between two same-type extrema, they
+        /// belong to different wave cycles and the gap constraint is waived.
+        let allCandidateEntries: [(idx: Int, type: ExtremumType)] = candidates.map { (idx: $0.idx, type: $0.type) }
 
-        var neutralPeaks: [Peak] = []
-
-        if allPeaks.count >= 2 {
-            for i in 0 ..< (allPeaks.count - 1) {
-                let left = allPeaks[i]
-                let right = allPeaks[i + 1]
-
-                // Only min–max or max–min; ignore gaps involving `.none`.
-                let isOppositePair: Bool =
-                    (left.type == .min && right.type == .max) ||
-                    (left.type == .max && right.type == .min)
-
-                guard isOppositePair else { continue }
-
-                let tLeft = times[left.idx]
-                let tRight = times[right.idx]
-                let gapDuration = tRight.timeIntervalSince(tLeft)
-
-                guard gapDuration > oppositeMinGap else { continue }
-
-                // Need at least one interior sample to host a neutral extremum
-                let start = left.idx + 1
-                let end = right.idx
-                guard start < end else { continue }
-
-                let midTime = tLeft.addingTimeInterval(gapDuration / 2)
-                var bestIdx = start
-                var bestDist = abs(times[start].timeIntervalSince(midTime))
-
-                if start + 1 < end {
-                    for j in (start + 1) ..< end {
-                        let d = abs(times[j].timeIntervalSince(midTime))
-                        if d < bestDist {
-                            bestDist = d
-                            bestIdx = j
-                        }
-                    }
-                }
-
-                // Avoid duplicating an existing peak at exactly the same index
-                if primaryIdxSet.contains(bestIdx) ||
-                    allPeaks.contains(where: { $0.idx == bestIdx })
-                {
-                    continue
-                }
-
-                neutralPeaks.append(Peak(idx: bestIdx, type: .none))
+        func hasOppositeBetween(
+            typeA: ExtremumType,
+            timeA: Date,
+            timeB: Date
+        ) -> Bool {
+            let lo = min(timeA, timeB)
+            let hi = max(timeA, timeB)
+            return allCandidateEntries.contains { entry in
+                entry.type != typeA &&
+                    times[entry.idx] > lo &&
+                    times[entry.idx] < hi
             }
         }
 
-        allPeaks.append(contentsOf: neutralPeaks)
-        allPeaks.sort { times[$0.idx] < times[$1.idx] }
+        // Greedily select MAX candidates
+        for candidate in maxCandidates {
+            let candidateTime = times[candidate.idx]
+            let tooClose = selected.contains { existing in
+                guard existing.type == .max else { return false }
+                let gap = abs(times[existing.idx].timeIntervalSince(candidateTime))
+                guard gap < minSameTypeGap else { return false }
+                // Allow if there's an opposite-type turn between them
+                return !hasOppositeBetween(
+                    typeA: .max,
+                    timeA: times[existing.idx],
+                    timeB: candidateTime
+                )
+            }
+            if tooClose { continue }
+            selected.append((idx: candidate.idx, type: .max))
+        }
 
-        // MARK: - Phase 4: derivative sign-change filter
+        // Greedily select MIN candidates
+        for candidate in minCandidates {
+            let candidateTime = times[candidate.idx]
+            let tooClose = selected.contains { existing in
+                guard existing.type == .min else { return false }
+                let gap = abs(times[existing.idx].timeIntervalSince(candidateTime))
+                guard gap < minSameTypeGap else { return false }
+                // Allow if there's an opposite-type turn between them
+                return !hasOppositeBetween(
+                    typeA: .min,
+                    timeA: times[existing.idx],
+                    timeB: candidateTime
+                )
+            }
+            if tooClose { continue }
+            selected.append((idx: candidate.idx, type: .min))
+        }
 
-        // Remove spurious extrema on monotonic slopes. A true maximum requires
-        // the glucose to be rising before the peak and falling after it; a true
-        // minimum requires falling before and rising after.
-        //
-        // We compute the average glucose over a window before and after the
-        // candidate and compare each average to the peak value. Using averages
-        // instead of a single neighbour makes the check robust against CGM noise.
+        // Sort by time
+        selected.sort { times[$0.idx] < times[$1.idx] }
 
-        let derivativeWindow: TimeInterval = 15 * 60 // 15 minutes
+        // MARK: - Snap to actual extreme value
 
-        allPeaks = allPeaks.filter { peak in
-            let peakTime = times[peak.idx]
-            let peakVal = vals[peak.idx]
+        // The parabola vertex (a₁ ≈ 0) may not coincide with the actual highest/lowest
+        // CGM reading. For each selected turning point, scan nearby data and replace
+        // the index with the actual extreme glucose value within ±snapWindow.
+        let snapWindow: TimeInterval = 15 * 60 // 15 minutes
+        for i in 0 ..< selected.count {
+            let centerIdx = selected[i].idx
+            let centerTime = times[centerIdx]
+            var bestIdx = centerIdx
 
-            // Compute the average glucose in the window BEFORE the peak
-            var beforeSum = 0.0
-            var beforeCount = 0
-            for j in stride(from: peak.idx - 1, through: 0, by: -1) {
-                let dt = peakTime.timeIntervalSince(times[j])
-                if dt > derivativeWindow { break }
-                if dt > 0 {
-                    beforeSum += vals[j]
-                    beforeCount += 1
+            // Scan backwards from center
+            for j in stride(from: centerIdx - 1, through: 0, by: -1) {
+                if centerTime.timeIntervalSince(times[j]) > snapWindow { break }
+                switch selected[i].type {
+                case .max:
+                    if vals[j] > vals[bestIdx] { bestIdx = j }
+                case .min:
+                    if vals[j] < vals[bestIdx] { bestIdx = j }
+                case .none:
+                    break
+                }
+            }
+            // Scan forwards from center
+            for j in (centerIdx + 1) ..< n {
+                if times[j].timeIntervalSince(centerTime) > snapWindow { break }
+                switch selected[i].type {
+                case .max:
+                    if vals[j] > vals[bestIdx] { bestIdx = j }
+                case .min:
+                    if vals[j] < vals[bestIdx] { bestIdx = j }
+                case .none:
+                    break
+                }
+            }
+            selected[i] = (idx: bestIdx, type: selected[i].type)
+        }
+
+        // MARK: - Amplitude filter: remove minor turns
+
+        // Iteratively remove the turning point with the smallest amplitude
+        // (difference to its nearest opposite-type neighbour) until all
+        // remaining turns exceed minAmplitude.
+        while selected.count >= 2 {
+            var worstIndex: Int?
+            var worstAmplitude = Double.greatestFiniteMagnitude
+
+            for i in 0 ..< selected.count {
+                let val = vals[selected[i].idx]
+                var amplitude = Double.greatestFiniteMagnitude
+
+                // Look at the nearest neighbour(s) in the selected list
+                if i > 0 {
+                    amplitude = min(amplitude, abs(val - vals[selected[i - 1].idx]))
+                }
+                if i < selected.count - 1 {
+                    amplitude = min(amplitude, abs(val - vals[selected[i + 1].idx]))
+                }
+
+                if amplitude < worstAmplitude {
+                    worstAmplitude = amplitude
+                    worstIndex = i
                 }
             }
 
-            // Compute the average glucose in the window AFTER the peak
-            var afterSum = 0.0
-            var afterCount = 0
-            for j in (peak.idx + 1) ..< n {
-                let dt = times[j].timeIntervalSince(peakTime)
-                if dt > derivativeWindow { break }
-                if dt > 0 {
-                    afterSum += vals[j]
-                    afterCount += 1
-                }
-            }
-
-            // If we can't find neighbours on both sides, keep the peak (edge of data)
-            guard beforeCount > 0, afterCount > 0 else { return true }
-
-            let beforeAvg = beforeSum / Double(beforeCount)
-            let afterAvg = afterSum / Double(afterCount)
-
-            switch peak.type {
-            case .max:
-                // True max: average before < peak AND average after < peak
-                return beforeAvg < peakVal && afterAvg < peakVal
-            case .min:
-                // True min: average before > peak AND average after > peak
-                return beforeAvg > peakVal && afterAvg > peakVal
-            case .none:
-                // Neutral markers on monotonic slopes are also spurious.
-                // Keep only if the slope changes direction (before and after
-                // averages are on opposite sides of the peak value).
-                let risingBefore = beforeAvg < peakVal
-                let risingAfter = afterAvg > peakVal
-                let fallingBefore = beforeAvg > peakVal
-                let fallingAfter = afterAvg < peakVal
-                return (risingBefore && fallingAfter) || (fallingBefore && risingAfter)
-            }
+            guard let removeIdx = worstIndex, worstAmplitude < minAmplitude else { break }
+            selected.remove(at: removeIdx)
         }
 
         // Convert to final result
-        let result: [(point: GlucosePoint, type: ExtremumType)] =
-            allPeaks.map { peak in
-                (point: asc[peak.idx], type: peak.type)
-            }
-
-        return result
+        return selected.map { (point: asc[$0.idx], type: $0.type) }
     }
 
     // MARK: - Convenience method for GlucoseStored
@@ -397,138 +360,6 @@ enum PeakPicker {
         )
 
         return results.map { (date: $0.point.date, glucose: Int16($0.point.glucose), type: $0.type) }
-    }
-
-    // MARK: - Private helpers
-
-    /// Sliding-window extrema over a given `range` of indices.
-    /// Returns indices of maxima and minima, using the "latest among equals" rule.
-    private static func slidingWindowExtrema(
-        vals: [Double],
-        times: [Date],
-        window: TimeInterval,
-        range: Range<Int>
-    ) -> (maxIdx: [Int], minIdx: [Int]) {
-        guard !range.isEmpty else { return ([], []) }
-
-        var maxDQ: [Int] = []
-        var minDQ: [Int] = []
-        var maxHead = 0
-        var minHead = 0
-
-        @inline(__always) func maxFront() -> Int? {
-            maxHead < maxDQ.count ? maxDQ[maxHead] : nil
-        }
-
-        @inline(__always) func minFront() -> Int? {
-            minHead < minDQ.count ? minDQ[minHead] : nil
-        }
-
-        func maxPush(_ j: Int) {
-            while maxHead < maxDQ.count, vals[j] >= vals[maxDQ.last!] {
-                _ = maxDQ.popLast()
-            }
-            maxDQ.append(j)
-        }
-
-        func minPush(_ j: Int) {
-            while minHead < minDQ.count, vals[j] <= vals[minDQ.last!] {
-                _ = minDQ.popLast()
-            }
-            minDQ.append(j)
-        }
-
-        func maxPopFrontIf(_ idx: Int) {
-            if let f = maxFront(), f == idx { maxHead += 1 }
-        }
-
-        func minPopFrontIf(_ idx: Int) {
-            if let f = minFront(), f == idx { minHead += 1 }
-        }
-
-        var L = range.lowerBound
-        var R = range.lowerBound - 1
-
-        var maxIdx: [Int] = []
-        var minIdx: [Int] = []
-
-        for i in range {
-            let ti = times[i]
-
-            // expand right to include ti + window
-            while R + 1 < range.upperBound,
-                  times[R + 1].timeIntervalSince(ti) <= window
-            {
-                R += 1
-                maxPush(R)
-                minPush(R)
-            }
-
-            // shrink left to exclude ti - window
-            while L <= R,
-                  ti.timeIntervalSince(times[L]) > window
-            {
-                maxPopFrontIf(L)
-                minPopFrontIf(L)
-                L += 1
-            }
-
-            if let mf = maxFront(), mf == i {
-                maxIdx.append(i)
-            }
-            if let nf = minFront(), nf == i {
-                minIdx.append(i)
-            }
-        }
-
-        return (maxIdx, minIdx)
-    }
-
-    /// Among `candidates` (indices of extrema of given `type`), pick the one
-    /// with the strongest value (highest for maxima, lowest for minima) that is
-    /// at least `minSameTypeGap` away from every index in `existingSameType`.
-    private static func pickBestCandidateByValueRespectingSameTypeDistance(
-        candidates: [Int],
-        type: ExtremumType,
-        vals: [Double],
-        times: [Date],
-        minSameTypeGap: TimeInterval,
-        existingSameType: [Int]
-    ) -> Int? {
-        guard !candidates.isEmpty else { return nil }
-
-        var bestIdx: Int?
-
-        for i in candidates {
-            let ti = times[i]
-
-            // distance to nearest same-type peak already selected
-            var nearest: TimeInterval = .infinity
-            for j in existingSameType {
-                let dt = abs(ti.timeIntervalSince(times[j]))
-                if dt < nearest { nearest = dt }
-            }
-
-            // Enforce same-type minimal spacing
-            if nearest < minSameTypeGap {
-                continue
-            }
-
-            if let currentBestIdx = bestIdx {
-                switch type {
-                case .max:
-                    if vals[i] > vals[currentBestIdx] { bestIdx = i }
-                case .min:
-                    if vals[i] < vals[currentBestIdx] { bestIdx = i }
-                case .none:
-                    break
-                }
-            } else {
-                bestIdx = i
-            }
-        }
-
-        return bestIdx
     }
 }
 
