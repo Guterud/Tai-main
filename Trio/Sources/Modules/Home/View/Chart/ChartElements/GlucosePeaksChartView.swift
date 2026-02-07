@@ -56,11 +56,17 @@ struct GlucosePeaksChartView: ChartContent {
     }
 
     /// Returns the color for a peak label based on glucose thresholds.
+    /// Matches the coloring logic in ``GlucoseChartView``: dynamic scheme uses hardcoded
+    /// bounds (55–220) for a wider gradient, static scheme uses the user-set thresholds.
     private func peakColor(glucose: Decimal) -> Color {
-        Trio.getDynamicGlucoseColor(
+        let hardCodedLow = Decimal(55)
+        let hardCodedHigh = Decimal(220)
+        let isDynamic = glucoseColorScheme == .dynamicColor
+
+        return Trio.getDynamicGlucoseColor(
             glucoseValue: glucose,
-            highGlucoseColorValue: highGlucose,
-            lowGlucoseColorValue: lowGlucose,
+            highGlucoseColorValue: isDynamic ? hardCodedHigh : highGlucose,
+            lowGlucoseColorValue: isDynamic ? hardCodedLow : lowGlucose,
             targetGlucose: currentGlucoseTarget,
             glucoseColorScheme: glucoseColorScheme
         )

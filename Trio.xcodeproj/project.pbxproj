@@ -649,7 +649,6 @@
 		DD6F63CC2D27F615007D94CF /* TreatmentMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6F63CB2D27F606007D94CF /* TreatmentMenuView.swift */; };
 		DD73FA0F2D74F58E00D19D1E /* BackgroundTask+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD73FA0E2D74F57300D19D1E /* BackgroundTask+Helper.swift */; };
 		DD7A3F042E07A1B300C2988C /* GlucosePeaksChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7A3F032E07A1B300C2988C /* GlucosePeaksChartView.swift */; };
-		DD7A3F062E07A1B300C2988C /* GlucosePeaksChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7A3F052E07A1B300C2988C /* GlucosePeaksChartView.swift */; };
 		DD8262CB2D289297009F6F62 /* BolusConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD8262CA2D289297009F6F62 /* BolusConfirmationView.swift */; };
 		DD82D4B82DCAB2BA00BAFC77 /* PropertyPersistentFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD82D4B72DCAB2BA00BAFC77 /* PropertyPersistentFlags.swift */; };
 		DD868FD82E381A54005D3308 /* APNSJWTClaims.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD868FD72E381A54005D3308 /* APNSJWTClaims.swift */; };
@@ -1517,7 +1516,6 @@
 		DD6F63CB2D27F606007D94CF /* TreatmentMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreatmentMenuView.swift; sourceTree = "<group>"; };
 		DD73FA0E2D74F57300D19D1E /* BackgroundTask+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackgroundTask+Helper.swift"; sourceTree = "<group>"; };
 		DD7A3F032E07A1B300C2988C /* GlucosePeaksChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucosePeaksChartView.swift; sourceTree = "<group>"; };
-		DD7A3F052E07A1B300C2988C /* GlucosePeaksChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucosePeaksChartView.swift; sourceTree = "<group>"; };
 		DD8262CA2D289297009F6F62 /* BolusConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusConfirmationView.swift; sourceTree = "<group>"; };
 		DD82D4B72DCAB2BA00BAFC77 /* PropertyPersistentFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PropertyPersistentFlags.swift; sourceTree = "<group>"; };
 		DD868FD72E381A54005D3308 /* APNSJWTClaims.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APNSJWTClaims.swift; sourceTree = "<group>"; };
@@ -3192,7 +3190,6 @@
 				BDA25F212D26D62200035F34 /* BolusInputView.swift */,
 				BDA25F1F2D26D5FB00035F34 /* CarbsInputView.swift */,
 				BDA25F1D2D26D5D800035F34 /* GlucoseChartView.swift */,
-				DD7A3F052E07A1B300C2988C /* GlucosePeaksChartView.swift */,
 				DD246F052D2836AA0027DDE0 /* GlucoseTrendView.swift */,
 				BD54A9582D27FB6A00F9C1EE /* OverridePresetsView.swift */,
 				BD54A9702D281A7A00F9C1EE /* TempTargetPresetsView.swift */,
@@ -5040,7 +5037,6 @@
 				BD54A95C2D2808A300F9C1EE /* OverridePresetWatch.swift in Sources */,
 				BD54A9592D27FB7800F9C1EE /* OverridePresetsView.swift in Sources */,
 				BDA25F1E2D26D5DD00035F34 /* GlucoseChartView.swift in Sources */,
-				DD7A3F062E07A1B300C2988C /* GlucosePeaksChartView.swift in Sources */,
 				DDFF204E2DB2C00B00AB8A96 /* WatchStateSnapshot.swift in Sources */,
 				DD6F63CC2D27F615007D94CF /* TreatmentMenuView.swift in Sources */,
 				DD3A3CE72D29C93F00AE478E /* Helper+Extensions.swift in Sources */,

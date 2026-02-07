@@ -25,7 +25,8 @@ struct InsulinView: ChartContent {
                     glucoseValues: glucoseData,
                     time: bolusDate.timeIntervalSince1970
                 )?.glucose {
-                    let yPosition = (units == .mgdL ? Decimal(glucose) : Decimal(glucose).asMmolL)
+                    let yPosition = (units == .mgdL ? Decimal(glucose) : Decimal(glucose).asMmolL) + MainChartHelper
+                        .bolusOffset(units: units)
                     let size = (sqrt(CGFloat(amount) / .pi) * MainChartHelper.Config.bolusScale * 2)
 
                     PointMark(
@@ -64,7 +65,7 @@ struct InsulinView: ChartContent {
                             .bolusScale
                     )
                     let yPosition = (units == .mgdL ? Decimal(glucose) : Decimal(glucose).asMmolL) + MainChartHelper
-                        .bolusOffset(units: units)
+                        .bolusOffset(units: units) * 2
 
                     PointMark(
                         x: .value("Time", bolusDate, unit: .second),

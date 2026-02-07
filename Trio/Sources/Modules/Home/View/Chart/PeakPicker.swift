@@ -65,6 +65,10 @@ enum PeakPicker {
     ///     gaps may receive two secondary extrema, and when neutral extrema are added.
     ///   - minSameTypeGapFactor: Minimum spacing between same-type extrema,
     ///     expressed as a multiple of *W*.
+    ///   - minAmplitude: Minimum glucose difference (in mg/dL) between a peak
+    ///     and its nearest neighbour peak for the peak to be kept. Peaks whose
+    ///     amplitude relative to both neighbours is below this threshold are
+    ///     discarded. Set to 0 to disable.
     ///
     /// - Returns: An array of `(point: GlucosePoint, type: ExtremumType)`
     ///            sorted by timestamp ascending.
@@ -73,7 +77,8 @@ enum PeakPicker {
         windowHours: Double = 1,
         secondaryWindowFactor: Double = 1.0 / 3.0,
         oppositeGapFactor: Double = 1.9,
-        minSameTypeGapFactor: Double = 0.8
+        minSameTypeGapFactor: Double = 0.8,
+        minAmplitude: Double = 25
     ) -> [(point: GlucosePoint, type: ExtremumType)] {
         let W: TimeInterval = windowHours * 3600
         let secondaryW: TimeInterval = W * secondaryWindowFactor
@@ -292,6 +297,54 @@ enum PeakPicker {
         allPeaks.append(contentsOf: neutralPeaks)
         allPeaks.sort { times[$0.idx] < times[$1.idx] }
 
+        // MARK: - Phase 4: amplitude filter
+
+        // Remove peaks that don't differ from both neighbours by at least
+        // `minAmplitude` mg/dL. Iterates until no more removals occur so that
+        // cascading small peaks are cleaned up.
+        if minAmplitude > 0, allPeaks.count > 1 {
+            var changed = true
+            while changed {
+                changed = false
+                var filtered: [Peak] = []
+
+                for i in 0 ..< allPeaks.count {
+                    let peak = allPeaks[i]
+
+                    // Neutral markers are not amplitude-checked
+                    if peak.type == .none {
+                        filtered.append(peak)
+                        continue
+                    }
+
+                    let leftDiff: Double
+                    let rightDiff: Double
+
+                    if i > 0 {
+                        leftDiff = abs(vals[peak.idx] - vals[allPeaks[i - 1].idx])
+                    } else {
+                        leftDiff = .infinity // keep edge peaks
+                    }
+
+                    if i < allPeaks.count - 1 {
+                        rightDiff = abs(vals[peak.idx] - vals[allPeaks[i + 1].idx])
+                    } else {
+                        rightDiff = .infinity // keep edge peaks
+                    }
+
+                    // Keep if the peak differs from at least one neighbour
+                    // by the minimum amplitude
+                    if max(leftDiff, rightDiff) >= minAmplitude {
+                        filtered.append(peak)
+                    } else {
+                        changed = true
+                    }
+                }
+
+                allPeaks = filtered
+            }
+        }
+
         // Convert to final result
         let result: [(point: GlucosePoint, type: ExtremumType)] =
             allPeaks.map { peak in
@@ -309,7 +362,8 @@ enum PeakPicker {
         windowHours: Double = 1,
         secondaryWindowFactor: Double = 1.0 / 3.0,
         oppositeGapFactor: Double = 1.9,
-        minSameTypeGapFactor: Double = 0.8
+        minSameTypeGapFactor: Double = 0.8,
+        minAmplitude: Double = 25
     ) -> [(date: Date, glucose: Int16, type: ExtremumType)] {
         let points = data.compactMap { g -> GlucosePoint? in
             guard let date = g.date else { return nil }
@@ -321,7 +375,8 @@ enum PeakPicker {
             windowHours: windowHours,
             secondaryWindowFactor: secondaryWindowFactor,
             oppositeGapFactor: oppositeGapFactor,
-            minSameTypeGapFactor: minSameTypeGapFactor
+            minSameTypeGapFactor: minSameTypeGapFactor,
+            minAmplitude: minAmplitude
         )
 
         return results.map { (date: $0.point.date, glucose: Int16($0.point.glucose), type: $0.type) }
